@@ -13,10 +13,10 @@ const icons: Record<ToastType, ReactNode> = {
 }
 
 const styles: Record<ToastType, string> = {
-  success: 'bg-[rgba(16,185,129,0.15)] border-[rgba(16,185,129,0.3)] text-[#10b981]',
-  error: 'bg-[rgba(244,63,94,0.15)] border-[rgba(244,63,94,0.3)] text-[#f43f5e]',
-  warning: 'bg-[rgba(245,158,11,0.15)] border-[rgba(245,158,11,0.3)] text-[#f59e0b]',
-  info: 'bg-[rgba(59,130,246,0.15)] border-[rgba(59,130,246,0.3)] text-[#3b82f6]',
+  success: 'bg-[var(--success-bg)] border-[var(--success-border)] text-[var(--success)]',
+  error: 'bg-[var(--error-bg)] border-[var(--error-border)] text-[var(--error)]',
+  warning: 'bg-[var(--warning-bg)] border-[var(--warning-border)] text-[var(--warning)]',
+  info: 'bg-[var(--info-bg)] border-[var(--info-border)] text-[var(--info)]',
 }
 
 export function ToastContainer() {
@@ -35,19 +35,18 @@ export function ToastContainer() {
             transition={{ type: 'spring', stiffness: 380, damping: 28 }}
             className={cn(
               'pointer-events-auto min-w-[260px] max-w-[340px] rounded-xl border p-3.5',
-              'flex items-start gap-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)]',
-              'backdrop-blur-xl bg-opacity-90',
+              'flex items-start gap-3 shadow-[var(--shadow-md)] bg-[var(--bg)]',
               styles[toast.type]
             )}
           >
             <span className="flex-shrink-0 mt-0.5">{icons[toast.type]}</span>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#f0f0f5]">{toast.title}</p>
-              {toast.description && <p className="text-xs text-[#8888a0] mt-0.5">{toast.description}</p>}
+              <p className="text-sm font-semibold text-[var(--text)]">{toast.title}</p>
+              {toast.description && <p className="text-xs text-[var(--text-3)] mt-0.5">{toast.description}</p>}
             </div>
             <button
               onClick={() => removeToast(toast.id)}
-              className="flex-shrink-0 text-[#55556a] hover:text-[#8888a0] transition-colors"
+              className="flex-shrink-0 text-[var(--text-4)] hover:text-[var(--text-2)] transition-colors"
             >
               <X size={14} />
             </button>

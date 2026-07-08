@@ -45,7 +45,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] pb-24 px-4 max-w-5xl mx-auto w-full pt-4">
+    <div className="min-h-screen bg-[var(--bg)] pb-10 px-4 max-w-5xl mx-auto w-full pt-4">
       {/* Hero / Header Section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between pb-6 border-b border-[var(--border)] mb-6 gap-4">
         <div>

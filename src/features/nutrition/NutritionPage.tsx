@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Droplets, Plus, Flame } from 'lucide-react'
+import { Droplets, Plus, Flame, Utensils, Coffee, Apple, Zap, Activity } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -8,45 +8,113 @@ import { Button } from '@/components/ui/Button'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { ProgressBar, ProgressRing } from '@/components/ui/ProgressRing'
 import { FAB } from '@/components/ui/FAB'
+import { Modal } from '@/components/ui/Modal'
+import { Input, Select } from '@/components/ui/Input'
 
-const meals = [
-  {
-    id: '1', type: 'Breakfast', time: '7:30 AM', name: 'Oats with Banana & Nuts',
-    calories: 420, protein: 18, carbs: 65, fat: 12, emoji: '🥣',
-  },
-  {
-    id: '2', type: 'Lunch', time: '1:00 PM', name: 'Chicken Rice Bowl',
-    calories: 680, protein: 52, carbs: 72, fat: 18, emoji: '🍱',
-  },
-  {
-    id: '3', type: 'Snack', time: '4:00 PM', name: 'Greek Yogurt + Almonds',
-    calories: 280, protein: 20, carbs: 18, fat: 14, emoji: '🥛',
-  },
-  {
-    id: '4', type: 'Pre-workout', time: '5:30 PM', name: 'Banana + Whey Shake',
-    calories: 260, protein: 30, carbs: 32, fat: 2, emoji: '🍌',
-  },
+interface Meal {
+  id: string
+  type: string
+  time: string
+  name: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}
+
+const DEFAULT_MEALS: Meal[] = [
+  { id: '1', type: 'Breakfast', time: '7:30 AM', name: 'Oats with Banana & Nuts', calories: 420, protein: 18, carbs: 65, fat: 12 },
+  { id: '2', type: 'Lunch', time: '1:00 PM', name: 'Chicken Rice Bowl', calories: 680, protein: 52, carbs: 72, fat: 18 },
+  { id: '3', type: 'Snack', time: '4:00 PM', name: 'Greek Yogurt + Almonds', calories: 280, protein: 20, carbs: 18, fat: 14 },
+  { id: '4', type: 'Pre-workout', time: '5:30 PM', name: 'Banana + Whey Shake', calories: 260, protein: 30, carbs: 32, fat: 2 },
 ]
 
 const goals = { calories: 2200, protein: 160, carbs: 250, fat: 65, water: 3000 }
-const totals = meals.reduce((acc, m) => ({
-  calories: acc.calories + m.calories,
-  protein: acc.protein + m.protein,
-  carbs: acc.carbs + m.carbs,
-  fat: acc.fat + m.fat,
-}), { calories: 0, protein: 0, carbs: 0, fat: 0 })
 
 const mealTypeColors: Record<string, string> = {
-  Breakfast: '#f59e0b',
-  Lunch: '#10b981',
-  Snack: '#7c6aff',
-  Dinner: '#f97316',
-  'Pre-workout': '#06b6d4',
-  'Post-workout': '#8b5cf6',
+  Breakfast: '#d97706',
+  Lunch: '#16a34a',
+  Snack: 'var(--accent)',
+  Dinner: '#ea580c',
+  'Pre-workout': '#0284c7',
+  'Post-workout': '#7c3aed',
+}
+
+const mealTypeIcons: Record<string, React.ComponentType<any>> = {
+  Breakfast: Coffee,
+  Lunch: Utensils,
+  Dinner: Utensils,
+  Snack: Apple,
+  'Pre-workout': Zap,
+  'Post-workout': Activity,
 }
 
 export default function NutritionPage() {
-  const [water, setWater] = useState(1800)
+  const [meals, setMeals] = useState<Meal[]>(() => {
+    const saved = localStorage.getItem('ihsanos_meals')
+    return saved ? JSON.parse(saved) : DEFAULT_MEALS
+  })
+
+  const [water, setWater] = useState(() => {
+    const saved = localStorage.getItem('ihsanos_water')
+    return saved ? Number(saved) : 1800
+  })
+
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [type, setType] = useState('Breakfast')
+  const [calories, setCalories] = useState('')
+  const [protein, setProtein] = useState('')
+  const [carbs, setCarbs] = useState('')
+  const [fat, setFat] = useState('')
+
+  const persistMeals = (updated: Meal[]) => {
+    setMeals(updated)
+    localStorage.setItem('ihsanos_meals', JSON.stringify(updated))
+  }
+
+  const persistWater = (val: number) => {
+    setWater(val)
+    localStorage.setItem('ihsanos_water', String(val))
+  }
+
+  const totals = meals.reduce((acc, m) => ({
+    calories: acc.calories + m.calories,
+    protein: acc.protein + m.protein,
+    carbs: acc.carbs + m.carbs,
+    fat: acc.fat + m.fat,
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
+
+  const handleAddMeal = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name.trim()) return
+
+    const now = new Date()
+    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+
+    const newMeal: Meal = {
+      id: Date.now().toString(),
+      type,
+      time: timeStr,
+      name: name.trim(),
+      calories: Number(calories) || 300,
+      protein: Number(protein) || 20,
+      carbs: Number(carbs) || 30,
+      fat: Number(fat) || 10,
+    }
+
+    persistMeals([...meals, newMeal])
+    setIsModalOpen(false)
+
+    // Reset Form
+    setName('')
+    setType('Breakfast')
+    setCalories('')
+    setProtein('')
+    setCarbs('')
+    setFat('')
+  }
+
   const waterGoal = goals.water
   const waterGlasses = Math.round(water / 250)
 
@@ -61,28 +129,28 @@ export default function NutritionPage() {
               max={goals.calories}
               size={88}
               strokeWidth={7}
-              color="#f97316"
+              color="#ea580c"
             >
               <div className="flex flex-col items-center">
-                <span className="text-sm font-bold text-[#f0f0f5]">{totals.calories}</span>
-                <span className="text-[8px] text-[#55556a]">eaten</span>
+                <span className="text-sm font-bold text-[var(--text)]">{totals.calories}</span>
+                <span className="text-[8px] text-[var(--text-3)] uppercase tracking-wider font-semibold">eaten</span>
               </div>
             </ProgressRing>
             <div className="flex-1">
               <div className="flex items-center gap-1 mb-1">
-                <Flame size={14} className="text-[#f97316]" />
-                <p className="text-sm font-semibold text-[#f0f0f5]">{goals.calories - totals.calories} kcal remaining</p>
+                <Flame size={14} className="text-[#ea580c]" />
+                <p className="text-sm font-semibold text-[var(--text)]">{goals.calories - totals.calories} kcal remaining</p>
               </div>
               <div className="flex flex-col gap-2">
                 {[
-                  { label: 'Protein', value: totals.protein, goal: goals.protein, color: '#7c6aff', unit: 'g' },
-                  { label: 'Carbs', value: totals.carbs, goal: goals.carbs, color: '#10b981', unit: 'g' },
-                  { label: 'Fat', value: totals.fat, goal: goals.fat, color: '#f59e0b', unit: 'g' },
+                  { label: 'Protein', value: totals.protein, goal: goals.protein, color: 'var(--accent)', unit: 'g' },
+                  { label: 'Carbs', value: totals.carbs, goal: goals.carbs, color: '#16a34a', unit: 'g' },
+                  { label: 'Fat', value: totals.fat, goal: goals.fat, color: '#d97706', unit: 'g' },
                 ].map(macro => (
                   <div key={macro.label}>
                     <div className="flex justify-between text-[10px] mb-0.5">
-                      <span className="text-[#55556a]">{macro.label}</span>
-                      <span className="text-[#f0f0f5]">{macro.value}/{macro.goal}{macro.unit}</span>
+                      <span className="text-[var(--text-3)] font-medium">{macro.label}</span>
+                      <span className="text-[var(--text)] font-semibold">{macro.value}/{macro.goal}{macro.unit}</span>
                     </div>
                     <ProgressBar value={macro.value} max={macro.goal} color={macro.color} height={3} />
                   </div>
@@ -98,19 +166,22 @@ export default function NutritionPage() {
         <SectionHeader title="Water Intake" subtitle={`${water}ml of ${waterGoal}ml`} />
         <Card>
           <div className="flex items-center gap-3 mb-3">
-            <Droplets size={20} className="text-[#06b6d4]" />
+            <Droplets size={20} className="text-[#0284c7]" />
             <div className="flex-1">
-              <ProgressBar value={water} max={waterGoal} color="#06b6d4" height={6} />
+              <ProgressBar value={water} max={waterGoal} color="#0284c7" height={6} />
             </div>
-            <span className="text-sm font-semibold text-[#f0f0f5]">{Math.round((water / waterGoal) * 100)}%</span>
+            <span className="text-sm font-bold text-[var(--text)]">{Math.round((water / waterGoal) * 100)}%</span>
           </div>
           <div className="flex gap-1.5 mb-3">
             {Array.from({ length: 12 }).map((_, i) => (
               <div
                 key={i}
-                className="flex-1 h-8 rounded-lg cursor-pointer transition-all"
-                style={{ backgroundColor: i < waterGlasses ? '#06b6d4' : 'rgba(255,255,255,0.04)' }}
-                onClick={() => setWater(Math.min(waterGoal, (i + 1) * 250))}
+                className="flex-1 h-8 rounded-lg cursor-pointer border transition-all"
+                style={{
+                  backgroundColor: i < waterGlasses ? '#0284c7' : 'transparent',
+                  borderColor: i < waterGlasses ? '#0284c7' : 'var(--border)',
+                }}
+                onClick={() => persistWater(Math.min(waterGoal, (i + 1) * 250))}
               />
             ))}
           </div>
@@ -120,7 +191,7 @@ export default function NutritionPage() {
                 key={ml}
                 variant="secondary"
                 size="sm"
-                onClick={() => setWater(v => Math.min(v + ml, waterGoal))}
+                onClick={() => persistWater(Math.min(water + ml, waterGoal))}
                 className="flex-1"
                 icon={<Droplets size={12} />}
               >
@@ -134,39 +205,44 @@ export default function NutritionPage() {
       {/* Meals */}
       <div className="mb-5">
         <SectionHeader title="Today's Meals" action={
-          <Button variant="ghost" size="sm" icon={<Plus size={12} />}>Add Meal</Button>
+          <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Add Meal</Button>
         } />
         <div className="flex flex-col gap-3">
-          {meals.map((meal, i) => (
-            <motion.div
-              key={meal.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06 }}
-            >
-              <Card hover>
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{meal.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <Badge size="sm" style={{ backgroundColor: `${mealTypeColors[meal.type]}15`, color: mealTypeColors[meal.type] }}>
-                        {meal.type}
-                      </Badge>
-                      <span className="text-[10px] text-[#55556a]">{meal.time}</span>
+          {meals.map((meal, i) => {
+            const MealIcon = mealTypeIcons[meal.type] || Utensils
+            return (
+              <motion.div
+                key={meal.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+              >
+                <Card hover>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--bg-subtle)] border border-[var(--border)]" style={{ color: mealTypeColors[meal.type] }}>
+                      <MealIcon size={18} />
                     </div>
-                    <p className="text-sm font-medium text-[#f0f0f5] truncate">{meal.name}</p>
-                    <p className="text-[10px] text-[#55556a] mt-0.5">
-                      P:{meal.protein}g · C:{meal.carbs}g · F:{meal.fat}g
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Badge size="sm" style={{ backgroundColor: `${mealTypeColors[meal.type]}15`, color: mealTypeColors[meal.type] }}>
+                          {meal.type}
+                        </Badge>
+                        <span className="text-[10px] text-[var(--text-3)] font-medium">{meal.time}</span>
+                      </div>
+                      <p className="text-sm font-semibold text-[var(--text)] truncate">{meal.name}</p>
+                      <p className="text-[10px] text-[var(--text-3)] font-medium mt-0.5">
+                        P: {meal.protein}g · C: {meal.carbs}g · F: {meal.fat}g
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <p className="text-sm font-bold text-[var(--text)]">{meal.calories}</p>
+                      <p className="text-[10px] text-[var(--text-3)] font-medium uppercase tracking-wider">kcal</p>
+                    </div>
                   </div>
-                  <div className="flex-shrink-0 text-right">
-                    <p className="text-sm font-bold text-[#f0f0f5]">{meal.calories}</p>
-                    <p className="text-[10px] text-[#55556a]">kcal</p>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
+                </Card>
+              </motion.div>
+            )
+          })}
         </div>
       </div>
 
@@ -176,9 +252,9 @@ export default function NutritionPage() {
         <Card>
           <div className="grid grid-cols-3 gap-4 text-center">
             {[
-              { label: 'Protein', value: totals.protein, goal: goals.protein, color: '#7c6aff' },
-              { label: 'Carbs', value: totals.carbs, goal: goals.carbs, color: '#10b981' },
-              { label: 'Fat', value: totals.fat, goal: goals.fat, color: '#f59e0b' },
+              { label: 'Protein', value: totals.protein, goal: goals.protein, color: 'var(--accent)' },
+              { label: 'Carbs', value: totals.carbs, goal: goals.carbs, color: '#16a34a' },
+              { label: 'Fat', value: totals.fat, goal: goals.fat, color: '#d97706' },
             ].map(macro => (
               <div key={macro.label} className="flex flex-col items-center gap-2">
                 <ProgressRing
@@ -190,8 +266,8 @@ export default function NutritionPage() {
                   showValue
                 />
                 <div>
-                  <p className="text-sm font-bold text-[#f0f0f5]">{macro.value}g</p>
-                  <p className="text-[10px] text-[#55556a]">{macro.label}</p>
+                  <p className="text-sm font-bold text-[var(--text)]">{macro.value}g</p>
+                  <p className="text-[10px] text-[var(--text-3)] font-medium">{macro.label}</p>
                 </div>
               </div>
             ))}
@@ -199,7 +275,78 @@ export default function NutritionPage() {
         </Card>
       </div>
 
-      <FAB onClick={() => {}} />
+      <FAB onClick={() => setIsModalOpen(true)} label="Add Meal" extended />
+
+      {/* Add Meal Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Meal">
+        <form onSubmit={handleAddMeal} className="flex flex-col gap-4">
+          <Input
+            label="Meal Name"
+            placeholder="e.g. Rice with Grilled Chicken"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            required
+            autoFocus
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Meal Type"
+              value={type}
+              onChange={e => setType(e.target.value)}
+              options={[
+                { value: 'Breakfast', label: 'Breakfast' },
+                { value: 'Lunch', label: 'Lunch' },
+                { value: 'Dinner', label: 'Dinner' },
+                { value: 'Snack', label: 'Snack' },
+                { value: 'Pre-workout', label: 'Pre-workout' },
+                { value: 'Post-workout', label: 'Post-workout' },
+              ]}
+            />
+            <Input
+              label="Calories (kcal)"
+              placeholder="e.g. 450"
+              type="number"
+              value={calories}
+              onChange={e => setCalories(e.target.value)}
+              required
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Input
+              label="Protein (g)"
+              placeholder="e.g. 30"
+              type="number"
+              value={protein}
+              onChange={e => setProtein(e.target.value)}
+              required
+            />
+            <Input
+              label="Carbs (g)"
+              placeholder="e.g. 50"
+              type="number"
+              value={carbs}
+              onChange={e => setCarbs(e.target.value)}
+              required
+            />
+            <Input
+              label="Fat (g)"
+              placeholder="e.g. 10"
+              type="number"
+              value={fat}
+              onChange={e => setFat(e.target.value)}
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              Save Meal
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </PageWrapper>
   )
 }

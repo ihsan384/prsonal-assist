@@ -22,7 +22,7 @@ export function StatCard({
   value,
   unit,
   icon,
-  color = '#7c6aff',
+  color = 'var(--accent)',
   progress,
   progressMax = 100,
   change,
@@ -36,9 +36,9 @@ export function StatCard({
   return (
     <motion.div
       className={cn(
-        'rounded-2xl bg-[#111118] border border-[rgba(255,255,255,0.06)] p-4',
-        'shadow-[0_1px_3px_rgba(0,0,0,0.4)]',
-        onClick && 'cursor-pointer hover:border-[rgba(255,255,255,0.12)] hover:bg-[#13131e] transition-all',
+        'rounded-2xl bg-[var(--bg)] border border-[var(--border)] p-4',
+        'shadow-[var(--shadow-sm)]',
+        onClick && 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-[var(--bg-subtle)] transition-all',
         className
       )}
       onClick={onClick}
@@ -47,11 +47,11 @@ export function StatCard({
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
     >
       <div className="flex items-start justify-between mb-3">
-        <p className="text-xs font-medium text-[#8888a0] uppercase tracking-wider">{title}</p>
+        <p className="text-xs font-medium text-[var(--text-3)] uppercase tracking-wider">{title}</p>
         {icon && (
           <div
             className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: `${color}20`, color }}
+            style={{ backgroundColor: color.startsWith('var') ? 'var(--accent-bg)' : `${color}20`, color }}
           >
             {icon}
           </div>
@@ -59,14 +59,14 @@ export function StatCard({
       </div>
 
       <div className="flex items-end gap-1.5 mb-1">
-        <span className="text-2xl font-bold text-[#f0f0f5] leading-none">{value}</span>
-        {unit && <span className="text-sm text-[#8888a0] mb-0.5">{unit}</span>}
+        <span className="text-2xl font-bold text-[var(--text)] leading-none">{value}</span>
+        {unit && <span className="text-sm text-[var(--text-3)] mb-0.5">{unit}</span>}
       </div>
 
-      {subtitle && <p className="text-xs text-[#8888a0] mb-2">{subtitle}</p>}
+      {subtitle && <p className="text-xs text-[var(--text-3)] mb-2">{subtitle}</p>}
 
       {change && (
-        <p className={cn('text-xs font-medium mb-2', isPositive ? 'text-[#10b981]' : isNegative ? 'text-[#f43f5e]' : 'text-[#8888a0]')}>
+        <p className={cn('text-xs font-medium mb-2', isPositive ? 'text-[var(--success)]' : isNegative ? 'text-[var(--error)]' : 'text-[var(--text-3)]')}>
           {isPositive ? '↑' : isNegative ? '↓' : '→'} {Math.abs(change.value)}{change.label ? ` ${change.label}` : ''}
         </p>
       )}

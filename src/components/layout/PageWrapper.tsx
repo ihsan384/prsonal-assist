@@ -13,7 +13,7 @@ export function PageWrapper({ children, className, padBottom = true }: PageWrapp
     <motion.div
       className={cn(
         'min-h-[calc(100dvh-56px)] px-4 py-5 max-w-5xl mx-auto w-full flex flex-col gap-5',
-        padBottom && 'pb-24 lg:pb-10',
+        padBottom && 'pb-10',
         className
       )}
       initial={{ opacity: 0, y: 6 }}

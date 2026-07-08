@@ -18,10 +18,10 @@ interface DialogProps {
 }
 
 const variantConfig = {
-  danger: { icon: <AlertCircle size={24} />, color: '#f43f5e', bg: 'rgba(244,63,94,0.15)', btnVariant: 'destructive' as const },
-  warning: { icon: <AlertCircle size={24} />, color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', btnVariant: 'primary' as const },
-  info: { icon: <HelpCircle size={24} />, color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', btnVariant: 'primary' as const },
-  success: { icon: <CheckCircle size={24} />, color: '#10b981', bg: 'rgba(16,185,129,0.15)', btnVariant: 'primary' as const },
+  danger: { icon: <AlertCircle size={24} />, color: 'var(--error)', bg: 'var(--error-bg)', btnVariant: 'destructive' as const },
+  warning: { icon: <AlertCircle size={24} />, color: 'var(--warning)', bg: 'var(--warning-bg)', btnVariant: 'primary' as const },
+  info: { icon: <HelpCircle size={24} />, color: 'var(--info)', bg: 'var(--info-bg)', btnVariant: 'primary' as const },
+  success: { icon: <CheckCircle size={24} />, color: 'var(--success)', bg: 'var(--success-bg)', btnVariant: 'primary' as const },
 }
 
 export function Dialog({
@@ -42,14 +42,14 @@ export function Dialog({
     <Modal isOpen={isOpen} onClose={onClose} size="sm">
       <div className="flex flex-col items-center text-center gap-4">
         <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center"
+          className="w-14 h-14 rounded-2xl flex items-center justify-center animate-fade-in"
           style={{ backgroundColor: config.bg, color: config.color }}
         >
           {icon ?? config.icon}
         </div>
         <div>
-          <h3 className="text-base font-semibold text-[#f0f0f5]">{title}</h3>
-          {description && <p className="text-sm text-[#8888a0] mt-1">{description}</p>}
+          <h3 className="text-base font-semibold text-[var(--text)]">{title}</h3>
+          {description && <p className="text-sm text-[var(--text-3)] mt-1">{description}</p>}
         </div>
         <div className="flex gap-3 w-full">
           <Button variant="secondary" fullWidth onClick={onClose} disabled={loading}>

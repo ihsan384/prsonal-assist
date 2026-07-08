@@ -1,6 +1,6 @@
-import { type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
-import { BottomNav } from './BottomNav'
+import { MobileDrawer } from './MobileDrawer'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { ToastContainer } from '../ui/Toast'
@@ -10,6 +10,8 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+
   return (
     <div className="flex h-screen bg-[var(--bg)] overflow-hidden">
       {/* Desktop Sidebar */}
@@ -18,7 +20,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile / Global Top Bar */}
-        <TopBar />
+        <TopBar onMenuClick={() => setIsDrawerOpen(true)} />
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -26,8 +28,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <BottomNav />
+      {/* Mobile Slide-out Drawer */}
+      <MobileDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
 
       {/* Toast Notifications */}
       <ToastContainer />

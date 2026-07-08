@@ -28,7 +28,7 @@ export function BottomSheet({ isOpen, onClose, title, children, className }: Bot
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-end">
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -36,8 +36,8 @@ export function BottomSheet({ isOpen, onClose, title, children, className }: Bot
           />
           <motion.div
             className={cn(
-              'relative w-full bg-[#18181f] rounded-t-3xl border-t border-[rgba(255,255,255,0.08)]',
-              'shadow-[0_-8px_40px_rgba(0,0,0,0.5)] max-h-[92dvh] overflow-y-auto',
+              'relative w-full bg-[var(--bg)] rounded-t-3xl border-t border-[var(--border)]',
+              'shadow-[var(--shadow-lg)] max-h-[92dvh] overflow-y-auto',
               'pb-[env(safe-area-inset-bottom,0px)]',
               className
             )}
@@ -48,12 +48,12 @@ export function BottomSheet({ isOpen, onClose, title, children, className }: Bot
           >
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-[rgba(255,255,255,0.12)]" />
+              <div className="w-10 h-1 rounded-full bg-[var(--border-strong)]" />
             </div>
 
             {title && (
-              <div className="flex items-center justify-between px-5 py-3 border-b border-[rgba(255,255,255,0.06)]">
-                <h3 className="text-base font-semibold text-[#f0f0f5]">{title}</h3>
+              <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]">
+                <h3 className="text-base font-semibold text-[var(--text)]">{title}</h3>
                 <Button variant="ghost" size="icon" onClick={onClose}>
                   <X size={16} />
                 </Button>
@@ -100,7 +100,7 @@ export function Drawer({ isOpen, onClose, title, children, side = 'left', classN
       {isOpen && (
         <div className={cn('fixed inset-0 z-50 flex', side === 'right' && 'justify-end')}>
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -108,7 +108,7 @@ export function Drawer({ isOpen, onClose, title, children, side = 'left', classN
           />
           <motion.div
             className={cn(
-              'relative h-full bg-[#18181f] border-[rgba(255,255,255,0.08)] overflow-y-auto w-72',
+              'relative h-full bg-[var(--bg)] border-[var(--border)] overflow-y-auto w-72',
               side === 'left' ? 'border-r rounded-r-2xl' : 'border-l rounded-l-2xl',
               className
             )}
@@ -118,8 +118,8 @@ export function Drawer({ isOpen, onClose, title, children, side = 'left', classN
             transition={{ type: 'spring', stiffness: 350, damping: 32 }}
           >
             {title && (
-              <div className="flex items-center justify-between p-5 border-b border-[rgba(255,255,255,0.06)]">
-                <h3 className="text-base font-semibold text-[#f0f0f5]">{title}</h3>
+              <div className="flex items-center justify-between p-5 border-b border-[var(--border)]">
+                <h3 className="text-base font-semibold text-[var(--text)]">{title}</h3>
                 <Button variant="ghost" size="icon" onClick={onClose}>
                   <X size={16} />
                 </Button>

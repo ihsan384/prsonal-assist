@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Moon, Bell, Volume2, Vibrate, Clock, Calendar,
+  Bell, Volume2, Vibrate, Clock, Calendar,
   Palette, Trash2, ChevronRight, Shield, Database, Info,
+  BookOpen, Droplet, Moon, Flame
 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
@@ -19,7 +20,7 @@ function Toggle({ enabled, onToggle }: ToggleProps) {
   return (
     <button
       onClick={onToggle}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${enabled ? 'bg-[#7c6aff]' : 'bg-[rgba(255,255,255,0.1)]'}`}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${enabled ? 'bg-[var(--accent)]' : 'bg-[var(--border-strong)]'}`}
     >
       <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200 ${enabled ? 'left-6' : 'left-1'}`} />
     </button>
@@ -28,7 +29,6 @@ function Toggle({ enabled, onToggle }: ToggleProps) {
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
-    darkMode: true,
     notifications: true,
     sound: true,
     haptic: true,
@@ -45,7 +45,6 @@ export default function SettingsPage() {
     {
       title: 'Appearance',
       items: [
-        { icon: Moon, label: 'Dark Mode', description: 'Use dark theme', key: 'darkMode' as const },
         { icon: Palette, label: 'Compact Mode', description: 'Reduce spacing', key: 'compactMode' as const },
       ],
     },
@@ -72,12 +71,12 @@ export default function SettingsPage() {
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
         <Card>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl gradient-accent flex items-center justify-center text-white font-bold text-lg">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[var(--accent)] to-blue-400 flex items-center justify-center text-white font-bold text-lg">
               I
             </div>
             <div>
-              <p className="text-base font-bold text-[#f0f0f5]">Ihsan OS</p>
-              <p className="text-xs text-[#55556a]">Version 1.0.0 · Phase 1</p>
+              <p className="text-base font-bold text-[var(--text)]">Ihsan OS</p>
+              <p className="text-xs text-[var(--text-3)]">Version 1.0.0 · Phase 1</p>
               <Badge variant="violet" size="sm" className="mt-1">Personal Build</Badge>
             </div>
           </div>
@@ -94,15 +93,15 @@ export default function SettingsPage() {
             transition={{ delay: si * 0.05 }}
           >
             <Card padding="none">
-              <div className="divide-y divide-[rgba(255,255,255,0.04)]">
+              <div className="divide-y divide-[var(--border)]">
                 {section.items.map(item => (
                   <div key={item.key} className="flex items-center gap-3 px-4 py-3.5">
-                    <div className="w-8 h-8 rounded-xl bg-[rgba(124,106,255,0.1)] flex items-center justify-center flex-shrink-0">
-                      <item.icon size={16} className="text-[#7c6aff]" />
+                    <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0">
+                      <item.icon size={16} className="text-[var(--accent)]" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#f0f0f5]">{item.label}</p>
-                      <p className="text-xs text-[#55556a]">{item.description}</p>
+                      <p className="text-sm font-medium text-[var(--text)]">{item.label}</p>
+                      <p className="text-xs text-[var(--text-3)]">{item.description}</p>
                     </div>
                     <Toggle enabled={settings[item.key]} onToggle={() => toggle(item.key)} />
                   </div>
@@ -119,22 +118,25 @@ export default function SettingsPage() {
         <Card>
           <div className="flex flex-col gap-4">
             {[
-              { label: 'Study Goal', value: '6 hours', icon: '📚' },
-              { label: 'Water Goal', value: '3000 ml', icon: '💧' },
-              { label: 'Sleep Goal', value: '8 hours', icon: '🌙' },
-              { label: 'Calorie Goal', value: '2200 kcal', icon: '🔥' },
-            ].map(goal => (
-              <div key={goal.label} className="flex items-center gap-3">
-                <span className="text-lg">{goal.icon}</span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-[#f0f0f5]">{goal.label}</p>
+              { label: 'Study Goal', value: '6 hours', icon: BookOpen },
+              { label: 'Water Goal', value: '3000 ml', icon: Droplet },
+              { label: 'Sleep Goal', value: '8 hours', icon: Moon },
+              { label: 'Calorie Goal', value: '2200 kcal', icon: Flame },
+            ].map(goal => {
+              const GoalIcon = goal.icon
+              return (
+                <div key={goal.label} className="flex items-center gap-3">
+                  <GoalIcon size={18} className="text-[var(--text-3)]" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[var(--text)]">{goal.label}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-[var(--accent)] font-semibold">{goal.value}</span>
+                    <ChevronRight size={14} className="text-[var(--text-3)]" />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-[#7c6aff] font-semibold">{goal.value}</span>
-                  <ChevronRight size={14} className="text-[#55556a]" />
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </Card>
       </div>
@@ -143,7 +145,7 @@ export default function SettingsPage() {
       <div className="mb-5">
         <SectionHeader title="Data & Privacy" />
         <Card padding="none">
-          <div className="divide-y divide-[rgba(255,255,255,0.04)]">
+          <div className="divide-y divide-[var(--border)]">
             {[
               { icon: Database, label: 'Export Data', description: 'Download all your data as JSON', action: () => {} },
               { icon: Shield, label: 'Privacy Policy', description: 'No data leaves your device', action: () => {} },
@@ -152,16 +154,16 @@ export default function SettingsPage() {
               <button
                 key={item.label}
                 onClick={item.action}
-                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--bg-hover)] transition-colors"
               >
-                <div className="w-8 h-8 rounded-xl bg-[rgba(255,255,255,0.04)] flex items-center justify-center flex-shrink-0">
-                  <item.icon size={16} className="text-[#55556a]" />
+                <div className="w-8 h-8 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border)] flex items-center justify-center flex-shrink-0">
+                  <item.icon size={16} className="text-[var(--text-3)]" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-[#f0f0f5]">{item.label}</p>
-                  <p className="text-xs text-[#55556a]">{item.description}</p>
+                  <p className="text-sm font-medium text-[var(--text)]">{item.label}</p>
+                  <p className="text-xs text-[var(--text-3)]">{item.description}</p>
                 </div>
-                <ChevronRight size={14} className="text-[#55556a]" />
+                <ChevronRight size={14} className="text-[var(--text-3)]" />
               </button>
             ))}
           </div>
@@ -179,7 +181,7 @@ export default function SettingsPage() {
           >
             Clear All Data
           </Button>
-          <p className="text-xs text-[#55556a] text-center mt-2">This action cannot be undone</p>
+          <p className="text-xs text-[var(--text-3)] text-center mt-2">This action cannot be undone</p>
         </Card>
       </div>
     </PageWrapper>

@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, type ReactNode } from 'react'
 
-type Theme = 'light' | 'dark'
+type Theme = 'light'
 
 interface ThemeContextValue {
   theme: Theme
@@ -11,27 +11,20 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'light'
-    const saved = localStorage.getItem('ihsanos_theme') as Theme | null
-    if (saved === 'dark' || saved === 'light') return saved
-    return 'light' // default is light
-  })
+  const theme: Theme = 'light'
 
   useEffect(() => {
     const root = document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-    localStorage.setItem('ihsanos_theme', theme)
-  }, [theme])
+    root.classList.remove('dark')
+    localStorage.setItem('ihsanos_theme', 'light')
+  }, [])
 
-  const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light')
+  const toggleTheme = () => {
+    // No-op: Light theme only
+  }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark: theme === 'dark' }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, isDark: false }}>
       {children}
     </ThemeContext.Provider>
   )
