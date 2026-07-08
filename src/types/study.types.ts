@@ -1,4 +1,13 @@
-export interface Subject {
+export interface SyncMetadata {
+  createdAt?: string
+  updatedAt?: string
+  pendingSync?: boolean
+  lastSyncedAt?: string | null
+  deleted?: boolean
+  syncVersion?: number
+}
+
+export interface Subject extends SyncMetadata {
   id: string
   name: string
   studyHours: number
@@ -8,7 +17,7 @@ export interface Subject {
   completionPercentage: number // derived or stored
 }
 
-export interface Chapter {
+export interface Chapter extends SyncMetadata {
   id: string
   subjectId: string
   name: string
@@ -22,7 +31,7 @@ export interface Chapter {
   confidencePercentage: number
 }
 
-export interface Topic {
+export interface Topic extends SyncMetadata {
   id: string
   chapterId: string
   name: string
@@ -34,7 +43,7 @@ export interface Topic {
   notes: string
 }
 
-export interface StudySession {
+export interface StudySession extends SyncMetadata {
   id: string
   subjectId: string
   chapterId?: string
@@ -52,7 +61,7 @@ export interface StudySession {
   notes?: string
 }
 
-export interface RevisionEntry {
+export interface RevisionEntry extends SyncMetadata {
   id: string
   topicId: string
   topicName: string
@@ -64,7 +73,7 @@ export interface RevisionEntry {
   confidence: number // 1-5
 }
 
-export interface QuestionLog {
+export interface QuestionLog extends SyncMetadata {
   id: string
   subjectId: string
   chapterId?: string
@@ -79,7 +88,7 @@ export interface QuestionLog {
   notes?: string
 }
 
-export interface MockTest {
+export interface MockTest extends SyncMetadata {
   id: string
   examName: string
   date: string // YYYY-MM-DD
@@ -93,7 +102,7 @@ export interface MockTest {
   notes?: string
 }
 
-export interface Mistake {
+export interface Mistake extends SyncMetadata {
   id: string
   subjectId: string
   chapterId?: string
@@ -105,7 +114,7 @@ export interface Mistake {
   dateAdded: string
 }
 
-export interface Formula {
+export interface Formula extends SyncMetadata {
   id: string
   subjectId: string
   chapterId?: string
@@ -116,7 +125,7 @@ export interface Formula {
   isFavourite: boolean
 }
 
-export interface StudyNote {
+export interface StudyNote extends SyncMetadata {
   id: string
   title: string
   content: string // Markdown text

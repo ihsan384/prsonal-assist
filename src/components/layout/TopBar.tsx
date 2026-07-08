@@ -20,6 +20,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/profile': 'Profile',
 }
 
+import { SyncIndicator } from '../ui/SyncIndicator'
+
 interface TopBarProps {
   onMenuClick?: () => void
   rightContent?: ReactNode
@@ -65,6 +67,7 @@ export function TopBar({ onMenuClick, rightContent, className }: TopBarProps) {
 
       <div className="flex items-center gap-1.5">
         {rightContent}
+        <SyncIndicator />
         
         {/* Search Placeholder Button */}
         <Button

@@ -8,6 +8,10 @@ export interface BaseEntity {
   id: string
   createdAt: string
   updatedAt: string
+  pendingSync?: boolean
+  lastSyncedAt?: string | null
+  deleted?: boolean
+  syncVersion?: number
 }
 
 export type Priority = 'low' | 'medium' | 'high' | 'urgent'
@@ -241,7 +245,7 @@ export interface Transaction extends BaseEntity {
   tags: string[]
 }
 
-export interface Budget {
+export interface Budget extends BaseEntity {
   category: TransactionCategory
   monthlyLimit: number
   spent: number

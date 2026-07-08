@@ -1,78 +1,123 @@
-import { storage } from './storageService'
 import { generateId } from '@/utils/format'
 import { getTodayString } from '@/utils/date'
+import { memoryStore } from './MemoryStore'
+import { STORES } from './IndexedDB'
 import type { Task, Habit, StudySession, Goal, Workout, Meal, SleepLog, KnowledgeItem, Transaction, Budget, AppSettings, UserProfile, NutritionGoal } from '@/types'
 
-// ─── Keys ──────────────────────────────────────────────────────────────────
-
-const KEYS = {
-  TASKS: 'tasks',
-  HABITS: 'habits',
-  STUDY_SESSIONS: 'study_sessions',
-  SUBJECTS: 'subjects',
-  GOALS: 'goals',
-  WORKOUTS: 'workouts',
-  MEALS: 'meals',
-  SLEEP_LOGS: 'sleep_logs',
-  KNOWLEDGE: 'knowledge',
-  TRANSACTIONS: 'transactions',
-  BUDGETS: 'budgets',
-  SETTINGS: 'settings',
-  PROFILE: 'profile',
-  NUTRITION_GOALS: 'nutrition_goals',
-  WATER_LOGS: 'water_logs',
-} as const
+function isToday(dateStr: string) {
+  try {
+    return new Date(dateStr).toDateString() === new Date().toDateString()
+  } catch {
+    return false
+  }
+}
 
 // ─── Tasks ─────────────────────────────────────────────────────────────────
 
 export const taskStorage = {
-  getAll: () => storage.getList<Task>(KEYS.TASKS),
-  getById: (id: string) => storage.findInList<Task>(KEYS.TASKS, id),
+  getAll: () => memoryStore.tasks.filter(t => !t.deleted),
+  getById: (id: string) => memoryStore.tasks.find(t => t.id === id && !t.deleted),
   add: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
     const now = new Date().toISOString()
-    return storage.addToList<Task>(KEYS.TASKS, { ...task, id: generateId(), createdAt: now, updatedAt: now })
+    const record: Task = {
+      ...task,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.TASKS, memoryStore.tasks, record)
+    return memoryStore.tasks.filter(t => !t.deleted)
   },
-  update: (id: string, partial: Partial<Task>) => storage.updateInList<Task>(KEYS.TASKS, id, partial),
-  remove: (id: string) => storage.removeFromList<Task>(KEYS.TASKS, id),
-  getByStatus: (status: Task['status']) => storage.getList<Task>(KEYS.TASKS).filter(t => t.status === status),
+  update: (id: string, partial: Partial<Task>) => {
+    const current = memoryStore.tasks.find(t => t.id === id)
+    if (!current) return memoryStore.tasks.filter(t => !t.deleted)
+    const record: Task = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.TASKS, memoryStore.tasks, record)
+    return memoryStore.tasks.filter(t => !t.deleted)
+  },
+  remove: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.TASKS, memoryStore.tasks, id)
+    return memoryStore.tasks.filter(t => !t.deleted)
+  },
+  getByStatus: (status: Task['status']) => memoryStore.tasks.filter(t => t.status === status && !t.deleted),
   getToday: () => {
     const today = getTodayString()
-    return storage.getList<Task>(KEYS.TASKS).filter(t => t.dueDate === today || isToday(t.createdAt))
+    return memoryStore.tasks.filter(t => !t.deleted && (t.dueDate === today || isToday(t.createdAt)))
   },
-}
-
-function isToday(dateStr: string) {
-  return new Date(dateStr).toDateString() === new Date().toDateString()
 }
 
 // ─── Habits ────────────────────────────────────────────────────────────────
 
 export const habitStorage = {
-  getAll: () => storage.getList<Habit>(KEYS.HABITS),
-  getById: (id: string) => storage.findInList<Habit>(KEYS.HABITS, id),
+  getAll: () => memoryStore.habits.filter(h => !h.deleted),
+  getById: (id: string) => memoryStore.habits.find(h => h.id === id && !h.deleted),
   add: (habit: Omit<Habit, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
     const now = new Date().toISOString()
-    return storage.addToList<Habit>(KEYS.HABITS, { ...habit, id: generateId(), createdAt: now, updatedAt: now })
+    const record: Habit = {
+      ...habit,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.HABITS, memoryStore.habits, record)
+    return memoryStore.habits.filter(h => !h.deleted)
   },
-  update: (id: string, partial: Partial<Habit>) => storage.updateInList<Habit>(KEYS.HABITS, id, partial),
-  remove: (id: string) => storage.removeFromList<Habit>(KEYS.HABITS, id),
-  getActive: () => storage.getList<Habit>(KEYS.HABITS).filter(h => h.isActive),
+  update: (id: string, partial: Partial<Habit>) => {
+    const current = memoryStore.habits.find(h => h.id === id)
+    if (!current) return memoryStore.habits.filter(h => !h.deleted)
+    const record: Habit = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.HABITS, memoryStore.habits, record)
+    return memoryStore.habits.filter(h => !h.deleted)
+  },
+  remove: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.HABITS, memoryStore.habits, id)
+    return memoryStore.habits.filter(h => !h.deleted)
+  },
+  getActive: () => memoryStore.habits.filter(h => h.isActive && !h.deleted),
 }
 
 // ─── Study ─────────────────────────────────────────────────────────────────
 
 export const studyStorage = {
-  getSessions: () => storage.getList<StudySession>(KEYS.STUDY_SESSIONS),
+  getSessions: () => memoryStore.sessions.filter(s => !s.deleted),
   addSession: (session: Omit<StudySession, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
     const now = new Date().toISOString()
-    return storage.addToList<StudySession>(KEYS.STUDY_SESSIONS, { ...session, id: generateId(), createdAt: now, updatedAt: now })
+    const record: StudySession = {
+      ...session,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.SESSIONS, memoryStore.sessions, record)
+    return memoryStore.sessions.filter(s => !s.deleted)
   },
-  updateSession: (id: string, partial: Partial<StudySession>) => storage.updateInList<StudySession>(KEYS.STUDY_SESSIONS, id, partial),
-  removeSession: (id: string) => storage.removeFromList<StudySession>(KEYS.STUDY_SESSIONS, id),
+  updateSession: (id: string, partial: Partial<StudySession>) => {
+    const current = memoryStore.sessions.find(s => s.id === id)
+    if (!current) return memoryStore.sessions.filter(s => !s.deleted)
+    const record: StudySession = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.SESSIONS, memoryStore.sessions, record)
+    return memoryStore.sessions.filter(s => !s.deleted)
+  },
+  removeSession: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.SESSIONS, memoryStore.sessions, id)
+    return memoryStore.sessions.filter(s => !s.deleted)
+  },
   getTodayMinutes: () => {
     const today = getTodayString()
-    return storage.getList<StudySession>(KEYS.STUDY_SESSIONS)
-      .filter(s => s.startTime.startsWith(today))
+    return memoryStore.sessions
+      .filter(s => !s.deleted && s.startTime.startsWith(today))
       .reduce((sum, s) => sum + s.durationMinutes, 0)
   },
 }
@@ -80,142 +125,265 @@ export const studyStorage = {
 // ─── Goals ─────────────────────────────────────────────────────────────────
 
 export const goalStorage = {
-  getAll: () => storage.getList<Goal>(KEYS.GOALS),
-  getById: (id: string) => storage.findInList<Goal>(KEYS.GOALS, id),
+  getAll: () => memoryStore.goals.filter(g => !g.deleted),
+  getById: (id: string) => memoryStore.goals.find(g => g.id === id && !g.deleted),
   add: (goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
     const now = new Date().toISOString()
-    return storage.addToList<Goal>(KEYS.GOALS, { ...goal, id: generateId(), createdAt: now, updatedAt: now })
+    const record: Goal = {
+      ...goal,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.GOALS, memoryStore.goals, record)
+    return memoryStore.goals.filter(g => !g.deleted)
   },
-  update: (id: string, partial: Partial<Goal>) => storage.updateInList<Goal>(KEYS.GOALS, id, partial),
-  remove: (id: string) => storage.removeFromList<Goal>(KEYS.GOALS, id),
-  getActive: () => storage.getList<Goal>(KEYS.GOALS).filter(g => g.status === 'active'),
+  update: (id: string, partial: Partial<Goal>) => {
+    const current = memoryStore.goals.find(g => g.id === id)
+    if (!current) return memoryStore.goals.filter(g => !g.deleted)
+    const record: Goal = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.GOALS, memoryStore.goals, record)
+    return memoryStore.goals.filter(g => !g.deleted)
+  },
+  remove: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.GOALS, memoryStore.goals, id)
+    return memoryStore.goals.filter(g => !g.deleted)
+  },
+  getActive: () => memoryStore.goals.filter(g => g.status === 'active' && !g.deleted),
 }
 
 // ─── Fitness ───────────────────────────────────────────────────────────────
 
 export const fitnessStorage = {
-  getWorkouts: () => storage.getList<Workout>(KEYS.WORKOUTS),
+  getWorkouts: () => memoryStore.workouts.filter(w => !w.deleted),
   addWorkout: (workout: Omit<Workout, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
     const now = new Date().toISOString()
-    return storage.addToList<Workout>(KEYS.WORKOUTS, { ...workout, id: generateId(), createdAt: now, updatedAt: now })
+    const record: Workout = {
+      ...workout,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.WORKOUTS, memoryStore.workouts, record)
+    return memoryStore.workouts.filter(w => !w.deleted)
   },
-  updateWorkout: (id: string, partial: Partial<Workout>) => storage.updateInList<Workout>(KEYS.WORKOUTS, id, partial),
-  removeWorkout: (id: string) => storage.removeFromList<Workout>(KEYS.WORKOUTS, id),
+  updateWorkout: (id: string, partial: Partial<Workout>) => {
+    const current = memoryStore.workouts.find(w => w.id === id)
+    if (!current) return memoryStore.workouts.filter(w => !w.deleted)
+    const record: Workout = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.WORKOUTS, memoryStore.workouts, record)
+    return memoryStore.workouts.filter(w => !w.deleted)
+  },
+  removeWorkout: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.WORKOUTS, memoryStore.workouts, id)
+    return memoryStore.workouts.filter(w => !w.deleted)
+  },
   getTodayWorkout: () => {
     const today = getTodayString()
-    return storage.getList<Workout>(KEYS.WORKOUTS).find(w => w.date === today)
+    return memoryStore.workouts.find(w => !w.deleted && w.date === today)
   },
 }
 
 // ─── Nutrition ─────────────────────────────────────────────────────────────
 
 export const nutritionStorage = {
-  getMeals: () => storage.getList<Meal>(KEYS.MEALS),
+  getMeals: () => memoryStore.meals.filter(m => !m.deleted),
   addMeal: (meal: Omit<Meal, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
     const now = new Date().toISOString()
-    return storage.addToList<Meal>(KEYS.MEALS, { ...meal, id: generateId(), createdAt: now, updatedAt: now })
+    const record: Meal = {
+      ...meal,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.MEALS, memoryStore.meals, record)
+    return memoryStore.meals.filter(m => !m.deleted)
   },
-  updateMeal: (id: string, partial: Partial<Meal>) => storage.updateInList<Meal>(KEYS.MEALS, id, partial),
-  removeMeal: (id: string) => storage.removeFromList<Meal>(KEYS.MEALS, id),
+  updateMeal: (id: string, partial: Partial<Meal>) => {
+    const current = memoryStore.meals.find(m => m.id === id)
+    if (!current) return memoryStore.meals.filter(m => !m.deleted)
+    const record: Meal = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.MEALS, memoryStore.meals, record)
+    return memoryStore.meals.filter(m => !m.deleted)
+  },
+  removeMeal: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.MEALS, memoryStore.meals, id)
+    return memoryStore.meals.filter(m => !m.deleted)
+  },
   getTodayMeals: () => {
     const today = getTodayString()
-    return storage.getList<Meal>(KEYS.MEALS).filter(m => m.date === today)
+    return memoryStore.meals.filter(m => !m.deleted && m.date === today)
   },
-  getGoals: (): NutritionGoal => storage.getOrDefault<NutritionGoal>(KEYS.NUTRITION_GOALS, {
-    calories: 2200, protein: 160, carbs: 250, fat: 65, water: 3000,
-  }),
-  setGoals: (goals: NutritionGoal) => storage.set(KEYS.NUTRITION_GOALS, goals),
+  getGoals: (): NutritionGoal => memoryStore.nutritionGoals,
+  setGoals: (goals: NutritionGoal) => {
+    memoryStore.nutritionGoals = goals
+    memoryStore.saveToStore(STORES.NUTRITION_GOALS, [], { id: 'default', ...goals })
+  },
   getWaterToday: (): number => {
     const today = getTodayString()
-    const logs = storage.getOrDefault<Record<string, number>>(KEYS.WATER_LOGS, {})
-    return logs[today] ?? 0
+    return memoryStore.waterLogs[today] ?? 0
   },
   setWaterToday: (ml: number) => {
     const today = getTodayString()
-    const logs = storage.getOrDefault<Record<string, number>>(KEYS.WATER_LOGS, {})
-    storage.set(KEYS.WATER_LOGS, { ...logs, [today]: ml })
+    memoryStore.waterLogs[today] = ml
+    memoryStore.saveToStore(STORES.WATER_LOGS, [], { id: today, amount_ml: ml })
   },
 }
 
 // ─── Sleep ─────────────────────────────────────────────────────────────────
 
 export const sleepStorage = {
-  getLogs: () => storage.getList<SleepLog>(KEYS.SLEEP_LOGS),
+  getLogs: () => memoryStore.sleepLogs.filter(s => !s.deleted),
   addLog: (log: Omit<SleepLog, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
     const now = new Date().toISOString()
-    return storage.addToList<SleepLog>(KEYS.SLEEP_LOGS, { ...log, id: generateId(), createdAt: now, updatedAt: now })
+    const record: SleepLog = {
+      ...log,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.SLEEP_LOGS, memoryStore.sleepLogs, record)
+    return memoryStore.sleepLogs.filter(s => !s.deleted)
   },
-  updateLog: (id: string, partial: Partial<SleepLog>) => storage.updateInList<SleepLog>(KEYS.SLEEP_LOGS, id, partial),
-  removeLog: (id: string) => storage.removeFromList<SleepLog>(KEYS.SLEEP_LOGS, id),
+  updateLog: (id: string, partial: Partial<SleepLog>) => {
+    const current = memoryStore.sleepLogs.find(s => s.id === id)
+    if (!current) return memoryStore.sleepLogs.filter(s => !s.deleted)
+    const record: SleepLog = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.SLEEP_LOGS, memoryStore.sleepLogs, record)
+    return memoryStore.sleepLogs.filter(s => !s.deleted)
+  },
+  removeLog: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.SLEEP_LOGS, memoryStore.sleepLogs, id)
+    return memoryStore.sleepLogs.filter(s => !s.deleted)
+  },
   getLastNight: () => {
     const today = getTodayString()
-    return storage.getList<SleepLog>(KEYS.SLEEP_LOGS).find(s => s.date === today)
+    return memoryStore.sleepLogs.find(s => !s.deleted && s.date === today)
   },
 }
 
 // ─── Knowledge ─────────────────────────────────────────────────────────────
 
 export const knowledgeStorage = {
-  getAll: () => storage.getList<KnowledgeItem>(KEYS.KNOWLEDGE),
-  getById: (id: string) => storage.findInList<KnowledgeItem>(KEYS.KNOWLEDGE, id),
+  getAll: () => memoryStore.knowledge.filter(k => !k.deleted),
+  getById: (id: string) => memoryStore.knowledge.find(k => k.id === id && !k.deleted),
   add: (item: Omit<KnowledgeItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
     const now = new Date().toISOString()
-    return storage.addToList<KnowledgeItem>(KEYS.KNOWLEDGE, { ...item, id: generateId(), createdAt: now, updatedAt: now })
+    const record: KnowledgeItem = {
+      ...item,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.KNOWLEDGE, memoryStore.knowledge, record)
+    return memoryStore.knowledge.filter(k => !k.deleted)
   },
-  update: (id: string, partial: Partial<KnowledgeItem>) => storage.updateInList<KnowledgeItem>(KEYS.KNOWLEDGE, id, partial),
-  remove: (id: string) => storage.removeFromList<KnowledgeItem>(KEYS.KNOWLEDGE, id),
+  update: (id: string, partial: Partial<KnowledgeItem>) => {
+    const current = memoryStore.knowledge.find(k => k.id === id)
+    if (!current) return memoryStore.knowledge.filter(k => !k.deleted)
+    const record: KnowledgeItem = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.KNOWLEDGE, memoryStore.knowledge, record)
+    return memoryStore.knowledge.filter(k => !k.deleted)
+  },
+  remove: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.KNOWLEDGE, memoryStore.knowledge, id)
+    return memoryStore.knowledge.filter(k => !k.deleted)
+  },
 }
 
 // ─── Finance ───────────────────────────────────────────────────────────────
 
 export const financeStorage = {
-  getTransactions: () => storage.getList<Transaction>(KEYS.TRANSACTIONS),
+  getTransactions: () => memoryStore.transactions.filter(t => !t.deleted),
   addTransaction: (tx: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
     const now = new Date().toISOString()
-    return storage.addToList<Transaction>(KEYS.TRANSACTIONS, { ...tx, id: generateId(), createdAt: now, updatedAt: now })
+    const record: Transaction = {
+      ...tx,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.TRANSACTIONS, memoryStore.transactions, record)
+    return memoryStore.transactions.filter(t => !t.deleted)
   },
-  updateTransaction: (id: string, partial: Partial<Transaction>) => storage.updateInList<Transaction>(KEYS.TRANSACTIONS, id, partial),
-  removeTransaction: (id: string) => storage.removeFromList<Transaction>(KEYS.TRANSACTIONS, id),
-  getBudgets: () => storage.getOrDefault<Budget[]>(KEYS.BUDGETS, []),
-  setBudgets: (budgets: Budget[]) => storage.set(KEYS.BUDGETS, budgets),
+  updateTransaction: (id: string, partial: Partial<Transaction>) => {
+    const current = memoryStore.transactions.find(t => t.id === id)
+    if (!current) return memoryStore.transactions.filter(t => !t.deleted)
+    const record: Transaction = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.TRANSACTIONS, memoryStore.transactions, record)
+    return memoryStore.transactions.filter(t => !t.deleted)
+  },
+  removeTransaction: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.TRANSACTIONS, memoryStore.transactions, id)
+    return memoryStore.transactions.filter(t => !t.deleted)
+  },
+  getBudgets: () => memoryStore.budgets.filter(b => !b.deleted),
+  setBudgets: (budgets: Budget[]) => {
+    // Delete any old budgets not in new list
+    const incomingIds = budgets.map(b => b.id)
+    memoryStore.budgets.forEach(b => {
+      if (!incomingIds.includes(b.id)) {
+        memoryStore.softDeleteFromStore(STORES.BUDGETS, memoryStore.budgets, b.id)
+      }
+    })
+    
+    // Save new/updated budgets
+    budgets.forEach(b => {
+      const current = memoryStore.budgets.find(item => item.id === b.id)
+      const record: Budget = {
+        ...b,
+        deleted: false,
+        updatedAt: new Date().toISOString()
+      }
+      memoryStore.saveToStore(STORES.BUDGETS, memoryStore.budgets, record)
+    })
+  },
 }
 
 // ─── Settings ──────────────────────────────────────────────────────────────
 
 export const settingsStorage = {
-  get: (): AppSettings => storage.getOrDefault<AppSettings>(KEYS.SETTINGS, {
-    theme: 'dark',
-    accentColor: '#7c6aff',
-    notifications: true,
-    soundEnabled: true,
-    hapticEnabled: true,
-    compactMode: false,
-    language: 'en',
-    weekStartsOn: 1,
-    timeFormat: '12h',
-    studyTimerDefault: 25,
-    waterGoal: 3000,
-    sleepGoal: 8,
-    calorieGoal: 2200,
-  }),
+  get: (): AppSettings => memoryStore.settings,
   set: (settings: Partial<AppSettings>) => {
-    const current = settingsStorage.get()
-    storage.set(KEYS.SETTINGS, { ...current, ...settings })
+    const current = memoryStore.settings
+    const updated = { ...current, ...settings }
+    memoryStore.settings = updated
+    memoryStore.saveToStore(STORES.SETTINGS, [], { id: 'app_settings', ...updated })
   },
 }
 
 // ─── Profile ───────────────────────────────────────────────────────────────
 
 export const profileStorage = {
-  get: (): UserProfile => storage.getOrDefault<UserProfile>(KEYS.PROFILE, {
-    name: 'Ihsan',
-    timezone: 'Asia/Kolkata',
-    theme: 'dark',
-    accentColor: '#7c6aff',
-    joinedAt: new Date().toISOString(),
-  }),
+  get: (): UserProfile => memoryStore.profile,
   set: (profile: Partial<UserProfile>) => {
-    const current = profileStorage.get()
-    storage.set(KEYS.PROFILE, { ...current, ...profile })
+    const current = memoryStore.profile
+    const updated = { ...current, ...profile }
+    memoryStore.profile = updated
+    memoryStore.saveToStore(STORES.PROFILE, [], { id: 'user_profile', ...updated })
   },
 }
