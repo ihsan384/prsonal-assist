@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
   Flame, BookOpen, Dumbbell, Target, ChevronRight, Star, Calendar,
-  Wallet, Library, Settings, BarChart2, Award
+  Wallet, Library, Settings, BarChart2
 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'

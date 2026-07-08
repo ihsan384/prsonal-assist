@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { CheckSquare, Clock, AlertCircle, Circle, CheckCircle2, Plus } from 'lucide-react'
+import { CheckSquare, Clock, AlertCircle, Circle, CheckCircle2 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
