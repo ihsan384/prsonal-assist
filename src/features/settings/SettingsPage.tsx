@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   Bell, Volume2, Vibrate, Clock, Calendar,
-  Palette, Trash2, ChevronRight, Shield, Database, Info,
-  BookOpen, Droplet, Moon, Flame, RefreshCw, Upload, Download, AlertTriangle
+  Palette, Trash2, BookOpen, Droplet, Moon, Flame, RefreshCw, Upload, Download, AlertTriangle
 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
@@ -14,10 +13,10 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/hooks/useToast'
 import { settingsStorage } from '@/services/storage'
-import { syncEngine, SyncStatusType } from '@/services/sync/SyncService'
+import { syncEngine } from '@/services/sync/SyncService'
+import type { SyncStatusType } from '@/services/sync/SyncService'
 import { backupService } from '@/services/storage/BackupService'
 import { idb } from '@/services/storage/IndexedDB'
-import { memoryStore } from '@/services/storage/MemoryStore'
 import { isSupabaseConfigured } from '@/services/supabase/supabase'
 
 interface ToggleProps {

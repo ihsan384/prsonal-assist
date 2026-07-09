@@ -1,8 +1,14 @@
+-- ============================================================
 -- Supabase Database Schema for Ihsan OS
--- Clean offline-first data model with synchronization metadata
+-- Version 2 — Complete offline-first schema
+-- Run this in Supabase SQL Editor > New Query
+-- ============================================================
 
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
+
+-- ─── Sync metadata columns are present on every table ────────────────────────
+-- created_at, updated_at, last_synced_at, deleted, sync_version
 
 -- ─── 1. SUBJECTS ─────────────────────────────────────────────────────────────
 create table if not exists subjects (
@@ -13,10 +19,11 @@ create table if not exists subjects (
   completed_chapters integer default 0,
   pending_chapters integer default 0,
   completion_percentage integer default 0,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -34,10 +41,11 @@ create table if not exists chapters (
   notes text,
   revision_count integer default 0,
   confidence_percentage integer default 0,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -53,20 +61,21 @@ create table if not exists topics (
   mistakes integer default 0,
   revision_needed boolean default false,
   notes text,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
 
--- ─── 4. FOCUS SESSIONS ───────────────────────────────────────────────────────
+-- ─── 4. FOCUS SESSIONS (Study ERP) ───────────────────────────────────────────
 create table if not exists sessions (
   id text primary key,
-  subject_id text references subjects(id) on delete cascade,
-  chapter_id text references chapters(id) on delete cascade,
-  topic_id text references topics(id) on delete cascade,
+  subject_id text references subjects(id) on delete set null,
+  chapter_id text references chapters(id) on delete set null,
+  topic_id text references topics(id) on delete set null,
   date text not null,
   start_time text not null,
   end_time text not null,
@@ -78,10 +87,11 @@ create table if not exists sessions (
   correct_answers integer default 0,
   wrong_answers integer default 0,
   notes text,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -89,17 +99,18 @@ create table if not exists sessions (
 -- ─── 5. REVISIONS ────────────────────────────────────────────────────────────
 create table if not exists revisions (
   id text primary key,
-  topic_id text references topics(id) on delete cascade,
+  topic_id text references topics(id) on delete set null,
   topic_name text not null,
   subject_name text not null,
   revision_number integer default 1,
   scheduled_date text not null,
   completed boolean default false,
   confidence integer default 3,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -107,8 +118,8 @@ create table if not exists revisions (
 -- ─── 6. QUESTIONS ────────────────────────────────────────────────────────────
 create table if not exists questions (
   id text primary key,
-  subject_id text references subjects(id) on delete cascade,
-  chapter_id text references chapters(id) on delete cascade,
+  subject_id text references subjects(id) on delete set null,
+  chapter_id text references chapters(id) on delete set null,
   date text not null,
   questions_solved integer not null,
   correct integer default 0,
@@ -118,10 +129,11 @@ create table if not exists questions (
   time_taken_minutes integer default 0,
   difficulty text default 'medium',
   notes text,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -129,7 +141,7 @@ create table if not exists questions (
 -- ─── 7. TESTS ────────────────────────────────────────────────────────────────
 create table if not exists tests (
   id text primary key,
-  subject_id text references subjects(id) on delete cascade,
+  subject_id text references subjects(id) on delete set null,
   name text not null,
   date text not null,
   total_questions integer not null,
@@ -139,10 +151,11 @@ create table if not exists tests (
   score_percentage integer default 0,
   duration_minutes integer default 0,
   notes text,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -150,18 +163,19 @@ create table if not exists tests (
 -- ─── 8. MISTAKES ─────────────────────────────────────────────────────────────
 create table if not exists mistakes (
   id text primary key,
-  subject_id text references subjects(id) on delete cascade,
-  chapter_id text references chapters(id) on delete cascade,
+  subject_id text references subjects(id) on delete set null,
+  chapter_id text references chapters(id) on delete set null,
   question text not null,
   correct_solution text,
   reason text,
   category text,
   revision_status text default 'review_needed',
   date_added text not null,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -169,17 +183,18 @@ create table if not exists mistakes (
 -- ─── 9. FORMULAS ─────────────────────────────────────────────────────────────
 create table if not exists formulas (
   id text primary key,
-  subject_id text references subjects(id) on delete cascade,
-  chapter_id text references chapters(id) on delete cascade,
+  subject_id text references subjects(id) on delete set null,
+  chapter_id text references chapters(id) on delete set null,
   name text not null,
   expression text not null,
   description text,
   example text,
   is_favourite boolean default false,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -193,10 +208,11 @@ create table if not exists notes (
   tags text[],
   date_created text not null,
   date_updated text not null,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -205,15 +221,20 @@ create table if not exists notes (
 create table if not exists tasks (
   id text primary key,
   title text not null,
+  description text,
   category text not null,
   priority text default 'medium',
   status text default 'todo',
+  due_date text,
   due_time text,
+  completed_at text,
   tags text[],
-  
+  subtasks jsonb default '[]'::jsonb,
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -222,16 +243,21 @@ create table if not exists tasks (
 create table if not exists habits (
   id text primary key,
   name text not null,
+  description text,
   icon text not null,
   color text not null,
+  frequency text default 'daily',
+  target_days int[] default '{}',
   streak integer default 0,
-  completed_today boolean default false,
-  week_days boolean[] not null,
-  category text not null,
-  
+  longest_streak integer default 0,
+  completions jsonb default '[]'::jsonb,
+  is_active boolean default true,
+  category text,
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -241,15 +267,17 @@ create table if not exists workouts (
   id text primary key,
   name text not null,
   type text not null,
-  duration integer not null,
-  calories integer not null,
+  duration_minutes integer not null,
   date text not null,
-  exercises integer default 1,
-  rating integer default 4,
-  
+  exercises jsonb default '[]'::jsonb,
+  calories_burned integer,
+  notes text,
+  rating integer,
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -257,29 +285,34 @@ create table if not exists workouts (
 -- ─── 14. NUTRITION (MEALS) ───────────────────────────────────────────────────
 create table if not exists meals (
   id text primary key,
-  type text not null,
-  time text not null,
   name text not null,
-  calories integer not null,
-  protein integer default 0,
-  carbs integer default 0,
-  fat integer default 0,
-  
+  type text not null,
+  date text not null,
+  time text not null,
+  foods jsonb default '[]'::jsonb,
+  total_calories integer not null default 0,
+  total_protein integer default 0,
+  total_carbs integer default 0,
+  total_fat integer default 0,
+  notes text,
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
 
 -- ─── 15. WATER LOGS ──────────────────────────────────────────────────────────
 create table if not exists water_logs (
-  id text primary key, -- key formatted as YYYY-MM-DD
+  id text primary key, -- YYYY-MM-DD date key
   amount_ml integer not null,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -292,10 +325,11 @@ create table if not exists nutrition_goals (
   carbs integer not null,
   fat integer not null,
   water integer not null,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -304,16 +338,18 @@ create table if not exists nutrition_goals (
 create table if not exists sleep_logs (
   id text primary key,
   date text not null,
-  bed text not null,
-  wake text not null,
-  hours numeric not null,
+  bed_time text not null,
+  wake_time text not null,
+  duration_hours numeric not null,
   quality text not null,
   rating integer default 4,
+  notes text,
   factors text[],
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -325,13 +361,18 @@ create table if not exists goals (
   description text,
   category text not null,
   timeframe text not null,
-  current numeric not null,
-  target numeric not null,
+  target_date text,
+  current_value numeric not null default 0,
+  target_value numeric not null,
   unit text default '%',
-  
+  status text default 'active',
+  milestones jsonb default '[]'::jsonb,
+  color text default '#2563eb',
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -340,19 +381,22 @@ create table if not exists goals (
 create table if not exists knowledge (
   id text primary key,
   title text not null,
-  author text not null,
   type text not null,
+  author text,
+  url text,
+  tags text[],
   status text not null,
   rating integer default 0,
-  tags text[],
+  notes text,
   progress integer,
   total_pages integer,
   current_page integer,
-  color text not null,
-  
+  color text,
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -365,10 +409,13 @@ create table if not exists transactions (
   amount numeric not null,
   type text not null,
   date text not null,
-  
+  notes text,
+  tags text[],
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -377,13 +424,14 @@ create table if not exists transactions (
 create table if not exists budgets (
   id text primary key,
   category text not null,
+  monthly_limit numeric not null,
   spent numeric default 0,
-  limit_amount numeric not null,
   color text not null,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -404,10 +452,11 @@ create table if not exists settings (
   water_goal integer default 3000,
   sleep_goal integer default 8,
   calorie_goal integer default 2200,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
@@ -416,20 +465,48 @@ create table if not exists settings (
 create table if not exists profile (
   id text primary key, -- 'user_profile'
   name text default 'Ihsan',
+  avatar text,
+  bio text,
   timezone text default 'Asia/Kolkata',
   theme text default 'light',
   accent_color text default '#2563eb',
+  date_of_birth text,
   joined_at text not null,
-  
+
   -- Sync Metadata
-  created_at timestamp with time zone default timezone('utc'::text, now()),
-  updated_at timestamp with time zone default timezone('utc'::text, now()),
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
   deleted boolean default false,
   sync_version integer default 1
 );
 
--- ─── RLS Policies (Single-user lock) ─────────────────────────────────────────
--- Since it's a personal life OS, we can secure it using auth.role() = 'authenticated'
+-- ─── 24. GENERAL STUDY SESSIONS ──────────────────────────────────────────────
+-- (separate from Study ERP "sessions" above — these are pomodoro/timer sessions)
+create table if not exists study_sessions (
+  id text primary key,
+  subject text not null,
+  topic text,
+  type text not null,
+  duration_minutes integer not null,
+  start_time text not null,
+  end_time text,
+  notes text,
+  rating integer,
+  tags text[],
+
+  -- Sync Metadata
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- ROW LEVEL SECURITY (Single-user personal app setup)
+-- Allows all operations when using the anon or service key
+-- ═══════════════════════════════════════════════════════════════════════════════
 
 alter table subjects enable row level security;
 alter table chapters enable row level security;
@@ -454,50 +531,99 @@ alter table transactions enable row level security;
 alter table budgets enable row level security;
 alter table settings enable row level security;
 alter table profile enable row level security;
+alter table study_sessions enable row level security;
 
--- Setup simple global policy for authenticated user
-create policy authenticated_access_policy on subjects for all using (true) with check (true);
-create policy authenticated_access_policy on chapters for all using (true) with check (true);
-create policy authenticated_access_policy on topics for all using (true) with check (true);
-create policy authenticated_access_policy on sessions for all using (true) with check (true);
-create policy authenticated_access_policy on revisions for all using (true) with check (true);
-create policy authenticated_access_policy on questions for all using (true) with check (true);
-create policy authenticated_access_policy on tests for all using (true) with check (true);
-create policy authenticated_access_policy on mistakes for all using (true) with check (true);
-create policy authenticated_access_policy on formulas for all using (true) with check (true);
-create policy authenticated_access_policy on notes for all using (true) with check (true);
-create policy authenticated_access_policy on tasks for all using (true) with check (true);
-create policy authenticated_access_policy on habits for all using (true) with check (true);
-create policy authenticated_access_policy on workouts for all using (true) with check (true);
-create policy authenticated_access_policy on meals for all using (true) with check (true);
-create policy authenticated_access_policy on water_logs for all using (true) with check (true);
-create policy authenticated_access_policy on nutrition_goals for all using (true) with check (true);
-create policy authenticated_access_policy on sleep_logs for all using (true) with check (true);
-create policy authenticated_access_policy on goals for all using (true) with check (true);
-create policy authenticated_access_policy on knowledge for all using (true) with check (true);
-create policy authenticated_access_policy on transactions for all using (true) with check (true);
-create policy authenticated_access_policy on budgets for all using (true) with check (true);
-create policy authenticated_access_policy on settings for all using (true) with check (true);
-create policy authenticated_access_policy on profile for all using (true) with check (true);
+-- Permissive policies for single-user personal app (using anon key)
+-- For multi-user: replace "true" with auth.uid() checks
+do $$
+declare
+  tbl text;
+  tables text[] := array[
+    'subjects','chapters','topics','sessions','revisions','questions',
+    'tests','mistakes','formulas','notes','tasks','habits','workouts',
+    'meals','water_logs','nutrition_goals','sleep_logs','goals',
+    'knowledge','transactions','budgets','settings','profile','study_sessions'
+  ];
+begin
+  foreach tbl in array tables loop
+    -- Drop existing policy if it exists, then recreate
+    execute format('drop policy if exists authenticated_access_policy on %I', tbl);
+    execute format(
+      'create policy authenticated_access_policy on %I for all using (true) with check (true)',
+      tbl
+    );
+  end loop;
+end $$;
 
--- ─── Performance Indexes ─────────────────────────────────────────────────────
-create index if not exists idx_subjects_sync on subjects(updated_at, deleted);
-create index if not exists idx_chapters_sync on chapters(updated_at, deleted);
-create index if not exists idx_topics_sync on topics(updated_at, deleted);
-create index if not exists idx_sessions_sync on sessions(updated_at, deleted);
-create index if not exists idx_revisions_sync on revisions(updated_at, deleted);
-create index if not exists idx_questions_sync on questions(updated_at, deleted);
-create index if not exists idx_tests_sync on tests(updated_at, deleted);
-create index if not exists idx_mistakes_sync on mistakes(updated_at, deleted);
-create index if not exists idx_formulas_sync on formulas(updated_at, deleted);
-create index if not exists idx_notes_sync on notes(updated_at, deleted);
-create index if not exists idx_tasks_sync on tasks(updated_at, deleted);
-create index if not exists idx_habits_sync on habits(updated_at, deleted);
-create index if not exists idx_workouts_sync on workouts(updated_at, deleted);
-create index if not exists idx_meals_sync on meals(updated_at, deleted);
-create index if not exists idx_water_logs_sync on water_logs(updated_at, deleted);
-create index if not exists idx_sleep_logs_sync on sleep_logs(updated_at, deleted);
-create index if not exists idx_goals_sync on goals(updated_at, deleted);
-create index if not exists idx_knowledge_sync on knowledge(updated_at, deleted);
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- PERFORMANCE INDEXES
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- Sync indexes: query by updated_at for delta sync + deleted filter
+create index if not exists idx_subjects_sync    on subjects(updated_at, deleted);
+create index if not exists idx_chapters_sync    on chapters(updated_at, deleted);
+create index if not exists idx_chapters_subject on chapters(subject_id);
+create index if not exists idx_topics_sync      on topics(updated_at, deleted);
+create index if not exists idx_topics_chapter   on topics(chapter_id);
+create index if not exists idx_sessions_sync    on sessions(updated_at, deleted);
+create index if not exists idx_sessions_date    on sessions(date);
+create index if not exists idx_revisions_sync   on revisions(updated_at, deleted);
+create index if not exists idx_revisions_date   on revisions(scheduled_date);
+create index if not exists idx_questions_sync   on questions(updated_at, deleted);
+create index if not exists idx_tests_sync       on tests(updated_at, deleted);
+create index if not exists idx_mistakes_sync    on mistakes(updated_at, deleted);
+create index if not exists idx_formulas_sync    on formulas(updated_at, deleted);
+create index if not exists idx_notes_sync       on notes(updated_at, deleted);
+create index if not exists idx_tasks_sync       on tasks(updated_at, deleted);
+create index if not exists idx_tasks_status     on tasks(status, deleted);
+create index if not exists idx_tasks_date       on tasks(due_date, deleted);
+create index if not exists idx_habits_sync      on habits(updated_at, deleted);
+create index if not exists idx_workouts_sync    on workouts(updated_at, deleted);
+create index if not exists idx_workouts_date    on workouts(date);
+create index if not exists idx_meals_sync       on meals(updated_at, deleted);
+create index if not exists idx_meals_date       on meals(date);
+create index if not exists idx_water_logs_sync  on water_logs(updated_at, deleted);
+create index if not exists idx_sleep_logs_sync  on sleep_logs(updated_at, deleted);
+create index if not exists idx_sleep_date       on sleep_logs(date);
+create index if not exists idx_goals_sync       on goals(updated_at, deleted);
+create index if not exists idx_goals_status     on goals(status, deleted);
+create index if not exists idx_knowledge_sync   on knowledge(updated_at, deleted);
+create index if not exists idx_knowledge_status on knowledge(status, deleted);
 create index if not exists idx_transactions_sync on transactions(updated_at, deleted);
-create index if not exists idx_budgets_sync on budgets(updated_at, deleted);
+create index if not exists idx_transactions_date on transactions(date);
+create index if not exists idx_budgets_sync     on budgets(updated_at, deleted);
+create index if not exists idx_study_sessions_sync on study_sessions(updated_at, deleted);
+create index if not exists idx_study_sessions_time on study_sessions(start_time);
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- UPDATED_AT AUTO-TRIGGER (optional convenience — not required for sync)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+create or replace function set_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = timezone('utc', now());
+  return new;
+end;
+$$;
+
+-- Apply trigger to all tables
+do $$
+declare
+  tbl text;
+  tables text[] := array[
+    'subjects','chapters','topics','sessions','revisions','questions',
+    'tests','mistakes','formulas','notes','tasks','habits','workouts',
+    'meals','water_logs','nutrition_goals','sleep_logs','goals',
+    'knowledge','transactions','budgets','settings','profile','study_sessions'
+  ];
+begin
+  foreach tbl in array tables loop
+    execute format('drop trigger if exists trg_set_updated_at on %I', tbl);
+    execute format(
+      'create trigger trg_set_updated_at before update on %I
+       for each row execute function set_updated_at()',
+      tbl
+    );
+  end loop;
+end $$;

@@ -2,7 +2,8 @@ import { generateId } from '@/utils/format'
 import { getTodayString } from '@/utils/date'
 import { memoryStore } from './MemoryStore'
 import { STORES } from './IndexedDB'
-import type { Task, Habit, StudySession, Goal, Workout, Meal, SleepLog, KnowledgeItem, Transaction, Budget, AppSettings, UserProfile, NutritionGoal } from '@/types'
+import type { Task, Habit, Goal, Workout, Meal, SleepLog, KnowledgeItem, Transaction, Budget, AppSettings, UserProfile, NutritionGoal } from '@/types'
+import type { StudySession } from '@/types/study.types'
 
 function isToday(dateStr: string) {
   try {
@@ -353,7 +354,6 @@ export const financeStorage = {
     
     // Save new/updated budgets
     budgets.forEach(b => {
-      const current = memoryStore.budgets.find(item => item.id === b.id)
       const record: Budget = {
         ...b,
         deleted: false,
