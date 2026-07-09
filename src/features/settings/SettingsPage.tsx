@@ -146,18 +146,19 @@ export default function SettingsPage() {
     }
 
     try {
-      // Delete IndexedDB database
-      await idb.deleteDatabase()
+      // Clear all object stores in IndexedDB
+      await idb.clearAll()
       
-      // Clear localStorage
+      // Clear localStorage and sessionStorage
       localStorage.clear()
+      sessionStorage.clear()
       
       toast.success('All local data wiped. Resetting application...')
       setTimeout(() => {
         window.location.href = '/'
       }, 1500)
     } catch (err) {
-      toast.error('Failed to delete local database.')
+      toast.error('Failed to wipe local database.')
       console.error(err)
     }
   }

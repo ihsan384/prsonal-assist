@@ -262,6 +262,10 @@ export class IndexedDBService {
     }
     return new Promise<void>((resolve, reject) => {
       const request = indexedDB.deleteDatabase(DB_NAME)
+      request.onblocked = () => {
+        console.warn('Database delete blocked by open connections. Falling back to clearing all stores.')
+        this.clearAll().then(resolve, reject)
+      }
       request.onsuccess = () => resolve()
       request.onerror = () => reject(request.error)
     })

@@ -4,6 +4,7 @@ import { MobileDrawer } from './MobileDrawer'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { ToastContainer } from '../ui/Toast'
+import { PWAReloadPrompt } from './PWAReloadPrompt'
 
 interface AppLayoutProps {
   children?: ReactNode
@@ -33,6 +34,9 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* Toast Notifications */}
       <ToastContainer />
+
+      {/* PWA Update / Offline Toast */}
+      <PWAReloadPrompt />
     </div>
   )
 }
