@@ -134,5 +134,19 @@ export const studyERPStorage = {
   addNote: (note: StudyNote) => {
     const record = { ...note, deleted: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
     memoryStore.saveToStore(STORES.NOTES, memoryStore.notes, record)
+  },
+  
+  // Deletion helper methods
+  removeSession: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.SESSIONS, memoryStore.sessions, id)
+  },
+  removeNote: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.NOTES, memoryStore.notes, id)
+  },
+  removeFormula: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.FORMULAS, memoryStore.formulas, id)
+  },
+  removeMistake: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.MISTAKES, memoryStore.mistakes, id)
   }
 }

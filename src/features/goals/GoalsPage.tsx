@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus } from 'lucide-react'
+import { Plus, Target, Trash2 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -10,23 +10,10 @@ import { ProgressRing, ProgressBar } from '@/components/ui/ProgressRing'
 import { FAB } from '@/components/ui/FAB'
 import { Modal } from '@/components/ui/Modal'
 import { Input, Select } from '@/components/ui/Input'
-
-interface Goal {
-  id: string
-  title: string
-  description: string
-  category: string
-  timeframe: string
-  current: number
-  target: number
-  unit: string
-}
-
-const DEFAULT_GOALS: Goal[] = [
-  { id: '1', title: 'Complete Calculus Preparation', description: 'Study limits, continuity, derivative formulas and solve matrix exercises', category: 'Study', timeframe: 'Q3 2026', current: 75, target: 100, unit: '%' },
-  { id: '2', title: 'Build gym app portfolio', description: 'React native dashboard and backend integrations', category: 'Work', timeframe: 'Q3 2026', current: 40, target: 100, unit: '%' },
-  { id: '3', title: 'Reduce body fat percentage', description: 'Target 12% body fat through clean diet and lifting program', category: 'Fitness', timeframe: 'Dec 2026', current: 15, target: 12, unit: '%' },
-]
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
+import { goalStorage } from '@/services/storage'
+import type { GoalCategory, GoalTimeframe } from '@/types'
 
 const categoryColors: Record<string, string> = {
   Study: 'var(--accent)',
@@ -38,11 +25,7 @@ const categoryColors: Record<string, string> = {
 }
 
 export default function GoalsPage() {
-  const [goals, setGoals] = useState<Goal[]>(() => {
-    const saved = localStorage.getItem('ihsanos_goals')
-    return saved ? JSON.parse(saved) : DEFAULT_GOALS
-  })
-
+  const [goals, setGoals] = useState<any[]>(() => goalStorage.getAll())
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -52,27 +35,40 @@ export default function GoalsPage() {
   const [current, setCurrent] = useState('')
   const [unit, setUnit] = useState('%')
 
-  const persistGoals = (updated: Goal[]) => {
-    setGoals(updated)
-    localStorage.setItem('ihsanos_goals', JSON.stringify(updated))
+  // Delete states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [goalToDelete, setGoalToDelete] = useState<string | null>(null)
+
+  const reloadGoals = () => {
+    setGoals(goalStorage.getAll())
   }
 
   const handleAddGoal = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || !target) return
 
-    const newGoal: Goal = {
-      id: Date.now().toString(),
+    const catMap: Record<string, string> = {
+      Study: 'education',
+      Work: 'career',
+      Fitness: 'health',
+      Finance: 'finance',
+      Personal: 'personal',
+      Spiritual: 'spiritual',
+    }
+    goalStorage.add({
       title: title.trim(),
       description: description.trim(),
-      category,
-      timeframe: timeframe || 'Q3 2026',
-      current: Number(current) || 0,
-      target: Number(target),
+      category: (catMap[category] || 'personal') as GoalCategory,
+      timeframe: (timeframe || 'monthly') as any as GoalTimeframe,
+      currentValue: Number(current) || 0,
+      targetValue: Number(target),
       unit: unit || '%',
-    }
+      status: 'active' as any,
+      milestones: [],
+      color: categoryColors[category] || 'var(--accent)',
+    })
 
-    persistGoals([...goals, newGoal])
+    reloadGoals()
     setIsModalOpen(false)
 
     // Reset Form
@@ -85,10 +81,24 @@ export default function GoalsPage() {
     setUnit('%')
   }
 
-  const activeGoals = goals.filter(g => g.current < g.target)
-  const completedGoals = goals.filter(g => g.current >= g.target)
+  const handleDeleteClick = (id: string) => {
+    setGoalToDelete(id)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (goalToDelete) {
+      goalStorage.remove(goalToDelete)
+      reloadGoals()
+    }
+    setIsDeleteOpen(false)
+    setGoalToDelete(null)
+  }
+
+  const activeGoals = goals.filter(g => g.currentValue < g.targetValue)
+  const completedGoals = goals.filter(g => g.currentValue >= g.targetValue)
   const avgProgress = goals.length > 0
-    ? Math.round(goals.reduce((sum, g) => sum + Math.min(100, (g.current / g.target) * 100), 0) / goals.length)
+    ? Math.round(goals.reduce((sum, g) => sum + Math.min(100, (g.currentValue / g.targetValue) * 100), 0) / goals.length)
     : 0
 
   return (
@@ -96,11 +106,11 @@ export default function GoalsPage() {
       {/* Overview */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
         <Card>
-          <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-4">
             <ProgressRing value={avgProgress} size={72} strokeWidth={6} color="var(--accent)">
               <span className="text-sm font-bold text-[var(--text)]">{avgProgress}%</span>
             </ProgressRing>
-            <div>
+            <div className="text-left">
               <p className="text-sm font-semibold text-[var(--text)]">Overall Progress</p>
               <p className="text-xs text-[var(--text-3)] mt-0.5">{activeGoals.length} active goals</p>
               <div className="flex gap-2 mt-2">
@@ -112,42 +122,70 @@ export default function GoalsPage() {
         </Card>
       </motion.div>
 
-      {/* Goal list */}
-      <SectionHeader title="Active Goals" action={
-        <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Add Goal</Button>
-      } />
+      {goals.length === 0 ? (
+        <EmptyState
+          icon={<Target size={24} />}
+          title="No goals set yet"
+          description="Define clear targets. Create your first goal to track progress and timeframe deadlines."
+          action={
+            <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+              Create your first goal
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* Goal list */}
+          <SectionHeader title="Active Goals" action={
+            <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Add Goal</Button>
+          } />
 
-      <div className="flex flex-col gap-3">
-        {goals.map((goal, idx) => {
-          const pct = Math.min(100, Math.round((goal.current / goal.target) * 100))
-          return (
-            <motion.div
-              key={goal.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-            >
-              <Card hover>
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="text-sm font-bold text-[var(--text)]">{goal.title}</h3>
-                    <p className="text-xs text-[var(--text-3)] mt-0.5">{goal.description}</p>
-                  </div>
-                  <Badge variant="default" size="sm">{goal.timeframe}</Badge>
-                </div>
-                <div className="flex items-center gap-3 mt-4">
-                  <div className="flex-1">
-                    <ProgressBar value={goal.current} max={goal.target} height={5} color={categoryColors[goal.category] ?? 'var(--accent)'} />
-                  </div>
-                  <span className="text-xs text-[var(--text-2)] font-semibold shrink-0">
-                    {goal.current}/{goal.target} {goal.unit} ({pct}%)
-                  </span>
-                </div>
-              </Card>
-            </motion.div>
-          )
-        })}
-      </div>
+          <div className="flex flex-col gap-3">
+            {goals.map((goal, idx) => {
+              const pct = Math.min(100, Math.round((goal.currentValue / goal.targetValue) * 100))
+              return (
+                <motion.div
+                  key={goal.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                >
+                  <Card hover>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="text-left">
+                        <span className="text-[10px] uppercase font-bold tracking-wider" style={{ color: categoryColors[goal.category] || 'var(--accent)' }}>
+                          {goal.category}
+                        </span>
+                        <h3 className="text-sm font-bold text-[var(--text)] mt-0.5">{goal.title}</h3>
+                        <p className="text-xs text-[var(--text-3)] mt-0.5">{goal.description}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default" size="sm">{goal.timeframe}</Badge>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(goal.id) }}
+                          className="text-[var(--text-4)] hover:text-[var(--error)] p-1 transition-colors"
+                          title="Delete Goal"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 mt-4">
+                      <div className="flex-1">
+                        <ProgressBar value={goal.currentValue} max={goal.targetValue} height={5} color={categoryColors[goal.category] ?? 'var(--accent)'} />
+                      </div>
+                      <span className="text-xs text-[var(--text-2)] font-semibold shrink-0">
+                        {goal.currentValue}/{goal.targetValue} {goal.unit} ({pct}%)
+                      </span>
+                    </div>
+                  </Card>
+                </motion.div>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       <FAB onClick={() => setIsModalOpen(true)} label="Add Goal" extended />
 
@@ -222,6 +260,16 @@ export default function GoalsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Goal Confirmation */}
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setGoalToDelete(null) }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Goal"
+        description="This will permanently delete this goal and lose all tracked progress. This action is dangerous."
+        requireText="DELETE"
+      />
     </PageWrapper>
   )
 }

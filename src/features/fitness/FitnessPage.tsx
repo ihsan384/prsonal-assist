@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Dumbbell, Flame, Clock, Plus, Zap } from 'lucide-react'
+import { Dumbbell, Flame, Clock, Plus, Zap, Trash2 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -10,35 +10,9 @@ import { ProgressBar } from '@/components/ui/ProgressRing'
 import { FAB } from '@/components/ui/FAB'
 import { Modal } from '@/components/ui/Modal'
 import { Input, Select } from '@/components/ui/Input'
-
-interface Workout {
-  id: string
-  name: string
-  type: string
-  duration: number
-  calories: number
-  date: string
-  exercises: number
-  rating: number
-}
-
-const DEFAULT_WORKOUTS: Workout[] = [
-  { id: '1', name: 'Upper Body Push', type: 'Strength', duration: 55, calories: 380, date: 'Today', exercises: 7, rating: 4 },
-  { id: '2', name: 'Morning Run', type: 'Cardio', duration: 35, calories: 290, date: 'Yesterday', exercises: 1, rating: 5 },
-  { id: '3', name: 'Full Body HIIT', type: 'HIIT', duration: 40, calories: 420, date: '2 days ago', exercises: 12, rating: 4 },
-  { id: '4', name: 'Lower Body', type: 'Strength', duration: 50, calories: 310, date: '3 days ago', exercises: 6, rating: 3 },
-]
-
-const weeklyGoal = { workouts: 5, done: 3, calories: 2000, burned: 1390 }
-
-const muscleGroups = [
-  { name: 'Chest', trained: 3, color: 'var(--accent)' },
-  { name: 'Back', trained: 2, color: '#16a34a' },
-  { name: 'Legs', trained: 2, color: '#d97706' },
-  { name: 'Shoulders', trained: 3, color: '#0284c7' },
-  { name: 'Arms', trained: 4, color: '#ea580c' },
-  { name: 'Core', trained: 5, color: '#7c3aed' },
-]
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
+import { fitnessStorage } from '@/services/storage'
 
 const typeColors: Record<string, string> = {
   Strength: 'var(--accent)',
@@ -47,12 +21,80 @@ const typeColors: Record<string, string> = {
   Flexibility: '#0284c7',
 }
 
-export default function FitnessPage() {
-  const [workouts, setWorkouts] = useState<Workout[]>(() => {
-    const saved = localStorage.getItem('ihsanos_workouts')
-    return saved ? JSON.parse(saved) : DEFAULT_WORKOUTS
+const getWorkoutsThisWeek = (list: any[]) => {
+  const now = new Date()
+  const currentDay = now.getDay()
+  const distanceToMon = currentDay === 0 ? 6 : currentDay - 1
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - distanceToMon)
+  monday.setHours(0, 0, 0, 0)
+  
+  return list.filter(w => {
+    try {
+      const d = new Date(w.date)
+      return d.getTime() >= monday.getTime()
+    } catch {
+      return false
+    }
   })
+}
 
+const getWorkoutDays = (workoutsWeek: any[]) => {
+  const activeDays = new Array(7).fill(false)
+  workoutsWeek.forEach(w => {
+    try {
+      const date = new Date(w.date)
+      const day = date.getDay() // 0 = Sun, 1 = Mon, etc.
+      const idx = day === 0 ? 6 : day - 1
+      activeDays[idx] = true
+    } catch {}
+  })
+  return activeDays
+}
+
+const calculateMuscleFocus = (list: any[]) => {
+  const groups = [
+    { name: 'Chest', keywords: ['chest', 'push', 'bench', 'pectoral'], trained: 0, color: 'var(--accent)' },
+    { name: 'Back', keywords: ['back', 'pull', 'row', 'lat', 'deadlift'], trained: 0, color: '#16a34a' },
+    { name: 'Legs', keywords: ['leg', 'squat', 'quad', 'hamstring', 'calf', 'lower'], trained: 0, color: '#d97706' },
+    { name: 'Shoulders', keywords: ['shoulder', 'press', 'deltoid', 'overhead'], trained: 0, color: '#0284c7' },
+    { name: 'Arms', keywords: ['arm', 'bicep', 'tricep', 'curl'], trained: 0, color: '#ea580c' },
+    { name: 'Core', keywords: ['core', 'abs', 'crunch', 'plank'], trained: 0, color: '#7c3aed' },
+  ]
+  
+  list.forEach(w => {
+    const nameLower = w.name.toLowerCase()
+    groups.forEach(g => {
+      if (g.keywords.some(k => nameLower.includes(k))) {
+        g.trained++
+      }
+    })
+  })
+  
+  return groups
+}
+
+const formatWorkoutDate = (dateStr: string) => {
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    const todayStr = new Date().toDateString()
+    if (d.toDateString() === todayStr) return 'Today'
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
+    
+    const diffTime = Math.abs(new Date().getTime() - d.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    if (diffDays < 7) return `${diffDays} days ago`
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  } catch {
+    return dateStr
+  }
+}
+
+export default function FitnessPage() {
+  const [workouts, setWorkouts] = useState<any[]>(() => fitnessStorage.getWorkouts())
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [name, setName] = useState('')
   const [type, setType] = useState('Strength')
@@ -60,27 +102,43 @@ export default function FitnessPage() {
   const [calories, setCalories] = useState('')
   const [rating, setRating] = useState('4')
 
-  const persistWorkouts = (updated: Workout[]) => {
-    setWorkouts(updated)
-    localStorage.setItem('ihsanos_workouts', JSON.stringify(updated))
+  // Delete states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [workoutToDelete, setWorkoutToDelete] = useState<string | null>(null)
+
+  const reloadWorkouts = () => {
+    setWorkouts(fitnessStorage.getWorkouts())
   }
+
+  // Calculate dynamic weekly stats
+  const workoutsWeek = getWorkoutsThisWeek(workouts)
+  const activeDays = getWorkoutDays(workoutsWeek)
+  const muscleGroups = calculateMuscleFocus(workouts)
+  
+  const targetWorkouts = 5
+  const targetCalories = 2000
+  const caloriesBurnedThisWeek = workoutsWeek.reduce((sum, w) => sum + (w.calories || w.caloriesBurned || 0), 0)
+
+  const avgDuration = workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + (w.duration || w.durationMinutes || 0), 0) / workouts.length) : 0
+  const avgDurationStr = `${avgDuration}m`
+  
+  const kcalPerWeekStr = caloriesBurnedThisWeek >= 1000 ? `${(caloriesBurnedThisWeek / 1000).toFixed(1)}k` : `${caloriesBurnedThisWeek}`
 
   const handleAddWorkout = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
 
-    const newWorkout: Workout = {
-      id: Date.now().toString(),
+    fitnessStorage.addWorkout({
       name: name.trim(),
-      type,
-      duration: Number(duration) || 30,
-      calories: Number(calories) || 200,
-      date: 'Just now',
-      exercises: type === 'Strength' ? 5 : 1,
-      rating: Number(rating) || 4,
-    }
+      type: type.toLowerCase() as any,
+      durationMinutes: Number(duration) || 30,
+      caloriesBurned: Number(calories) || 200,
+      date: new Date().toISOString(),
+      exercises: [],
+      rating: Number(rating) as any,
+    })
 
-    persistWorkouts([newWorkout, ...workouts])
+    reloadWorkouts()
     setIsModalOpen(false)
 
     // Reset Form
@@ -91,6 +149,20 @@ export default function FitnessPage() {
     setRating('4')
   }
 
+  const handleDeleteClick = (id: string) => {
+    setWorkoutToDelete(id)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (workoutToDelete) {
+      fitnessStorage.removeWorkout(workoutToDelete)
+      reloadWorkouts()
+    }
+    setIsDeleteOpen(false)
+    setWorkoutToDelete(null)
+  }
+
   return (
     <PageWrapper>
       {/* Weekly Overview */}
@@ -99,11 +171,13 @@ export default function FitnessPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-semibold text-[var(--text)]">This Week</p>
-              <p className="text-xs text-[var(--text-3)]">{weeklyGoal.done} of {weeklyGoal.workouts} workouts</p>
+              <p className="text-xs text-[var(--text-3)]">{workoutsWeek.length} of {targetWorkouts} workouts</p>
             </div>
             <div className="flex items-center gap-1.5 bg-[var(--accent-bg)] px-3 py-1 rounded-xl border border-[var(--accent-border)]">
               <Flame size={16} className="text-[var(--accent)]" />
-              <span className="text-sm font-bold text-[var(--accent-text)]">{weeklyGoal.calories - weeklyGoal.burned}</span>
+              <span className="text-sm font-bold text-[var(--accent-text)]">
+                {Math.max(0, targetCalories - caloriesBurnedThisWeek)}
+              </span>
               <span className="text-xs text-[var(--accent-text)]">kcal left</span>
             </div>
           </div>
@@ -112,24 +186,28 @@ export default function FitnessPage() {
             <div>
               <div className="flex justify-between text-xs mb-1.5">
                 <span className="text-[var(--text-3)]">Workouts</span>
-                <span className="text-[var(--text)] font-semibold">{weeklyGoal.done}/{weeklyGoal.workouts}</span>
+                <span className="text-[var(--text)] font-semibold">{workoutsWeek.length}/{targetWorkouts}</span>
               </div>
-              <ProgressBar value={weeklyGoal.done} max={weeklyGoal.workouts} color="var(--accent)" height={5} />
+              <ProgressBar value={workoutsWeek.length} max={targetWorkouts} color="var(--accent)" height={5} />
             </div>
             <div>
               <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-[var(--text-3)]">Calories</span>
-                <span className="text-[var(--text)] font-semibold">{weeklyGoal.burned}/{weeklyGoal.calories}</span>
+                <span className="text-[var(--text-3)]">Calories Burned</span>
+                <span className="text-[var(--text)] font-semibold">{caloriesBurnedThisWeek}/{targetCalories}</span>
               </div>
-              <ProgressBar value={weeklyGoal.burned} max={weeklyGoal.calories} color="#ea580c" height={5} />
+              <ProgressBar value={caloriesBurnedThisWeek} max={targetCalories} color="#ea580c" height={5} />
             </div>
           </div>
 
           <div className="flex gap-2">
             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <div className={`w-full h-8 rounded-lg flex items-center justify-center border transition-all ${i < 3 ? 'bg-[var(--accent-bg)] border-[var(--accent-border)] text-[var(--accent)]' : i === 3 ? 'bg-[var(--bg-subtle)] border-[var(--border)] text-[var(--text-4)]' : 'bg-transparent border-[var(--border)] text-[var(--text-4)]'}`}>
-                  {i < 3 && <Zap size={10} className="fill-current" />}
+                <div className={`w-full h-8 rounded-lg flex items-center justify-center border transition-all ${
+                  activeDays[i] 
+                    ? 'bg-[var(--accent-bg)] border-[var(--accent-border)] text-[var(--accent)]' 
+                    : 'bg-transparent border-[var(--border)] text-[var(--text-4)]'
+                }`}>
+                  {activeDays[i] && <Zap size={10} className="fill-current animate-pulse" />}
                 </div>
                 <span className="text-[9px] text-[var(--text-3)] font-medium">{d}</span>
               </div>
@@ -142,8 +220,8 @@ export default function FitnessPage() {
       <div className="grid grid-cols-3 gap-2 mb-5">
         {[
           { label: 'Total Workouts', value: workouts.length, icon: Dumbbell, color: 'var(--accent)' },
-          { label: 'Avg Duration', value: '45m', icon: Clock, color: '#d97706' },
-          { label: 'Calories/wk', value: '1.39k', icon: Flame, color: '#ea580c' },
+          { label: 'Avg Duration', value: avgDurationStr, icon: Clock, color: '#d97706' },
+          { label: 'Calories/wk', value: kcalPerWeekStr, icon: Flame, color: '#ea580c' },
         ].map(stat => (
           <div key={stat.label} className="flex flex-col gap-1.5 p-3 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border)] shadow-sm">
             <stat.icon size={16} style={{ color: stat.color }} />
@@ -153,63 +231,97 @@ export default function FitnessPage() {
         ))}
       </div>
 
-      {/* Muscle Groups */}
-      <div className="mb-5">
-        <SectionHeader title="Muscle Focus This Week" />
-        <Card>
-          <div className="grid grid-cols-3 gap-2">
-            {muscleGroups.map(mg => (
-              <div key={mg.name} className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-[var(--border)]" style={{ backgroundColor: `${mg.color}08` }}>
-                <span className="text-xs font-semibold" style={{ color: mg.color }}>{mg.name}</span>
-                <span className="text-[10px] text-[var(--text-3)] font-medium">{mg.trained}x</span>
-                <div className="w-full h-1 rounded-full bg-[var(--border)]">
-                  <div className="h-full rounded-full" style={{ width: `${(mg.trained / 7) * 100}%`, backgroundColor: mg.color }} />
-                </div>
+      {workouts.length === 0 ? (
+        <EmptyState
+          icon={<Dumbbell size={24} />}
+          title="No workouts recorded"
+          description="Build strength and endurance. Log your first workout to track burns and exercise stats."
+          action={
+            <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+              Log your first workout
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* Muscle Focus */}
+          <div className="mb-5">
+            <SectionHeader title="Muscle Focus Analysis" />
+            <Card>
+              <div className="grid grid-cols-3 gap-2">
+                {muscleGroups.map(mg => (
+                  <div key={mg.name} className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-[var(--border)]" style={{ backgroundColor: `${mg.color}08` }}>
+                    <span className="text-xs font-semibold" style={{ color: mg.color }}>{mg.name}</span>
+                    <span className="text-[10px] text-[var(--text-3)] font-medium">{mg.trained}x</span>
+                    <div className="w-full h-1 rounded-full bg-[var(--border)]">
+                      <div className="h-full rounded-full" style={{ width: `${Math.min(100, (mg.trained / Math.max(1, workouts.length)) * 100)}%`, backgroundColor: mg.color }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </Card>
           </div>
-        </Card>
-      </div>
 
-      {/* Recent Workouts */}
-      <div className="mb-5">
-        <SectionHeader title="Recent Workouts" action={
-          <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Log</Button>
-        } />
-        <div className="flex flex-col gap-3">
-          {workouts.map((workout, i) => (
-            <motion.div
-              key={workout.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06 }}
-            >
-              <Card hover>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${typeColors[workout.type] ?? 'var(--accent)'}15`, color: typeColors[workout.type] ?? 'var(--accent)' }}>
-                    <Dumbbell size={18} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[var(--text)]">{workout.name}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge variant="violet" size="sm">{workout.type}</Badge>
-                      <span className="text-[10px] text-[var(--text-3)] font-medium">{workout.duration}min · {workout.calories}kcal</span>
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-xs text-[var(--text-3)]">{workout.date}</p>
-                    <div className="flex mt-0.5 justify-end">
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <span key={j} className={`text-[10px] ${j < workout.rating ? 'text-[#d97706]' : 'text-[var(--border-strong)]'}`}>★</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </div>
+          {/* Recent Workouts */}
+          <div className="mb-5">
+            <SectionHeader title="Recent Workouts" action={
+              <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Log</Button>
+            } />
+            <div className="flex flex-col gap-3">
+              {workouts.map((workout, i) => {
+                const wCalories = workout.calories || workout.caloriesBurned || 0
+                const wDuration = workout.duration || workout.durationMinutes || 0
+                const wType = workout.type.charAt(0).toUpperCase() + workout.type.slice(1)
+                
+                return (
+                  <motion.div
+                    key={workout.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                  >
+                    <Card hover>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${typeColors[wType] ?? 'var(--accent)'}15`, color: typeColors[wType] ?? 'var(--accent)' }}>
+                            <Dumbbell size={18} />
+                          </div>
+                          <div className="flex-1 min-w-0 text-left">
+                            <p className="text-sm font-semibold text-[var(--text)] truncate">{workout.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <Badge variant="violet" size="sm">{wType}</Badge>
+                              <span className="text-[10px] text-[var(--text-3)] font-medium">{wDuration}min · {wCalories}kcal</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                          <div>
+                            <p className="text-xs text-[var(--text-3)]">{formatWorkoutDate(workout.date)}</p>
+                            <div className="flex mt-0.5 justify-end">
+                              {Array.from({ length: 5 }).map((_, j) => (
+                                <span key={j} className={`text-[10px] ${j < (workout.rating || 4) ? 'text-[#d97706]' : 'text-[var(--border-strong)]'}`}>★</span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(workout.id) }}
+                            className="text-[var(--text-4)] hover:text-[var(--error)] p-1 transition-colors"
+                            title="Delete Workout"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
       <FAB onClick={() => setIsModalOpen(true)} label="Log Workout" extended />
 
@@ -218,7 +330,7 @@ export default function FitnessPage() {
         <form onSubmit={handleAddWorkout} className="flex flex-col gap-4">
           <Input
             label="Workout Name"
-            placeholder="e.g. Upper Body Strength"
+            placeholder="e.g. Chest and Shoulders"
             value={name}
             onChange={e => setName(e.target.value)}
             required
@@ -277,6 +389,15 @@ export default function FitnessPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Workout Confirmation */}
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setWorkoutToDelete(null) }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Workout"
+        description="Are you sure you want to permanently delete this workout log?"
+      />
     </PageWrapper>
   )
 }

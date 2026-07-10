@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  CheckCircle2, Circle, Flame, Plus, Trophy,
+  CheckCircle2, Circle, Flame, Plus, Trophy, Trash2,
   Dumbbell, Book, Activity, Droplet, PenTool, Smartphone,
   Brain, Coffee, Sparkles, Smile
 } from 'lucide-react'
@@ -13,7 +13,9 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { FAB } from '@/components/ui/FAB'
 import { Modal } from '@/components/ui/Modal'
 import { Input, Select } from '@/components/ui/Input'
-
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
+import { habitStorage } from '@/services/storage'
 const HABIT_ICONS: Record<string, React.ComponentType<any>> = {
   dumbbell: Dumbbell,
   book: Book,
@@ -27,70 +29,47 @@ const HABIT_ICONS: Record<string, React.ComponentType<any>> = {
   smile: Smile,
 }
 
-interface Habit {
-  id: string
-  name: string
-  icon: string
-  color: string
-  streak: number
-  completedToday: boolean
-  weekDays: boolean[]
-  category: string
-}
-
-const DEFAULT_HABITS: Habit[] = [
-  { id: '1', name: 'Morning Workout', icon: 'dumbbell', color: '#d97706', streak: 14, completedToday: true, weekDays: [true, true, true, true, true, false, false], category: 'Health' },
-  { id: '2', name: 'Read 30 pages', icon: 'book', color: 'var(--accent)', streak: 7, completedToday: true, weekDays: [true, true, true, true, false, true, false], category: 'Learning' },
-  { id: '3', name: 'Meditate 10min', icon: 'brain', color: '#16a34a', streak: 21, completedToday: false, weekDays: [true, true, true, false, true, false, false], category: 'Mindfulness' },
-  { id: '4', name: 'Drink 3L Water', icon: 'droplet', color: '#2563eb', streak: 5, completedToday: false, weekDays: [true, true, false, true, true, false, false], category: 'Health' },
-  { id: '5', name: 'Journal Writing', icon: 'pen', color: '#ea580c', streak: 3, completedToday: false, weekDays: [false, true, false, true, false, true, false], category: 'Personal' },
-  { id: '6', name: 'No Social Media before 10am', icon: 'smartphone', color: '#7c3aed', streak: 9, completedToday: true, weekDays: [true, true, true, true, true, false, false], category: 'Digital' },
-]
-
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const today = new Date().getDay()
 
 export default function HabitsPage() {
-  const [habits, setHabits] = useState<Habit[]>(() => {
-    const saved = localStorage.getItem('ihsanos_habits')
-    return saved ? JSON.parse(saved) : DEFAULT_HABITS
-  })
-
+  const [habits, setHabits] = useState<any[]>(() => habitStorage.getAll())
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [newCategory, setNewCategory] = useState('Health')
   const [newIcon, setNewIcon] = useState('activity')
   const [newColor, setNewColor] = useState('var(--accent)')
 
-  const completedCount = habits.filter(h => h.completedToday).length
-  const completionRate = habits.length > 0 ? Math.round((completedCount / habits.length) * 100) : 0
+  // Delete Confirmation states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
 
-  const persistHabits = (updated: Habit[]) => {
-    setHabits(updated)
-    localStorage.setItem('ihsanos_habits', JSON.stringify(updated))
+  const reloadHabits = () => {
+    setHabits(habitStorage.getAll())
   }
 
+  const completedCount = habits.filter(h => h.completedToday).length
+  const completionRate = habits.length > 0 ? Math.round((completedCount / habits.length) * 100) : 0
+  const bestStreak = habits.length > 0 ? Math.max(...habits.map(h => h.streak || 0), 0) : 0
+
   const toggleHabit = (id: string) => {
-    const updated = habits.map(h => {
-      if (h.id === id) {
-        const nextCompleted = !h.completedToday
-        return {
-          ...h,
-          completedToday: nextCompleted,
-          streak: nextCompleted ? h.streak + 1 : Math.max(0, h.streak - 1)
-        }
-      }
-      return h
-    })
-    persistHabits(updated)
+    const current = habits.find(h => h.id === id)
+    if (!current) return
+    const nextCompleted = !current.completedToday
+    const nextStreak = nextCompleted ? (current.streak || 0) + 1 : Math.max(0, (current.streak || 0) - 1)
+    
+    habitStorage.update(id, {
+      completedToday: nextCompleted,
+      streak: nextStreak,
+    } as any)
+    reloadHabits()
   }
 
   const handleAddHabit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newName.trim()) return
 
-    const newHabit: Habit = {
-      id: Date.now().toString(),
+    habitStorage.add({
       name: newName.trim(),
       category: newCategory,
       icon: newIcon,
@@ -98,9 +77,14 @@ export default function HabitsPage() {
       streak: 0,
       completedToday: false,
       weekDays: [true, true, true, true, true, true, true],
-    }
+      isActive: true,
+      frequency: 'daily',
+      targetDays: [1, 2, 3, 4, 5, 6, 7],
+      longestStreak: 0,
+      completions: [],
+    } as any)
 
-    persistHabits([...habits, newHabit])
+    reloadHabits()
     setIsModalOpen(false)
 
     // Reset Form
@@ -108,6 +92,20 @@ export default function HabitsPage() {
     setNewCategory('Health')
     setNewIcon('activity')
     setNewColor('var(--accent)')
+  }
+
+  const handleDeleteClick = (id: string) => {
+    setHabitToDelete(id)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (habitToDelete) {
+      habitStorage.remove(habitToDelete)
+      reloadHabits()
+    }
+    setIsDeleteOpen(false)
+    setHabitToDelete(null)
   }
 
   return (
@@ -125,7 +123,7 @@ export default function HabitsPage() {
             <div className="flex items-center gap-2 bg-[var(--accent-bg)] px-3 py-1.5 rounded-xl border border-[var(--accent-border)]">
               <Flame size={18} className="text-[var(--accent)]" />
               <div className="text-right">
-                <p className="text-sm font-bold text-[var(--accent-text)]">21d</p>
+                <p className="text-sm font-bold text-[var(--accent-text)]">{bestStreak}d</p>
                 <p className="text-[9px] text-[var(--accent-text)] font-semibold uppercase tracking-wider">best streak</p>
               </div>
             </div>
@@ -163,81 +161,107 @@ export default function HabitsPage() {
         </Card>
       </div>
 
-      {/* Habits List */}
-      <div className="mb-5">
-        <SectionHeader title="My Habits" action={
-          <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Add</Button>
-        } />
-        <div className="flex flex-col gap-3">
-          {habits.map((habit, i) => {
-            const IconComponent = HABIT_ICONS[habit.icon] || Activity
-            return (
-              <motion.div
-                key={habit.id}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.06 }}
-              >
-                <Card hover>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => toggleHabit(habit.id)}
-                      className="flex-shrink-0 focus:outline-none transition-transform active:scale-95"
-                    >
-                      {habit.completedToday
-                        ? <CheckCircle2 size={26} style={{ color: habit.color }} />
-                        : <Circle size={26} className="text-[var(--border-strong)]" />
-                      }
-                    </button>
+      {habits.length === 0 ? (
+        <EmptyState
+          icon={<Flame size={24} />}
+          title="No habits tracked yet"
+          description="Build daily discipline. Add a habit to start tracking streaks and completions."
+          action={
+            <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+              Add your first habit
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* Habits List */}
+          <div className="mb-5">
+            <SectionHeader title="My Habits" action={
+              <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Add</Button>
+            } />
+            <div className="flex flex-col gap-3">
+              {habits.map((habit, i) => {
+                const IconComponent = HABIT_ICONS[habit.icon] || Activity
+                return (
+                  <motion.div
+                    key={habit.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                  >
+                    <Card hover>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <button
+                            onClick={() => toggleHabit(habit.id)}
+                            className="flex-shrink-0 focus:outline-none transition-transform active:scale-95 text-left"
+                          >
+                            {habit.completedToday
+                              ? <CheckCircle2 size={26} style={{ color: habit.color }} />
+                              : <Circle size={26} className="text-[var(--border-strong)]" />
+                            }
+                          </button>
 
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${habit.color}15`, color: habit.color }}>
-                      <IconComponent size={16} />
-                    </div>
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${habit.color}15`, color: habit.color }}>
+                            <IconComponent size={16} />
+                          </div>
 
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${habit.completedToday ? 'text-[var(--text-3)] line-through' : 'text-[var(--text)]'}`}>
-                        {habit.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge variant="default" size="sm">{habit.category}</Badge>
-                        <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-3)] font-medium">
-                          <Flame size={10} className="text-[#ea580c]" />
-                          {habit.streak}d streak
-                        </span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-semibold truncate ${habit.completedToday ? 'text-[var(--text-3)] line-through' : 'text-[var(--text)]'}`}>
+                              {habit.name}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <Badge variant="default" size="sm">{habit.category}</Badge>
+                              <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-3)] font-medium">
+                                <Flame size={10} className="text-[#ea580c]" />
+                                {habit.streak || 0}d streak
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {(habit.streak || 0) >= 21 && <Trophy size={16} className="text-[#d97706] animate-bounce" />}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(habit.id) }}
+                            className="text-[var(--text-4)] hover:text-[var(--error)] p-1 transition-colors"
+                            title="Delete Habit"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
+                    </Card>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Streaks Hall */}
+          <div className="mb-5">
+            <SectionHeader title="Top Streaks" />
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {[...habits].sort((a, b) => (b.streak || 0) - (a.streak || 0)).slice(0, 4).map(h => {
+                const IconComponent = HABIT_ICONS[h.icon] || Activity
+                return (
+                  <div
+                    key={h.id}
+                    className="flex-shrink-0 flex flex-col items-center gap-2 p-4 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border)] shadow-sm min-w-[90px]"
+                  >
+                    <IconComponent size={20} className="text-[var(--text-3)]" />
+                    <div className="text-center">
+                      <p className="text-lg font-bold" style={{ color: h.color }}>{h.streak || 0}</p>
+                      <p className="text-[9px] text-[var(--text-3)] font-semibold uppercase tracking-wider leading-tight truncate max-w-[80px]">{h.name}</p>
                     </div>
-
-                    {habit.streak >= 21 && <Trophy size={16} className="text-[#d97706] flex-shrink-0 animate-bounce" />}
+                    <Flame size={12} className="text-[#ea580c]" />
                   </div>
-                </Card>
-              </motion.div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Streaks Hall */}
-      <div className="mb-5">
-        <SectionHeader title="Top Streaks" />
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {[...habits].sort((a, b) => b.streak - a.streak).slice(0, 4).map(h => {
-            const IconComponent = HABIT_ICONS[h.icon] || Activity
-            return (
-              <div
-                key={h.id}
-                className="flex-shrink-0 flex flex-col items-center gap-2 p-4 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border)] shadow-sm min-w-[90px]"
-              >
-                <IconComponent size={20} className="text-[var(--text-3)]" />
-                <div className="text-center">
-                  <p className="text-lg font-bold" style={{ color: h.color }}>{h.streak}</p>
-                  <p className="text-[9px] text-[var(--text-3)] font-semibold uppercase tracking-wider leading-tight truncate max-w-[80px]">{h.name}</p>
-                </div>
-                <Flame size={12} className="text-[#ea580c]" />
-              </div>
-            )
-          })}
-        </div>
-      </div>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
       <FAB onClick={() => setIsModalOpen(true)} />
 
@@ -295,6 +319,15 @@ export default function HabitsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Habit Confirmation */}
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setHabitToDelete(null) }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Habit"
+        description="Are you sure you want to permanently delete this habit and reset its streak?"
+      />
     </PageWrapper>
   )
 }

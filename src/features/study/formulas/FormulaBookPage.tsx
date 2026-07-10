@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Star, AlertCircle } from 'lucide-react'
+import { Plus, Star, AlertCircle, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -10,6 +10,8 @@ import { PageWrapper } from '@/components/layout/PageWrapper'
 import { studyERPStorage } from '@/services/storage/studyERP.storage'
 import type { Formula, Subject, Chapter } from '@/types/study.types'
 import { useToast } from '@/hooks/useToast'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
 
 export default function FormulaBookPage() {
   const toast = useToast()
@@ -28,8 +30,16 @@ export default function FormulaBookPage() {
 
   const [showOnlyFavs, setShowOnlyFavs] = useState(false)
 
-  useEffect(() => {
+  // Delete states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [formulaToDelete, setFormulaToDelete] = useState<string | null>(null)
+
+  const reloadFormulas = () => {
     setFormulas(studyERPStorage.getFormulas())
+  }
+
+  useEffect(() => {
+    reloadFormulas()
     setSubjects(studyERPStorage.getSubjects())
     setChapters(studyERPStorage.getChapters())
   }, [])
@@ -56,7 +66,7 @@ export default function FormulaBookPage() {
     }
 
     studyERPStorage.addFormula(newForm)
-    setFormulas(studyERPStorage.getFormulas())
+    reloadFormulas()
 
     setIsModalOpen(false)
     setName('')
@@ -77,6 +87,21 @@ export default function FormulaBookPage() {
     studyERPStorage.saveFormulas(updated)
     setFormulas(updated)
     toast.info('Formula starred preference toggled.')
+  }
+
+  const handleDeleteClick = (id: string) => {
+    setFormulaToDelete(id)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (formulaToDelete) {
+      studyERPStorage.removeFormula(formulaToDelete)
+      reloadFormulas()
+      toast.success('Formula reference deleted.')
+    }
+    setIsDeleteOpen(false)
+    setFormulaToDelete(null)
   }
 
   const getSubName = (id: string) => subjects.find(s => s.id === id)?.name ?? 'Syllabus'
@@ -106,7 +131,7 @@ export default function FormulaBookPage() {
       </div>
 
       {/* Search and filter controls */}
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center my-4">
         <SearchBar
           placeholder="Search formulas or equations..."
           value={search}
@@ -126,10 +151,21 @@ export default function FormulaBookPage() {
 
       {/* Formula list layout */}
       <div>
-        {filteredFormulas.length === 0 ? (
+        {formulas.length === 0 ? (
+          <EmptyState
+            icon={<AlertCircle size={24} />}
+            title="Formula book is empty"
+            description="Keep formulas and equations organized. Add your first academic formula here."
+            action={
+              <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+                Add first formula
+              </Button>
+            }
+          />
+        ) : filteredFormulas.length === 0 ? (
           <Card className="text-center py-12">
             <AlertCircle className="mx-auto text-[var(--text-4)] mb-3" size={24} />
-            <p className="text-sm font-semibold text-[var(--text-2)]">No formulas found</p>
+            <p className="text-sm font-semibold text-[var(--text-2)]">No matching formulas found</p>
             <p className="text-xs text-[var(--text-3)] mt-1">Refine search parameters or register new equations.</p>
           </Card>
         ) : (
@@ -138,7 +174,7 @@ export default function FormulaBookPage() {
               <Card key={f.id} className="p-4 flex flex-col justify-between">
                 <div>
                   <div className="flex justify-between items-start gap-3">
-                    <div>
+                    <div className="text-left">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-[10px] text-[var(--text-3)] font-semibold">{getSubName(f.subjectId)}</span>
                         {f.chapterId && <Badge variant="default" size="sm">{getChName(f.chapterId)}</Badge>}
@@ -146,12 +182,21 @@ export default function FormulaBookPage() {
                       <h4 className="text-xs font-bold text-[var(--text)] mt-1">{f.name}</h4>
                     </div>
 
-                    <button 
-                      onClick={() => toggleFav(f.id)}
-                      className={`text-xs cursor-pointer hover:scale-110 transition-all ${f.isFavourite ? 'text-[var(--warning)]' : 'text-[var(--text-4)]'}`}
-                    >
-                      ★
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => toggleFav(f.id)}
+                        className={`text-xs cursor-pointer hover:scale-110 transition-all ${f.isFavourite ? 'text-[var(--warning)]' : 'text-[var(--text-4)]'}`}
+                      >
+                        ★
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteClick(f.id)}
+                        className="text-[var(--text-4)] hover:text-[var(--error)] cursor-pointer p-0.5 transition-colors"
+                        title="Delete Formula"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Formula body expression */}
@@ -159,12 +204,12 @@ export default function FormulaBookPage() {
                     <span className="font-mono text-sm font-bold text-[var(--accent)] select-all">{f.expression}</span>
                   </div>
 
-                  <p className="text-[11px] text-[var(--text-3)] leading-relaxed">
+                  <p className="text-[11px] text-[var(--text-3)] leading-relaxed text-left">
                     {f.description}
                   </p>
 
                   {f.example && (
-                    <div className="mt-3 pt-2.5 border-t border-[var(--border)] text-[10.5px] text-[var(--text-3)]">
+                    <div className="mt-3 pt-2.5 border-t border-[var(--border)] text-[10.5px] text-[var(--text-3)] text-left">
                       <span className="font-semibold text-[var(--text-2)]">Example:</span> <code className="font-mono text-[var(--text-2)]">{f.example}</code>
                     </div>
                   )}
@@ -206,6 +251,7 @@ export default function FormulaBookPage() {
             placeholder="e.g. Quadratic Formula, Biot-Savart Law"
             value={name}
             onChange={e => setName(e.target.value)}
+            required
           />
 
           <Input
@@ -213,6 +259,7 @@ export default function FormulaBookPage() {
             placeholder="e.g. x = (-b ± √(b² - 4ac)) / 2a"
             value={expression}
             onChange={e => setExpression(e.target.value)}
+            required
           />
 
           <Textarea
@@ -239,6 +286,16 @@ export default function FormulaBookPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Formula Confirmation */}
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setFormulaToDelete(null) }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Formula Reference"
+        description="Permanently delete this formula reference? This action cannot be undone."
+        requireText="DELETE"
+      />
     </PageWrapper>
   )
 }

@@ -138,38 +138,7 @@ class MemoryStoreService {
   }
 
   private async populateInitialData() {
-    const INITIAL_SUBJECTS: Subject[] = [
-      { id: 'sub-phy', name: 'Physics', studyHours: 24, targetHours: 50, completedChapters: 4, pendingChapters: 6, completionPercentage: 40, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true },
-      { id: 'sub-che', name: 'Chemistry', studyHours: 18, targetHours: 45, completedChapters: 3, pendingChapters: 7, completionPercentage: 30, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true },
-      { id: 'sub-mat', name: 'Mathematics', studyHours: 35, targetHours: 60, completedChapters: 6, pendingChapters: 4, completionPercentage: 60, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true },
-      { id: 'sub-eng', name: 'English', studyHours: 8, targetHours: 20, completedChapters: 2, pendingChapters: 3, completionPercentage: 40, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true },
-      { id: 'sub-cs', name: 'Computer Science', studyHours: 15, targetHours: 35, completedChapters: 3, pendingChapters: 5, completionPercentage: 37, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true }
-    ]
-
-    const INITIAL_CHAPTERS: Chapter[] = [
-      { id: 'ch-phy-1', subjectId: 'sub-phy', name: 'Electromagnetism', priority: 'high', difficulty: 'hard', status: 'in_progress', estimatedHours: 12, completedHours: 8, notes: 'Revise Biot-Savart Law and Ampere Law equations before mock exam.', revisionCount: 2, confidencePercentage: 70, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true },
-      { id: 'ch-phy-2', subjectId: 'sub-phy', name: 'Optics', priority: 'medium', difficulty: 'medium', status: 'not_started', estimatedHours: 10, completedHours: 0, notes: '', revisionCount: 0, confidencePercentage: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true },
-      { id: 'ch-che-1', subjectId: 'sub-che', name: 'Organic Chemistry', priority: 'high', difficulty: 'hard', status: 'in_progress', estimatedHours: 15, completedHours: 6, notes: 'Focus on SN1/SN2 nucleophilic substitution mechanisms.', revisionCount: 1, confidencePercentage: 55, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true },
-      { id: 'ch-mat-1', subjectId: 'sub-mat', name: 'Calculus', priority: 'urgent', difficulty: 'hard', status: 'in_progress', estimatedHours: 18, completedHours: 12, notes: 'Practice integration by parts and trigonometric substitutions.', revisionCount: 3, confidencePercentage: 80, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true },
-      { id: 'ch-mat-2', subjectId: 'sub-mat', name: 'Matrices', priority: 'medium', difficulty: 'easy', status: 'completed', estimatedHours: 6, completedHours: 6, notes: 'Covered Cramers rule and determinants.', revisionCount: 2, confidencePercentage: 95, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true }
-    ]
-
-    const INITIAL_TOPICS: Topic[] = [
-      { id: 'tp-phy-1-1', chapterId: 'ch-phy-1', name: 'Biot-Savart Law', status: 'in_progress', understandingPercentage: 75, questionsSolved: 15, mistakes: 2, revisionNeeded: true, notes: 'Magnetic field due to a straight wire segment.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true },
-      { id: 'tp-phy-1-2', chapterId: 'ch-phy-1', name: 'Ampere Circuital Law', status: 'mastered', understandingPercentage: 90, questionsSolved: 10, mistakes: 0, revisionNeeded: false, notes: 'Highly symmetrical configurations.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true },
-      { id: 'tp-mat-1-1', chapterId: 'ch-mat-1', name: 'Limits and Continuity', status: 'mastered', understandingPercentage: 95, questionsSolved: 30, mistakes: 1, revisionNeeded: false, notes: 'L Hospital rule is extremely useful.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true },
-      { id: 'tp-mat-1-2', chapterId: 'ch-mat-1', name: 'Integration by Parts', status: 'in_progress', understandingPercentage: 70, questionsSolved: 25, mistakes: 4, revisionNeeded: true, notes: 'Remember ILATE rule for function priority.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), syncVersion: 1, pendingSync: true }
-    ]
-
-    this.subjects = INITIAL_SUBJECTS
-    this.chapters = INITIAL_CHAPTERS
-    this.topics = INITIAL_TOPICS
-
-    await Promise.all([
-      ...INITIAL_SUBJECTS.map(s => idb.put(STORES.SUBJECTS, s)),
-      ...INITIAL_CHAPTERS.map(c => idb.put(STORES.CHAPTERS, c)),
-      ...INITIAL_TOPICS.map(t => idb.put(STORES.TOPICS, t))
-    ])
+    // Start with empty database for production use
   }
 
   // Generic in-memory helper with IndexedDB async write

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Archive, Download, Upload, Trash2, RefreshCw, Plus,
+  Archive, Download, Upload, Trash2, Plus,
   CheckCircle2, AlertTriangle, FileJson, FileText, Clock
 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'

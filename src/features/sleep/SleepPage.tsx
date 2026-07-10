@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Moon, Sun, Clock, Star, TrendingUp, Plus, Smartphone, Coffee, Thermometer, Activity } from 'lucide-react'
+import { Moon, Sun, Clock, Star, TrendingUp, Plus, Smartphone, Coffee, Thermometer, Activity, Trash2 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -10,27 +10,10 @@ import { ProgressRing } from '@/components/ui/ProgressRing'
 import { FAB } from '@/components/ui/FAB'
 import { Modal } from '@/components/ui/Modal'
 import { Input, Select } from '@/components/ui/Input'
-
-interface SleepLog {
-  id: string
-  date: string
-  bed: string
-  wake: string
-  hours: number
-  quality: string
-  rating: number
-  factors: string[]
-}
-
-const DEFAULT_SLEEP_LOGS: SleepLog[] = [
-  { id: '1', date: 'Last night', bed: '10:45 PM', wake: '6:00 AM', hours: 7.25, quality: 'Good', rating: 4, factors: ['Exercise'] },
-  { id: '2', date: 'Tue', bed: '11:30 PM', wake: '7:00 AM', hours: 7.5, quality: 'Good', rating: 4, factors: [] },
-  { id: '3', date: 'Mon', bed: '10:00 PM', wake: '6:00 AM', hours: 8.0, quality: 'Excellent', rating: 5, factors: ['Meditation'] },
-  { id: '4', date: 'Sun', bed: '12:00 AM', wake: '8:00 AM', hours: 8.0, quality: 'Fair', rating: 3, factors: ['Screen', 'Caffeine'] },
-  { id: '5', date: 'Sat', bed: '1:00 AM', wake: '9:00 AM', hours: 8.0, quality: 'Poor', rating: 2, factors: ['Late Meal', 'Stress'] },
-]
-
-const sleepGoal = 8
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
+import { sleepStorage } from '@/services/storage'
+import type { SleepQuality, SleepFactor } from '@/types'
 
 const qualityColors: Record<string, string> = {
   Excellent: '#16a34a',
@@ -47,11 +30,7 @@ const sleepTips = [
 ]
 
 export default function SleepPage() {
-  const [sleepLogs, setSleepLogs] = useState<SleepLog[]>(() => {
-    const saved = localStorage.getItem('ihsanos_sleep')
-    return saved ? JSON.parse(saved) : DEFAULT_SLEEP_LOGS
-  })
-
+  const [sleepLogs, setSleepLogs] = useState<any[]>(() => sleepStorage.getLogs())
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [bedTime, setBedTime] = useState('')
   const [wakeTime, setWakeTime] = useState('')
@@ -60,27 +39,46 @@ export default function SleepPage() {
   const [rating, setRating] = useState('4')
   const [factors, setFactors] = useState('')
 
-  const persistSleepLogs = (updated: SleepLog[]) => {
-    setSleepLogs(updated)
-    localStorage.setItem('ihsanos_sleep', JSON.stringify(updated))
+  // Delete states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [sleepToDelete, setSleepToDelete] = useState<string | null>(null)
+
+  const sleepGoal = 8
+
+  const reloadSleepLogs = () => {
+    setSleepLogs(sleepStorage.getLogs())
   }
 
   const handleAddSleepLog = (e: React.FormEvent) => {
     e.preventDefault()
     if (!bedTime || !wakeTime || !hours) return
 
-    const newLog: SleepLog = {
-      id: Date.now().toString(),
-      date: 'Just logged',
-      bed: bedTime,
-      wake: wakeTime,
-      hours: Number(hours) || 7.5,
-      quality,
-      rating: Number(rating) || 4,
-      factors: factors ? factors.split(',').map(f => f.trim()).filter(Boolean) : [],
+    const factorMap: Record<string, SleepFactor> = {
+      screen: 'screen_before_bed',
+      caffeine: 'caffeine',
+      stress: 'stress',
+      exercise: 'exercise',
+      meditation: 'meditation',
+      alcohol: 'alcohol',
+      latemeal: 'late_meal',
+      late_meal: 'late_meal',
     }
+    const inputFactors = factors ? factors.split(',').map(f => {
+      const norm = f.trim().toLowerCase().replace(/\s+/g, '')
+      return factorMap[norm] || (norm as any)
+    }).filter(Boolean) as SleepFactor[] : []
 
-    persistSleepLogs([newLog, ...sleepLogs])
+    sleepStorage.addLog({
+      date: new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+      bedTime: bedTime,
+      wakeTime: wakeTime,
+      durationHours: Number(hours) || 7.5,
+      quality: quality.toLowerCase() as SleepQuality,
+      rating: Number(rating) as 1 | 2 | 3 | 4 | 5,
+      factors: inputFactors,
+    })
+
+    reloadSleepLogs()
     setIsModalOpen(false)
 
     // Reset Form
@@ -92,13 +90,29 @@ export default function SleepPage() {
     setFactors('')
   }
 
-  const weekData = sleepLogs.map(l => l.hours)
+  const handleDeleteClick = (id: string) => {
+    setSleepToDelete(id)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (sleepToDelete) {
+      sleepStorage.removeLog(sleepToDelete)
+      reloadSleepLogs()
+    }
+    setIsDeleteOpen(false)
+    setSleepToDelete(null)
+  }
+
+  const weekData = sleepLogs.map(l => l.durationHours || 0)
   const avgSleep = weekData.length > 0 ? weekData.reduce((a, b) => a + b, 0) / weekData.length : 0
 
-  const lastNightHours = sleepLogs[0]?.hours || 0
-  const lastNightBed = sleepLogs[0]?.bed || '--'
-  const lastNightWake = sleepLogs[0]?.wake || '--'
+  const lastNightHours = sleepLogs[0]?.durationHours || 0
+  const lastNightBed = sleepLogs[0]?.bedTime || '--'
+  const lastNightWake = sleepLogs[0]?.wakeTime || '--'
   const lastNightQuality = sleepLogs[0]?.quality || '--'
+  
+  const bestSleep = sleepLogs.length > 0 ? Math.max(...sleepLogs.map(l => l.durationHours || 0), 0) : 0
 
   return (
     <PageWrapper>
@@ -112,7 +126,7 @@ export default function SleepPage() {
                 <span className="text-xs font-bold text-[var(--text)]">{lastNightHours}h</span>
               </div>
             </ProgressRing>
-            <div className="flex-1">
+            <div className="flex-1 text-left">
               <p className="text-sm font-semibold text-[var(--text)] mb-2">Last Night</p>
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2">
@@ -123,7 +137,7 @@ export default function SleepPage() {
                   <Sun size={12} className="text-[#d97706]" />
                   <span className="text-xs text-[var(--text-2)]">Wake: {lastNightWake}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Star size={12} className="text-[var(--accent)]" />
                   <Badge variant="violet" size="sm">{lastNightQuality} Quality</Badge>
                 </div>
@@ -138,7 +152,7 @@ export default function SleepPage() {
         {[
           { label: 'Avg Sleep', value: `${avgSleep.toFixed(1)}h`, icon: Clock, color: 'var(--accent)' },
           { label: 'This Week', value: `${sleepLogs.length} days`, icon: Moon, color: '#ea580c' },
-          { label: 'Best Night', value: '8.0h', icon: TrendingUp, color: '#16a34a' },
+          { label: 'Best Night', value: `${bestSleep.toFixed(1)}h`, icon: TrendingUp, color: '#16a34a' },
         ].map(stat => (
           <div key={stat.label} className="flex flex-col gap-1.5 p-3 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border)] shadow-sm">
             <stat.icon size={16} style={{ color: stat.color }} />
@@ -148,83 +162,110 @@ export default function SleepPage() {
         ))}
       </div>
 
-      {/* Weekly Chart */}
-      <div className="mb-5">
-        <SectionHeader title="This Week" subtitle={`Avg ${avgSleep.toFixed(1)}h per night`} />
-        <Card>
-          <div className="flex items-end gap-2 h-24 pt-4">
-            {[...sleepLogs].slice().reverse().map((log, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <div
-                  className="w-full rounded-lg transition-all"
-                  style={{
-                    height: `${(log.hours / sleepGoal) * 60}px`,
-                    backgroundColor: qualityColors[log.quality] ?? 'var(--accent)',
-                    opacity: 0.7 + (i === sleepLogs.length - 1 ? 0.3 : 0),
-                    minHeight: 8,
-                  }}
-                />
-                <span className="text-[9px] text-[var(--text-3)] font-semibold uppercase">{log.date.slice(0, 3)}</span>
+      {sleepLogs.length === 0 ? (
+        <EmptyState
+          icon={<Moon size={24} />}
+          title="No sleep logs recorded"
+          description="Sleep is vital for focus. Log your bedtime and wake time to analyze your sleep quality."
+          action={
+            <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+              Log sleep last night
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* Weekly Chart */}
+          <div className="mb-5">
+            <SectionHeader title="This Week" subtitle={`Avg ${avgSleep.toFixed(1)}h per night`} />
+            <Card>
+              <div className="flex items-end gap-2 h-24 pt-4">
+                {[...sleepLogs].slice(0, 7).reverse().map((log, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                    <div
+                      className="w-full rounded-lg transition-all"
+                      style={{
+                        height: `${(log.durationHours / sleepGoal) * 60}px`,
+                        backgroundColor: qualityColors[log.quality] ?? 'var(--accent)',
+                        opacity: 0.7 + (i === Math.min(sleepLogs.length, 7) - 1 ? 0.3 : 0),
+                        minHeight: 8,
+                      }}
+                    />
+                    <span className="text-[9px] text-[var(--text-3)] font-semibold uppercase">{log.date.slice(0, 3)}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="flex gap-3 mt-3 text-[10px]">
-            {Object.entries(qualityColors).map(([q, c]) => (
-              <div key={q} className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: c }} />
-                <span className="text-[var(--text-3)] font-medium">{q}</span>
+              <div className="flex gap-3 mt-3 text-[10px] flex-wrap">
+                {Object.entries(qualityColors).map(([q, c]) => (
+                  <div key={q} className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: c }} />
+                    <span className="text-[var(--text-3)] font-medium">{q}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </Card>
           </div>
-        </Card>
-      </div>
 
-      {/* Sleep Log History */}
-      <div className="mb-5">
-        <SectionHeader title="Sleep History" action={
-          <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Log Sleep</Button>
-        } />
-        <div className="flex flex-col gap-3">
-          {sleepLogs.map((log, i) => (
-            <motion.div
-              key={log.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06 }}
-            >
-              <Card hover>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0">
-                    <Moon size={18} className="text-[var(--accent)]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-[var(--text)]">{log.hours}h sleep</p>
-                      <Badge size="sm" style={{ backgroundColor: `${qualityColors[log.quality]}15`, color: qualityColors[log.quality] }}>
-                        {log.quality}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-[var(--text-3)] mt-0.5">{log.bed} → {log.wake}</p>
-                    {log.factors.length > 0 && (
-                      <div className="flex gap-1 mt-1 flex-wrap">
-                        {log.factors.map(f => <Badge key={f} variant="default" size="sm">{f}</Badge>)}
+          {/* Sleep Log History */}
+          <div className="mb-5">
+            <SectionHeader title="Sleep History" action={
+              <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Log Sleep</Button>
+            } />
+            <div className="flex flex-col gap-3">
+              {sleepLogs.map((log, i) => (
+                <motion.div
+                  key={log.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.06 }}
+                >
+                  <Card hover>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0">
+                          <Moon size={18} className="text-[var(--accent)]" />
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold text-[var(--text)]">{log.durationHours}h sleep</p>
+                            <Badge size="sm" style={{ backgroundColor: `${qualityColors[log.quality]}15`, color: qualityColors[log.quality] }}>
+                              {log.quality}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-[var(--text-3)] mt-0.5">{log.bedTime} → {log.wakeTime}</p>
+                          {log.factors && log.factors.length > 0 && (
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                              {log.factors.map((f: string) => <Badge key={f} variant="default" size="sm">{f}</Badge>)}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-xs text-[var(--text-3)] font-medium">{log.date}</p>
-                    <div className="flex justify-end mt-0.5 font-bold">
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <span key={j} className={`text-[10px] ${j < log.rating ? 'text-[#d97706]' : 'text-[var(--border-strong)]'}`}>★</span>
-                      ))}
+
+                      <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                        <div>
+                          <p className="text-xs text-[var(--text-3)] font-medium">{log.date}</p>
+                          <div className="flex justify-end mt-0.5 font-bold">
+                            {Array.from({ length: 5 }).map((_, j) => (
+                              <span key={j} className={`text-[10px] ${j < (log.rating || 4) ? 'text-[#d97706]' : 'text-[var(--border-strong)]'}`}>★</span>
+                            ))}
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(log.id) }}
+                          className="text-[var(--text-4)] hover:text-[var(--error)] p-1 transition-colors"
+                          title="Delete Sleep Log"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Sleep Tips */}
       <div className="mb-5">
@@ -235,10 +276,10 @@ export default function SleepPage() {
               const TipIcon = t.icon
               return (
                 <div key={i} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border)] flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border)] flex items-center justify-center flex-shrink-0">
                     <TipIcon size={16} className="text-[var(--text-3)]" />
                   </div>
-                  <p className="text-xs text-[var(--text-2)] font-medium">{t.tip}</p>
+                  <p className="text-xs text-[var(--text-2)] font-medium text-left">{t.tip}</p>
                 </div>
               )
             })}
@@ -318,6 +359,15 @@ export default function SleepPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Sleep Log Confirmation */}
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setSleepToDelete(null) }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Sleep Log"
+        description="Are you sure you want to permanently delete this sleep log?"
+      />
     </PageWrapper>
   )
 }

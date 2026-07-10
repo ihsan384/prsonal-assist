@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Brain, Book, Link, Video, Headphones, Plus, Star } from 'lucide-react'
+import { Brain, Book, Link, Video, Headphones, Plus, Star, Trash2 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -10,6 +10,10 @@ import { SearchBar, Input, Select } from '@/components/ui/Input'
 import { ProgressBar } from '@/components/ui/ProgressRing'
 import { FAB } from '@/components/ui/FAB'
 import { Modal } from '@/components/ui/Modal'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
+import { knowledgeStorage } from '@/services/storage'
+import type { KnowledgeType, ReadStatus } from '@/types'
 
 const typeIcons: Record<string, React.ComponentType<{ size: number }>> = {
   book: Book,
@@ -20,28 +24,14 @@ const typeIcons: Record<string, React.ComponentType<{ size: number }>> = {
   note: Brain,
 }
 
-interface KnowledgeItem {
-  id: string
-  title: string
-  author: string
-  type: string
-  status: string
-  rating: number
-  tags: string[]
-  progress?: number
-  totalPages?: number
-  currentPage?: number
-  color: string
+const colorMap: Record<string, string> = {
+  book: 'var(--accent)',
+  article: '#0284c7',
+  video: '#7c3aed',
+  course: '#16a34a',
+  podcast: '#ea580c',
+  note: '#db2777',
 }
-
-const DEFAULT_ITEMS: KnowledgeItem[] = [
-  { id: '1', title: 'Clean Architecture', author: 'Robert C. Martin', type: 'book', status: 'reading', rating: 5, tags: ['Architecture', 'Design'], progress: 65, totalPages: 432, currentPage: 281, color: 'var(--accent)' },
-  { id: '2', title: 'React Performance Patterns', author: 'Addy Osmani', type: 'article', status: 'completed', rating: 4, tags: ['React', 'Performance'], color: '#0284c7' },
-  { id: '3', title: 'System Design Course', author: 'ByteByteGo', type: 'course', status: 'reading', rating: 5, tags: ['Backend', 'System Design'], progress: 45, color: '#16a34a' },
-  { id: '4', title: 'The Pragmatic Programmer', author: 'Dave Thomas', type: 'book', status: 'want_to_read', rating: 0, tags: ['Programming', 'Career'], color: '#d97706' },
-  { id: '5', title: 'Lex Fridman Podcast #391', author: 'Lex Fridman', type: 'podcast', status: 'completed', rating: 4, tags: ['AI', 'Tech'], color: '#ea580c' },
-  { id: '6', title: 'Understanding TypeScript Generics', author: 'Matt Pocock', type: 'video', status: 'completed', rating: 5, tags: ['TypeScript'], color: '#7c3aed' },
-]
 
 const statusTabs = [
   { id: 'all', label: 'All' },
@@ -58,14 +48,14 @@ const statusBadge: Record<string, { label: string; variant: 'violet' | 'success'
 }
 
 export default function KnowledgePage() {
-  const [items, setItems] = useState<KnowledgeItem[]>(() => {
-    const saved = localStorage.getItem('ihsanos_knowledge')
-    return saved ? JSON.parse(saved) : DEFAULT_ITEMS
-  })
-
+  const [items, setItems] = useState<any[]>(() => knowledgeStorage.getAll())
   const [activeTab, setActiveTab] = useState('all')
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Delete states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null)
 
   // Form states
   const [title, setTitle] = useState('')
@@ -78,39 +68,27 @@ export default function KnowledgePage() {
   const [totalPages, setTotalPages] = useState('')
   const [tags, setTags] = useState('')
 
-  const persistItems = (updated: KnowledgeItem[]) => {
-    setItems(updated)
-    localStorage.setItem('ihsanos_knowledge', JSON.stringify(updated))
+  const reloadItems = () => {
+    setItems(knowledgeStorage.getAll())
   }
 
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
 
-    const colorMap: Record<string, string> = {
-      book: 'var(--accent)',
-      article: '#0284c7',
-      video: '#7c3aed',
-      course: '#16a34a',
-      podcast: '#ea580c',
-      note: '#db2777',
-    }
-
-    const newItem: KnowledgeItem = {
-      id: Date.now().toString(),
+    knowledgeStorage.add({
       title: title.trim(),
       author: author.trim() || 'Unknown',
-      type,
-      status,
-      rating: status === 'completed' ? Number(rating) : 0,
+      type: type as KnowledgeType,
+      status: status as ReadStatus,
+      rating: (status === 'completed' ? Number(rating) : undefined) as 1 | 2 | 3 | 4 | 5 | undefined,
       tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
       progress: status === 'completed' ? 100 : progress ? Number(progress) : undefined,
       currentPage: currentPage ? Number(currentPage) : undefined,
       totalPages: totalPages ? Number(totalPages) : undefined,
-      color: colorMap[type] || 'var(--accent)',
-    }
+    })
 
-    persistItems([...items, newItem])
+    reloadItems()
     setIsModalOpen(false)
 
     // Reset Form
@@ -125,9 +103,24 @@ export default function KnowledgePage() {
     setTags('')
   }
 
+  const handleDeleteClick = (id: string) => {
+    setItemToDelete(id)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (itemToDelete) {
+      knowledgeStorage.remove(itemToDelete)
+      reloadItems()
+    }
+    setIsDeleteOpen(false)
+    setItemToDelete(null)
+  }
+
   const filtered = items.filter(item => {
     const matchesTab = activeTab === 'all' || item.status === activeTab
-    const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase())
+    const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) || 
+                          item.author.toLowerCase().includes(search.toLowerCase())
     return matchesTab && matchesSearch
   })
 
@@ -172,59 +165,87 @@ export default function KnowledgePage() {
         ))}
       </div>
 
-      {/* Items */}
-      <div className="mb-5">
-        <SectionHeader title="Library" action={
-          <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Add</Button>
-        } />
-        <div className="flex flex-col gap-3">
-          {filtered.map((item, i) => {
-            const Icon = typeIcons[item.type] ?? Brain
-            const badge = statusBadge[item.status] || { label: 'Reading', variant: 'violet' }
-            return (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-              >
-                <Card hover>
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${item.color}15`, color: item.color }}>
-                      <Icon size={18} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-[var(--text)] truncate">{item.title}</p>
-                      <p className="text-xs text-[var(--text-3)] mt-0.5">{item.author}</p>
-                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                        <Badge variant={badge.variant} size="sm">{badge.label}</Badge>
-                        {item.tags.slice(0, 2).map(t => (
-                          <Badge key={t} variant="default" size="sm">{t}</Badge>
-                        ))}
-                      </div>
-                      {item.progress !== undefined && (
-                        <div className="mt-2">
-                          <ProgressBar value={item.progress} color={item.color} height={3} />
-                          <p className="text-[10px] text-[var(--text-3)] mt-0.5 font-medium">
-                            {item.currentPage && `Page ${item.currentPage}/${item.totalPages} · `}{item.progress}%
-                          </p>
+      {items.length === 0 ? (
+        <EmptyState
+          icon={<Brain size={24} />}
+          title="Library is empty"
+          description="Log books, courses, articles, or podcasts you've consumed or want to consume."
+          action={
+            <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+              Add to Library
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* Items */}
+          <div className="mb-5">
+            <SectionHeader title="Library" action={
+              <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Add</Button>
+            } />
+            <div className="flex flex-col gap-3">
+              {filtered.map((item, i) => {
+                const Icon = typeIcons[item.type] ?? Brain
+                const badge = statusBadge[item.status] || { label: 'Reading', variant: 'violet' }
+                const itemColor = colorMap[item.type] || 'var(--accent)'
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <Card hover>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${itemColor}15`, color: itemColor }}>
+                            <Icon size={18} />
+                          </div>
+                          <div className="flex-1 min-w-0 text-left">
+                            <p className="text-sm font-semibold text-[var(--text)] truncate">{item.title}</p>
+                            <p className="text-xs text-[var(--text-3)] mt-0.5">{item.author}</p>
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              <Badge variant={badge.variant} size="sm">{badge.label}</Badge>
+                              {item.tags && item.tags.slice(0, 2).map((t: string) => (
+                                <Badge key={t} variant="default" size="sm">{t}</Badge>
+                              ))}
+                            </div>
+                            {item.progress !== undefined && (
+                              <div className="mt-2">
+                                <ProgressBar value={item.progress} color={itemColor} height={3} />
+                                <p className="text-[10px] text-[var(--text-3)] mt-0.5 font-medium">
+                                  {item.currentPage && `Page ${item.currentPage}/${item.totalPages} · `}{item.progress}%
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    {item.rating > 0 && (
-                      <div className="flex flex-shrink-0">
-                        {Array.from({ length: 5 }).map((_, j) => (
-                          <Star key={j} size={10} className={j < item.rating ? 'text-[#d97706] fill-[#d97706]' : 'text-[var(--border-strong)]'} />
-                        ))}
+
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          {item.rating > 0 && (
+                            <div className="flex">
+                              {Array.from({ length: 5 }).map((_, j) => (
+                                <Star key={j} size={10} className={j < item.rating ? 'text-[#d97706] fill-[#d97706]' : 'text-[var(--border-strong)]'} />
+                              ))}
+                            </div>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(item.id) }}
+                            className="text-[var(--text-4)] hover:text-[var(--error)] p-1 transition-colors"
+                            title="Delete Item"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </Card>
-              </motion.div>
-            )
-          })}
-        </div>
-      </div>
+                    </Card>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
       <FAB onClick={() => setIsModalOpen(true)} label="Add Entry" extended />
 
@@ -324,6 +345,16 @@ export default function KnowledgePage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Item Confirmation */}
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setItemToDelete(null) }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Knowledge Item"
+        description="Permanently delete this entry from your library? This action is dangerous."
+        requireText="DELETE"
+      />
     </PageWrapper>
   )
 }

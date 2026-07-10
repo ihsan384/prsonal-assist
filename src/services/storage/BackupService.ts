@@ -302,7 +302,7 @@ export const backupService = {
    * Export a specific data module as CSV.
    * Returns a CSV string.
    */
-  exportCSV(module: keyof BackupData['data'], data: any[]): string {
+  exportCSV(_module: keyof BackupData['data'], data: any[]): string {
     if (!Array.isArray(data) || data.length === 0) return ''
 
     // Collect all unique keys across all records (omitting sync metadata)

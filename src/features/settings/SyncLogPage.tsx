@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Upload, Trash2, RefreshCw, CheckCircle2, XCircle,
-  Clock, Filter, RotateCcw
+  Clock, RotateCcw
 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
@@ -148,7 +148,7 @@ export default function SyncLogPage() {
 
       {/* Filters */}
       <div className="mb-4">
-        <SectionHeader title="Filters" icon={<Filter size={13} />} />
+        <SectionHeader title="Filters" />
         <div className="flex gap-2 flex-wrap">
           <div className="flex gap-1.5">
             {(['all', 'success', 'failed'] as StatusFilter[]).map(f => (

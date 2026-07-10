@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, AlertOctagon } from 'lucide-react'
+import { Plus, AlertOctagon, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -10,6 +10,8 @@ import { PageWrapper } from '@/components/layout/PageWrapper'
 import { studyERPStorage } from '@/services/storage/studyERP.storage'
 import type { Mistake, Subject, Chapter } from '@/types/study.types'
 import { useToast } from '@/hooks/useToast'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
 
 export default function MistakeBookPage() {
   const toast = useToast()
@@ -27,8 +29,16 @@ export default function MistakeBookPage() {
 
   const [activeTab, setActiveTab] = useState<'all' | 'review_needed' | 'reviewed' | 'resolved'>('all')
 
-  useEffect(() => {
+  // Delete states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [mistakeToDelete, setMistakeToDelete] = useState<string | null>(null)
+
+  const reloadMistakes = () => {
     setMistakes(studyERPStorage.getMistakes().reverse())
+  }
+
+  useEffect(() => {
+    reloadMistakes()
     setSubjects(studyERPStorage.getSubjects())
     setChapters(studyERPStorage.getChapters())
   }, [])
@@ -56,7 +66,7 @@ export default function MistakeBookPage() {
     }
 
     studyERPStorage.addMistake(mistake)
-    setMistakes(studyERPStorage.getMistakes().reverse())
+    reloadMistakes()
 
     setIsModalOpen(false)
     setQuestion('')
@@ -76,6 +86,21 @@ export default function MistakeBookPage() {
     studyERPStorage.saveMistakes(updated)
     setMistakes(updated.reverse())
     toast.info(`Mistake status updated to ${newStatus}.`)
+  }
+
+  const handleDeleteClick = (id: string) => {
+    setMistakeToDelete(id)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (mistakeToDelete) {
+      studyERPStorage.removeMistake(mistakeToDelete)
+      reloadMistakes()
+      toast.success('Mistake log deleted.')
+    }
+    setIsDeleteOpen(false)
+    setMistakeToDelete(null)
   }
 
   const getSubName = (id: string) => subjects.find(s => s.id === id)?.name ?? 'Syllabus'
@@ -101,7 +126,7 @@ export default function MistakeBookPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 border-b border-[var(--border)] pb-2 overflow-x-auto no-scrollbar shrink-0">
+      <div className="flex gap-2 border-b border-[var(--border)] pb-2 my-4 overflow-x-auto no-scrollbar shrink-0">
         {[
           { id: 'all', label: 'All Mistakes' },
           { id: 'review_needed', label: 'Review Needed' },
@@ -124,10 +149,21 @@ export default function MistakeBookPage() {
 
       {/* Mistakes List */}
       <div>
-        {filteredMistakes.length === 0 ? (
+        {mistakes.length === 0 ? (
+          <EmptyState
+            icon={<AlertOctagon size={24} />}
+            title="Mistake book is empty"
+            description="Log errors, silly calculations, or conceptual gaps to optimize your preparation."
+            action={
+              <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+                Log first mistake
+              </Button>
+            }
+          />
+        ) : filteredMistakes.length === 0 ? (
           <Card className="text-center py-12">
             <AlertOctagon className="mx-auto text-[var(--text-4)] mb-3" size={24} />
-            <p className="text-sm font-semibold text-[var(--text-2)]">No mistakes listed</p>
+            <p className="text-sm font-semibold text-[var(--text-2)]">No mistakes matching filter</p>
             <p className="text-xs text-[var(--text-3)] mt-1">Filter another view or register your mistakes to track resolution.</p>
           </Card>
         ) : (
@@ -137,7 +173,7 @@ export default function MistakeBookPage() {
                 <div className="flex flex-col gap-3">
                   {/* Header */}
                   <div className="flex justify-between items-start gap-4">
-                    <div>
+                    <div className="text-left">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs text-[var(--text-3)] font-semibold">{getSubName(m.subjectId)}</span>
                         {m.chapterId && <Badge variant="default" size="sm">{getChName(m.chapterId)}</Badge>}
@@ -147,7 +183,7 @@ export default function MistakeBookPage() {
                     </div>
 
                     {/* Action toggles */}
-                    <div className="flex gap-1.5 shrink-0">
+                    <div className="flex gap-1.5 shrink-0 items-center">
                       {m.revisionStatus !== 'resolved' ? (
                         <>
                           <Button 
@@ -170,18 +206,26 @@ export default function MistakeBookPage() {
                       ) : (
                         <Badge variant="success" size="sm">Resolved ✓</Badge>
                       )}
+                      
+                      <button
+                        onClick={() => handleDeleteClick(m.id)}
+                        className="text-[var(--text-4)] hover:text-[var(--error)] p-1.5 transition-colors"
+                        title="Delete Mistake Log"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </div>
 
                   {/* Question description */}
-                  <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px] text-xs">
+                  <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px] text-xs text-left">
                     <span className="text-[10px] text-[var(--text-3)] uppercase font-semibold">Question details</span>
                     <p className="font-semibold text-[var(--text)] mt-1 whitespace-pre-wrap">{m.question}</p>
                   </div>
 
                   {/* Correct Solution */}
                   {m.correctSolution && (
-                    <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px] text-xs">
+                    <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px] text-xs text-left">
                       <span className="text-[10px] text-[var(--success)] uppercase font-semibold">Correct Solution / Method</span>
                       <p className="text-[var(--text-2)] mt-1 font-mono whitespace-pre-wrap">{m.correctSolution}</p>
                     </div>
@@ -189,7 +233,7 @@ export default function MistakeBookPage() {
 
                   {/* Reason details */}
                   {m.reason && (
-                    <div className="text-xs text-[var(--text-3)] leading-relaxed">
+                    <div className="text-xs text-[var(--text-3)] leading-relaxed text-left">
                       <span className="font-semibold text-[var(--text-2)]">Mistake reason:</span> {m.reason}
                     </div>
                   )}
@@ -208,7 +252,7 @@ export default function MistakeBookPage() {
         subtitle="Log mistakes to optimize preparation accuracy."
       >
         <form onSubmit={handleAddMistake} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 text-left">
             <Select
               label="Subject *"
               options={subjects.map(s => ({ value: s.id, label: s.name }))}
@@ -244,6 +288,7 @@ export default function MistakeBookPage() {
             placeholder="Write question description or copy latex..."
             value={question}
             onChange={e => setQuestion(e.target.value)}
+            required
           />
 
           <Textarea
@@ -270,6 +315,16 @@ export default function MistakeBookPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setMistakeToDelete(null) }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Mistake Log"
+        description="Permanently delete this mistake record from your log? This action is dangerous."
+        requireText="DELETE"
+      />
     </PageWrapper>
   )
 }

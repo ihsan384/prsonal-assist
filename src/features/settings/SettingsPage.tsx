@@ -187,8 +187,8 @@ export default function SettingsPage() {
 
   const handleFactoryReset = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (confirmResetInput !== 'RESET') {
-      toast.error('Please type "RESET" exactly to confirm.')
+    if (confirmResetInput !== 'DELETE EVERYTHING') {
+      toast.error('Please type "DELETE EVERYTHING" exactly to confirm.')
       return
     }
     try {
@@ -535,10 +535,10 @@ export default function SettingsPage() {
             </p>
           </div>
           <p className="text-xs text-[var(--error)] font-bold">
-            Type <span className="font-mono">"RESET"</span> below to confirm:
+            Type <span className="font-mono">"DELETE EVERYTHING"</span> below to confirm:
           </p>
           <Input
-            placeholder="Type RESET here"
+            placeholder="Type DELETE EVERYTHING here"
             value={confirmResetInput}
             onChange={e => setConfirmResetInput(e.target.value)}
             required

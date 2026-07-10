@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Droplets, Plus, Flame, Utensils, Coffee, Apple, Zap, Activity } from 'lucide-react'
+import { Droplets, Plus, Flame, Utensils, Coffee, Apple, Zap, Activity, Trash2 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -10,26 +10,9 @@ import { ProgressBar, ProgressRing } from '@/components/ui/ProgressRing'
 import { FAB } from '@/components/ui/FAB'
 import { Modal } from '@/components/ui/Modal'
 import { Input, Select } from '@/components/ui/Input'
-
-interface Meal {
-  id: string
-  type: string
-  time: string
-  name: string
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-}
-
-const DEFAULT_MEALS: Meal[] = [
-  { id: '1', type: 'Breakfast', time: '7:30 AM', name: 'Oats with Banana & Nuts', calories: 420, protein: 18, carbs: 65, fat: 12 },
-  { id: '2', type: 'Lunch', time: '1:00 PM', name: 'Chicken Rice Bowl', calories: 680, protein: 52, carbs: 72, fat: 18 },
-  { id: '3', type: 'Snack', time: '4:00 PM', name: 'Greek Yogurt + Almonds', calories: 280, protein: 20, carbs: 18, fat: 14 },
-  { id: '4', type: 'Pre-workout', time: '5:30 PM', name: 'Banana + Whey Shake', calories: 260, protein: 30, carbs: 32, fat: 2 },
-]
-
-const goals = { calories: 2200, protein: 160, carbs: 250, fat: 65, water: 3000 }
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
+import { nutritionStorage } from '@/services/storage'
 
 const mealTypeColors: Record<string, string> = {
   Breakfast: '#d97706',
@@ -50,16 +33,8 @@ const mealTypeIcons: Record<string, React.ComponentType<any>> = {
 }
 
 export default function NutritionPage() {
-  const [meals, setMeals] = useState<Meal[]>(() => {
-    const saved = localStorage.getItem('ihsanos_meals')
-    return saved ? JSON.parse(saved) : DEFAULT_MEALS
-  })
-
-  const [water, setWater] = useState(() => {
-    const saved = localStorage.getItem('ihsanos_water')
-    return saved ? Number(saved) : 1800
-  })
-
+  const [meals, setMeals] = useState<any[]>(() => nutritionStorage.getMeals())
+  const [water, setWater] = useState(() => nutritionStorage.getWaterToday())
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [name, setName] = useState('')
   const [type, setType] = useState('Breakfast')
@@ -68,21 +43,26 @@ export default function NutritionPage() {
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
 
-  const persistMeals = (updated: Meal[]) => {
-    setMeals(updated)
-    localStorage.setItem('ihsanos_meals', JSON.stringify(updated))
+  // Delete states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [mealToDelete, setMealToDelete] = useState<string | null>(null)
+
+  const goals = nutritionStorage.getGoals()
+
+  const reloadMeals = () => {
+    setMeals(nutritionStorage.getMeals())
   }
 
   const persistWater = (val: number) => {
     setWater(val)
-    localStorage.setItem('ihsanos_water', String(val))
+    nutritionStorage.setWaterToday(val)
   }
 
   const totals = meals.reduce((acc, m) => ({
-    calories: acc.calories + m.calories,
-    protein: acc.protein + m.protein,
-    carbs: acc.carbs + m.carbs,
-    fat: acc.fat + m.fat,
+    calories: acc.calories + (m.calories || 0),
+    protein: acc.protein + (m.protein || 0),
+    carbs: acc.carbs + (m.carbs || 0),
+    fat: acc.fat + (m.fat || 0),
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
 
   const handleAddMeal = (e: React.FormEvent) => {
@@ -92,8 +72,7 @@ export default function NutritionPage() {
     const now = new Date()
     const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 
-    const newMeal: Meal = {
-      id: Date.now().toString(),
+    nutritionStorage.addMeal({
       type,
       time: timeStr,
       name: name.trim(),
@@ -101,9 +80,10 @@ export default function NutritionPage() {
       protein: Number(protein) || 20,
       carbs: Number(carbs) || 30,
       fat: Number(fat) || 10,
-    }
+      date: new Date().toISOString().split('T')[0],
+    } as any)
 
-    persistMeals([...meals, newMeal])
+    reloadMeals()
     setIsModalOpen(false)
 
     // Reset Form
@@ -115,7 +95,21 @@ export default function NutritionPage() {
     setFat('')
   }
 
-  const waterGoal = goals.water
+  const handleDeleteClick = (id: string) => {
+    setMealToDelete(id)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (mealToDelete) {
+      nutritionStorage.removeMeal(mealToDelete)
+      reloadMeals()
+    }
+    setIsDeleteOpen(false)
+    setMealToDelete(null)
+  }
+
+  const waterGoal = goals.water || 3000
   const waterGlasses = Math.round(water / 250)
 
   return (
@@ -139,7 +133,9 @@ export default function NutritionPage() {
             <div className="flex-1">
               <div className="flex items-center gap-1 mb-1">
                 <Flame size={14} className="text-[#ea580c]" />
-                <p className="text-sm font-semibold text-[var(--text)]">{goals.calories - totals.calories} kcal remaining</p>
+                <p className="text-sm font-semibold text-[var(--text)]">
+                  {Math.max(0, goals.calories - totals.calories)} kcal remaining
+                </p>
               </div>
               <div className="flex flex-col gap-2">
                 {[
@@ -202,78 +198,105 @@ export default function NutritionPage() {
         </Card>
       </div>
 
-      {/* Meals */}
-      <div className="mb-5">
-        <SectionHeader title="Today's Meals" action={
-          <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Add Meal</Button>
-        } />
-        <div className="flex flex-col gap-3">
-          {meals.map((meal, i) => {
-            const MealIcon = mealTypeIcons[meal.type] || Utensils
-            return (
-              <motion.div
-                key={meal.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.06 }}
-              >
-                <Card hover>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--bg-subtle)] border border-[var(--border)]" style={{ color: mealTypeColors[meal.type] }}>
-                      <MealIcon size={18} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <Badge size="sm" style={{ backgroundColor: `${mealTypeColors[meal.type]}15`, color: mealTypeColors[meal.type] }}>
-                          {meal.type}
-                        </Badge>
-                        <span className="text-[10px] text-[var(--text-3)] font-medium">{meal.time}</span>
+      {meals.length === 0 ? (
+        <EmptyState
+          icon={<Utensils size={24} />}
+          title="No meals logged today"
+          description="Log your breakfast, lunch, dinner, or snacks to track calorie goals and macros."
+          action={
+            <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+              Log your first meal
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* Meals */}
+          <div className="mb-5">
+            <SectionHeader title="Today's Meals" action={
+              <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => setIsModalOpen(true)}>Add Meal</Button>
+            } />
+            <div className="flex flex-col gap-3">
+              {meals.map((meal, i) => {
+                const MealIcon = mealTypeIcons[meal.type] || Utensils
+                return (
+                  <motion.div
+                    key={meal.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                  >
+                    <Card hover>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--bg-subtle)] border border-[var(--border)] flex-shrink-0" style={{ color: mealTypeColors[meal.type] }}>
+                            <MealIcon size={18} />
+                          </div>
+                          <div className="flex-1 min-w-0 text-left">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <Badge size="sm" style={{ backgroundColor: `${mealTypeColors[meal.type]}15`, color: mealTypeColors[meal.type] }}>
+                                {meal.type}
+                              </Badge>
+                              <span className="text-[10px] text-[var(--text-3)] font-medium">{meal.time}</span>
+                            </div>
+                            <p className="text-sm font-semibold text-[var(--text)] truncate">{meal.name}</p>
+                            <p className="text-[10px] text-[var(--text-3)] font-medium mt-0.5">
+                              P: {meal.protein}g · C: {meal.carbs}g · F: {meal.fat}g
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                          <div>
+                            <p className="text-sm font-bold text-[var(--text)]">{meal.calories}</p>
+                            <p className="text-[10px] text-[var(--text-3)] font-medium uppercase tracking-wider">kcal</p>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(meal.id) }}
+                            className="text-[var(--text-4)] hover:text-[var(--error)] p-1 transition-colors"
+                            title="Delete Meal"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-sm font-semibold text-[var(--text)] truncate">{meal.name}</p>
-                      <p className="text-[10px] text-[var(--text-3)] font-medium mt-0.5">
-                        P: {meal.protein}g · C: {meal.carbs}g · F: {meal.fat}g
-                      </p>
-                    </div>
-                    <div className="flex-shrink-0 text-right">
-                      <p className="text-sm font-bold text-[var(--text)]">{meal.calories}</p>
-                      <p className="text-[10px] text-[var(--text-3)] font-medium uppercase tracking-wider">kcal</p>
+                    </Card>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Macro Breakdown */}
+          <div className="mb-5">
+            <SectionHeader title="Macro Breakdown" />
+            <Card>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                {[
+                  { label: 'Protein', value: totals.protein, goal: goals.protein, color: 'var(--accent)' },
+                  { label: 'Carbs', value: totals.carbs, goal: goals.carbs, color: '#16a34a' },
+                  { label: 'Fat', value: totals.fat, goal: goals.fat, color: '#d97706' },
+                ].map(macro => (
+                  <div key={macro.label} className="flex flex-col items-center gap-2">
+                    <ProgressRing
+                      value={macro.value}
+                      max={macro.goal}
+                      size={60}
+                      strokeWidth={5}
+                      color={macro.color}
+                      showValue
+                    />
+                    <div>
+                      <p className="text-sm font-bold text-[var(--text)]">{macro.value}g</p>
+                      <p className="text-[10px] text-[var(--text-3)] font-medium">{macro.label}</p>
                     </div>
                   </div>
-                </Card>
-              </motion.div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Macro Breakdown */}
-      <div className="mb-5">
-        <SectionHeader title="Macro Breakdown" />
-        <Card>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            {[
-              { label: 'Protein', value: totals.protein, goal: goals.protein, color: 'var(--accent)' },
-              { label: 'Carbs', value: totals.carbs, goal: goals.carbs, color: '#16a34a' },
-              { label: 'Fat', value: totals.fat, goal: goals.fat, color: '#d97706' },
-            ].map(macro => (
-              <div key={macro.label} className="flex flex-col items-center gap-2">
-                <ProgressRing
-                  value={macro.value}
-                  max={macro.goal}
-                  size={60}
-                  strokeWidth={5}
-                  color={macro.color}
-                  showValue
-                />
-                <div>
-                  <p className="text-sm font-bold text-[var(--text)]">{macro.value}g</p>
-                  <p className="text-[10px] text-[var(--text-3)] font-medium">{macro.label}</p>
-                </div>
+                ))}
               </div>
-            ))}
+            </Card>
           </div>
-        </Card>
-      </div>
+        </>
+      )}
 
       <FAB onClick={() => setIsModalOpen(true)} label="Add Meal" extended />
 
@@ -347,6 +370,15 @@ export default function NutritionPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Meal Confirmation */}
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setMealToDelete(null) }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Meal"
+        description="Are you sure you want to permanently delete this meal log?"
+      />
     </PageWrapper>
   )
 }

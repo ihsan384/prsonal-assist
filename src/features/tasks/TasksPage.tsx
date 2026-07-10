@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { CheckSquare, Clock, AlertCircle, Circle, CheckCircle2 } from 'lucide-react'
+import { CheckSquare, Clock, AlertCircle, Circle, CheckCircle2, Trash2 } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -9,28 +9,10 @@ import { SearchBar, Input, Select } from '@/components/ui/Input'
 import { FAB } from '@/components/ui/FAB'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-
-type TaskStatus = 'todo' | 'in_progress' | 'done'
-
-interface TaskItem {
-  id: string
-  title: string
-  category: string
-  priority: 'low' | 'medium' | 'high' | 'urgent'
-  status: TaskStatus
-  dueTime?: string
-  tags: string[]
-}
-
-const DEFAULT_TASKS: TaskItem[] = [
-  { id: '1', title: 'Complete Binary Trees Chapter', category: 'Study', priority: 'high', status: 'in_progress', dueTime: '3:00 PM', tags: ['DSA', 'Algorithms'] },
-  { id: '2', title: 'Review pull requests on gym app', category: 'Work', priority: 'medium', status: 'todo', dueTime: '5:00 PM', tags: ['Code Review'] },
-  { id: '3', title: 'Evening workout session', category: 'Fitness', priority: 'medium', status: 'todo', dueTime: '6:30 PM', tags: ['Health'] },
-  { id: '4', title: "Plan tomorrow's schedule", category: 'Personal', priority: 'low', status: 'todo', tags: ['Planning'] },
-  { id: '5', title: 'Read System Design book', category: 'Study', priority: 'medium', status: 'done', tags: ['Books'] },
-  { id: '6', title: 'Morning run — 5km', category: 'Fitness', priority: 'high', status: 'done', tags: ['Cardio'] },
-  { id: '7', title: 'Track daily expenses', category: 'Finance', priority: 'low', status: 'done', tags: ['Money'] },
-]
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
+import { taskStorage } from '@/services/storage'
+import type { Task, Priority, TaskStatus, TaskCategory } from '@/types'
 
 const priorityConfig = {
   low: { variant: 'default' as const, label: 'Low' },
@@ -40,61 +22,71 @@ const priorityConfig = {
 }
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<TaskItem[]>(() => {
-    const saved = localStorage.getItem('ihsanos_tasks')
-    return saved ? JSON.parse(saved) : DEFAULT_TASKS
-  })
-
+  const [tasks, setTasks] = useState<Task[]>(() => taskStorage.getAll())
   const [activeTab, setActiveTab] = useState('all')
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
 
+  // Delete Confirmation states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
+
   // Form states
   const [newTitle, setNewTitle] = useState('')
-  const [newCategory, setNewCategory] = useState('Study')
-  const [newPriority, setNewPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium')
+  const [newCategory, setNewCategory] = useState<TaskCategory>('study')
+  const [newPriority, setNewPriority] = useState<Priority>('medium')
   const [newDueTime, setNewDueTime] = useState('')
   const [newTags, setNewTags] = useState('')
 
-  const persistTasks = (updated: TaskItem[]) => {
-    setTasks(updated)
-    localStorage.setItem('ihsanos_tasks', JSON.stringify(updated))
+  const reloadTasks = () => {
+    setTasks(taskStorage.getAll())
   }
 
   const toggleTaskStatus = (id: string) => {
-    const updated = tasks.map(task => {
-      if (task.id === id) {
-        const nextStatus: TaskStatus = task.status === 'done' ? 'todo' : 'done'
-        return { ...task, status: nextStatus }
-      }
-      return task
-    })
-    persistTasks(updated)
+    const current = tasks.find(t => t.id === id)
+    if (!current) return
+    const nextStatus: TaskStatus = current.status === 'done' ? 'todo' : 'done'
+    taskStorage.update(id, { status: nextStatus })
+    reloadTasks()
   }
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTitle.trim()) return
 
-    const task: TaskItem = {
-      id: Date.now().toString(),
+    taskStorage.add({
       title: newTitle.trim(),
-      category: newCategory,
-      priority: newPriority,
       status: 'todo',
-      dueTime: newDueTime ? newDueTime : undefined,
+      priority: newPriority,
+      category: newCategory,
+      dueDate: newDueTime ? newDueTime : undefined,
       tags: newTags ? newTags.split(',').map(t => t.trim()).filter(Boolean) : [],
-    }
-
-    persistTasks([task, ...tasks])
+      subtasks: [],
+    })
+    
+    reloadTasks()
     setIsModalOpen(false)
 
     // Reset Form
     setNewTitle('')
-    setNewCategory('Study')
+    setNewCategory('study')
     setNewPriority('medium')
     setNewDueTime('')
     setNewTags('')
+  }
+
+  const handleDeleteClick = (id: string) => {
+    setTaskToDelete(id)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (taskToDelete) {
+      taskStorage.remove(taskToDelete)
+      reloadTasks()
+    }
+    setIsDeleteOpen(false)
+    setTaskToDelete(null)
   }
 
   const filtered = tasks.filter(task => {
@@ -160,40 +152,55 @@ export default function TasksPage() {
         ))}
       </div>
 
-      {/* In Progress */}
-      {inProgress.length > 0 && (
-        <div className="mb-5">
-          <SectionHeader title="In Progress" subtitle={`${inProgress.length} active`} />
-          <div className="flex flex-col gap-3">
-            {inProgress.map((task, i) => (
-              <TaskCard key={task.id} task={task} index={i} onToggleStatus={toggleTaskStatus} />
-            ))}
-          </div>
-        </div>
-      )}
+      {tasks.length === 0 ? (
+        <EmptyState
+          icon={<CheckSquare size={24} />}
+          title="No tasks yet"
+          description="Create your first task to organize your daily schedule and study goals."
+          action={
+            <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+              Create your first task
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* In Progress */}
+          {inProgress.length > 0 && (
+            <div className="mb-5">
+              <SectionHeader title="In Progress" subtitle={`${inProgress.length} active`} />
+              <div className="flex flex-col gap-3">
+                {inProgress.map((task, i) => (
+                  <TaskCard key={task.id} task={task} index={i} onToggleStatus={toggleTaskStatus} onDelete={handleDeleteClick} />
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* To Do */}
-      {todo.length > 0 && activeTab !== 'done' && (
-        <div className="mb-5">
-          <SectionHeader title="To Do" subtitle={`${todo.length} tasks`} />
-          <div className="flex flex-col gap-3">
-            {todo.map((task, i) => (
-              <TaskCard key={task.id} task={task} index={i} onToggleStatus={toggleTaskStatus} />
-            ))}
-          </div>
-        </div>
-      )}
+          {/* To Do */}
+          {todo.length > 0 && activeTab !== 'done' && (
+            <div className="mb-5">
+              <SectionHeader title="To Do" subtitle={`${todo.length} tasks`} />
+              <div className="flex flex-col gap-3">
+                {todo.map((task, i) => (
+                  <TaskCard key={task.id} task={task} index={i} onToggleStatus={toggleTaskStatus} onDelete={handleDeleteClick} />
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* Done */}
-      {done.length > 0 && activeTab !== 'todo' && activeTab !== 'in_progress' && (
-        <div className="mb-5">
-          <SectionHeader title="Completed" subtitle={`${done.length} done`} />
-          <div className="flex flex-col gap-3 opacity-75">
-            {done.map((task, i) => (
-              <TaskCard key={task.id} task={task} index={i} onToggleStatus={toggleTaskStatus} />
-            ))}
-          </div>
-        </div>
+          {/* Done */}
+          {done.length > 0 && activeTab !== 'todo' && activeTab !== 'in_progress' && (
+            <div className="mb-5">
+              <SectionHeader title="Completed" subtitle={`${done.length} done`} />
+              <div className="flex flex-col gap-3 opacity-75">
+                {done.map((task, i) => (
+                  <TaskCard key={task.id} task={task} index={i} onToggleStatus={toggleTaskStatus} onDelete={handleDeleteClick} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <FAB onClick={() => setIsModalOpen(true)} />
@@ -213,18 +220,20 @@ export default function TasksPage() {
             <Select
               label="Category"
               value={newCategory}
-              onChange={e => setNewCategory(e.target.value)}
+              onChange={e => setNewCategory(e.target.value as TaskCategory)}
               options={[
-                { value: 'Study', label: 'Study' },
-                { value: 'Work', label: 'Work' },
-                { value: 'Fitness', label: 'Fitness' },
-                { value: 'Personal', label: 'Personal' },
+                { value: 'study', label: 'Study' },
+                { value: 'work', label: 'Work' },
+                { value: 'health', label: 'Fitness' },
+                { value: 'personal', label: 'Personal' },
+                { value: 'finance', label: 'Finance' },
+                { value: 'other', label: 'Other' },
               ]}
             />
             <Select
               label="Priority"
               value={newPriority}
-              onChange={e => setNewPriority(e.target.value as any)}
+              onChange={e => setNewPriority(e.target.value as Priority)}
               options={[
                 { value: 'low', label: 'Low' },
                 { value: 'medium', label: 'Medium' },
@@ -234,8 +243,8 @@ export default function TasksPage() {
             />
           </div>
           <Input
-            label="Due Time (Optional)"
-            placeholder="e.g. 5:00 PM"
+            label="Due Time / Date (Optional)"
+            placeholder="e.g. 5:00 PM or Today"
             value={newDueTime}
             onChange={e => setNewDueTime(e.target.value)}
           />
@@ -255,12 +264,31 @@ export default function TasksPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Task Confirmation */}
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setTaskToDelete(null) }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Task"
+        description="Are you sure you want to permanently delete this task?"
+      />
     </PageWrapper>
   )
 }
 
-function TaskCard({ task, index, onToggleStatus }: { task: TaskItem; index: number; onToggleStatus: (id: string) => void }) {
-  const priority = priorityConfig[task.priority]
+function TaskCard({ 
+  task, 
+  index, 
+  onToggleStatus, 
+  onDelete 
+}: { 
+  task: Task
+  index: number
+  onToggleStatus: (id: string) => void
+  onDelete: (id: string) => void 
+}) {
+  const priority = priorityConfig[task.priority] || priorityConfig.medium
   const isDone = task.status === 'done'
 
   return (
@@ -270,29 +298,41 @@ function TaskCard({ task, index, onToggleStatus }: { task: TaskItem; index: numb
       transition={{ delay: index * 0.04 }}
     >
       <Card hover className={isDone ? 'opacity-65' : ''}>
-        <div className="flex items-start gap-3">
-          <button
-            onClick={() => onToggleStatus(task.id)}
-            className="mt-0.5 flex-shrink-0 text-[var(--text-3)] hover:text-[var(--accent)] transition-colors"
-          >
-            {isDone ? <CheckCircle2 size={20} className="text-[var(--success)]" /> : <Circle size={20} />}
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className={`text-sm font-medium text-[var(--text)] ${isDone ? 'line-through text-[var(--text-3)]' : ''}`}>
-              {task.title}
-            </p>
-            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-              <Badge variant="default" size="sm">{task.category}</Badge>
-              <Badge variant={priority.variant} size="sm">{priority.label}</Badge>
-              {task.dueTime && (
-                <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-3)]">
-                  <Clock size={10} />
-                  {task.dueTime}
-                </span>
-              )}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <button
+              onClick={() => onToggleStatus(task.id)}
+              className="mt-0.5 flex-shrink-0 text-[var(--text-3)] hover:text-[var(--accent)] transition-colors"
+            >
+              {isDone ? <CheckCircle2 size={20} className="text-[var(--success)]" /> : <Circle size={20} />}
+            </button>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-medium text-[var(--text)] break-words ${isDone ? 'line-through text-[var(--text-3)]' : ''}`}>
+                {task.title}
+              </p>
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                <Badge variant="default" size="sm" className="capitalize">{task.category}</Badge>
+                <Badge variant={priority.variant} size="sm">{priority.label}</Badge>
+                {task.dueDate && (
+                  <span className="flex items-center gap-0.5 text-[10px] text-[var(--text-3)]">
+                    <Clock size={10} />
+                    {task.dueDate}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          {task.priority === 'urgent' && <AlertCircle size={16} className="text-[var(--error)] flex-shrink-0 mt-0.5" />}
+          
+          <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+            {task.priority === 'urgent' && <AlertCircle size={16} className="text-[var(--error)]" />}
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(task.id) }}
+              className="text-[var(--text-4)] hover:text-[var(--error)] transition-colors p-1"
+              title="Delete Task"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
       </Card>
     </motion.div>

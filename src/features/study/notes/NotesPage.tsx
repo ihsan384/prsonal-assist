@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pin, Trash2 } from 'lucide-react'
+import { Plus, Pin, Trash2, BookOpen } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -10,6 +10,8 @@ import { PageWrapper } from '@/components/layout/PageWrapper'
 import { studyERPStorage } from '@/services/storage/studyERP.storage'
 import type { StudyNote } from '@/types/study.types'
 import { useToast } from '@/hooks/useToast'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
 
 export default function NotesPage() {
   const toast = useToast()
@@ -23,29 +25,37 @@ export default function NotesPage() {
 
   const [activeNote, setActiveNote] = useState<StudyNote | null>(null)
 
-  useEffect(() => {
+  // Delete states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null)
+
+  const reloadNotes = () => {
     setNotes(studyERPStorage.getNotes())
+  }
+
+  useEffect(() => {
+    reloadNotes()
   }, [])
 
   const handleAddNote = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || !content.trim()) {
-      toast.error('Please enter title and content.')
+      toast.error('Title and content are required.')
       return
     }
 
-    const note: StudyNote = {
+    const newNote: StudyNote = {
       id: `note-${Date.now()}`,
       title: title.trim(),
       content: content.trim(),
-      isPinned: false,
-      tags: tagsInput.split(',').map(s => s.trim()).filter(Boolean),
+      tags: tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [],
       dateCreated: new Date().toISOString(),
-      dateUpdated: new Date().toISOString()
+      dateUpdated: new Date().toISOString(),
+      isPinned: false
     }
 
-    studyERPStorage.addNote(note)
-    setNotes(studyERPStorage.getNotes())
+    studyERPStorage.addNote(newNote)
+    reloadNotes()
 
     setIsModalOpen(false)
     setTitle('')
@@ -65,17 +75,27 @@ export default function NotesPage() {
     })
     studyERPStorage.saveNotes(updated)
     setNotes(updated)
+    if (activeNote?.id === id) {
+      setActiveNote({ ...activeNote, isPinned: !activeNote.isPinned })
+    }
     toast.info('Note pinned state updated.')
   }
 
-  const deleteNote = (id: string, e: React.MouseEvent) => {
+  const handleDeleteClick = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    const list = studyERPStorage.getNotes()
-    const updated = list.filter(n => n.id !== id)
-    studyERPStorage.saveNotes(updated)
-    setNotes(updated)
-    if (activeNote?.id === id) setActiveNote(null)
-    toast.success('Note deleted successfully.')
+    setNoteToDelete(id)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (noteToDelete) {
+      studyERPStorage.removeNote(noteToDelete)
+      reloadNotes()
+      if (activeNote?.id === noteToDelete) setActiveNote(null)
+      toast.success('Note deleted successfully.')
+    }
+    setIsDeleteOpen(false)
+    setNoteToDelete(null)
   }
 
   // Filter notes
@@ -94,38 +114,42 @@ export default function NotesPage() {
 
   return (
     <PageWrapper>
-      <div className="flex justify-between items-center">
-        <SectionHeader title="Study Notes & Guides" subtitle="Write markdown summaries, pin critical formulas and browse tags" compact />
-        <Button 
-          variant="secondary" 
-          size="sm" 
-          icon={<Plus size={12} />}
-          onClick={() => setIsModalOpen(true)}
-        >
-          Add Note
-        </Button>
-      </div>
+      <SearchBar
+        placeholder="Search notes content..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        onClear={() => setSearch('')}
+        className="mb-4"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         
-        {/* Notes list pane */}
+        {/* Left Side: Note List */}
         <div className="flex flex-col gap-3">
-          <SearchBar
-            placeholder="Search notes content..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            onClear={() => setSearch('')}
-          />
+          <SectionHeader title="Note Directory" action={
+            <Button variant="secondary" size="sm" icon={<Plus size={11} />} onClick={() => setIsModalOpen(true)}>Add</Button>
+          } compact />
 
-          <div className="flex flex-col gap-2 overflow-y-auto max-h-[400px] border border-[var(--border)] rounded-[12px] p-2 bg-[var(--bg-subtle)] shrink-0">
-            {sortedNotes.length === 0 ? (
-              <p className="text-xs text-[var(--text-3)] text-center py-6">No notes found.</p>
+          <div className="flex flex-col gap-2.5 max-h-[450px] overflow-y-auto pr-1">
+            {notes.length === 0 ? (
+              <EmptyState
+                icon={<BookOpen size={20} />}
+                title="No study notes yet"
+                description="Write summaries, equations, or concepts to remember."
+                action={
+                  <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+                    Create first note
+                  </Button>
+                }
+              />
+            ) : sortedNotes.length === 0 ? (
+              <p className="text-center py-6 text-xs text-[var(--text-3)]">No matching notes found.</p>
             ) : (
               sortedNotes.map(n => (
-                <div
+                <div 
                   key={n.id}
                   onClick={() => setActiveNote(n)}
-                  className={`p-3 rounded-[8px] cursor-pointer border text-xs flex justify-between items-start transition-all ${
+                  className={`p-3 rounded-[12px] border transition-all cursor-pointer flex items-center justify-between text-left ${
                     activeNote?.id === n.id 
                       ? 'bg-[var(--accent-bg)] border-[var(--accent-border)]' 
                       : 'bg-[var(--bg)] border-[var(--border)] hover:bg-[var(--bg-hover)]'
@@ -142,13 +166,13 @@ export default function NotesPage() {
                   <div className="flex gap-1 shrink-0 ml-2">
                     <button 
                       onClick={(e) => togglePin(n.id, e)} 
-                      className="text-[var(--text-4)] hover:text-[var(--accent)] cursor-pointer"
+                      className="text-[var(--text-4)] hover:text-[var(--accent)] cursor-pointer p-1"
                     >
                       <Pin size={11} />
                     </button>
                     <button 
-                      onClick={(e) => deleteNote(n.id, e)} 
-                      className="text-[var(--text-4)] hover:text-[var(--error)] cursor-pointer"
+                      onClick={(e) => handleDeleteClick(n.id, e)} 
+                      className="text-[var(--text-4)] hover:text-[var(--error)] cursor-pointer p-1"
                     >
                       <Trash2 size={11} />
                     </button>
@@ -163,13 +187,13 @@ export default function NotesPage() {
         <div className="md:col-span-2">
           {activeNote ? (
             <Card className="min-h-[300px] flex flex-col justify-between">
-              <div>
+              <div className="text-left">
                 <div className="flex justify-between items-start gap-4 pb-3 border-b border-[var(--border)]">
                   <div>
                     <h2 className="text-sm font-bold text-[var(--text)]">{activeNote.title}</h2>
                     <p className="text-[10px] text-[var(--text-3)] mt-0.5">Updated: {new Date(activeNote.dateUpdated).toLocaleDateString()}</p>
                   </div>
-                  {activeNote.tags.length > 0 && (
+                  {activeNote.tags && activeNote.tags.length > 0 && (
                     <div className="flex gap-1 flex-wrap justify-end">
                       {activeNote.tags.map(t => (
                         <Badge key={t} variant="default" size="sm">{t}</Badge>
@@ -178,19 +202,19 @@ export default function NotesPage() {
                   )}
                 </div>
 
-                {/* Markdown text body */}
+                {/* Text body */}
                 <div className="mt-4 text-xs text-[var(--text-2)] leading-relaxed whitespace-pre-wrap font-sans">
                   {activeNote.content}
                 </div>
               </div>
               
-              <div className="border-t border-[var(--border)] pt-3 mt-4 text-[10px] text-[var(--text-4)]">
+              <div className="border-t border-[var(--border)] pt-3 mt-4 text-[10px] text-[var(--text-4)] text-left">
                 Ihsan OS Markdown Note Viewer
               </div>
             </Card>
           ) : (
             <Card className="min-h-[300px] flex items-center justify-center text-xs text-[var(--text-3)]">
-              Select a note from the left list to view or edit details.
+              Select a note from the left list to view details.
             </Card>
           )}
         </div>
@@ -202,7 +226,7 @@ export default function NotesPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title="Create Study Note"
-        subtitle="Write key takeaways or integration instructions."
+        subtitle="Write key summaries or formulas."
       >
         <form onSubmit={handleAddNote} className="flex flex-col gap-4">
           <Input
@@ -210,13 +234,15 @@ export default function NotesPage() {
             placeholder="e.g. Physics laws summary, Chem reactions list"
             value={title}
             onChange={e => setTitle(e.target.value)}
+            required
           />
           <Textarea
-            label="Note content (Markdown text supported) *"
+            label="Note content *"
             placeholder="Write concepts here..."
             value={content}
             onChange={e => setContent(e.target.value)}
             className="min-h-[150px]"
+            required
           />
           <Input
             label="Tags (comma separated)"
@@ -234,6 +260,16 @@ export default function NotesPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setNoteToDelete(null) }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Note"
+        description="Are you sure you want to permanently delete this study note? This action cannot be undone."
+        requireText="DELETE"
+      />
     </PageWrapper>
   )
 }
