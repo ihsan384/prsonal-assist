@@ -116,12 +116,12 @@ export default function ProfilePage() {
           <div className="flex items-center gap-4 mb-4">
             <div className="relative">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[var(--accent)] to-blue-400 flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
-                U
+                I
               </div>
               <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#10b981] border-2 border-[var(--bg)]" />
             </div>
             <div className="text-left">
-              <h2 className="text-lg font-bold text-[var(--text)]">Ihsan User</h2>
+              <h2 className="text-lg font-bold text-[var(--text)]">Ihsan</h2>
               <p className="text-sm text-[var(--text-3)]">Personal OS · v1.3.0</p>
               <div className="flex items-center gap-1.5 mt-1">
                 <Badge variant="violet" size="sm" dot>Active</Badge>
