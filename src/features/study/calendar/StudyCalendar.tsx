@@ -14,8 +14,16 @@ export default function StudyCalendar() {
   const [tests, setTests] = useState<MockTest[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
 
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 6, 8)) // prefill July 2026 to match seed data
-  const [selectedDate, setSelectedDate] = useState('2026-07-08')
+  const getTodayISO = () => {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState(getTodayISO())
 
   useEffect(() => {
     setSessions(studyERPStorage.getSessions())

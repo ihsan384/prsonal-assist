@@ -148,5 +148,8 @@ export const studyERPStorage = {
   },
   removeMistake: (id: string) => {
     memoryStore.softDeleteFromStore(STORES.MISTAKES, memoryStore.mistakes, id)
+  },
+  removeTest: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.TESTS, memoryStore.tests, id)
   }
 }

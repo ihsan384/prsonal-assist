@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Award } from 'lucide-react'
+import { Plus, Award, Trash2 } from 'lucide-react'
 import { Card, MetricCard } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -10,6 +10,8 @@ import { PageWrapper } from '@/components/layout/PageWrapper'
 import { studyERPStorage } from '@/services/storage/studyERP.storage'
 import type { MockTest } from '@/types/study.types'
 import { useToast } from '@/hooks/useToast'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
 
 export default function MockTestsPage() {
   const toast = useToast()
@@ -25,8 +27,16 @@ export default function MockTestsPage() {
   const [weakAreasInput, setWeakAreasInput] = useState('')
   const [notes, setNotes] = useState('')
 
-  useEffect(() => {
+  // Delete states
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [testToDelete, setTestToDelete] = useState<string | null>(null)
+
+  const reloadTests = () => {
     setTests(studyERPStorage.getTests().reverse())
+  }
+
+  useEffect(() => {
+    reloadTests()
   }, [])
 
   const handleAddTest = (e: React.FormEvent) => {
@@ -55,7 +65,7 @@ export default function MockTestsPage() {
     }
 
     studyERPStorage.addTest(newTest)
-    setTests(studyERPStorage.getTests().reverse())
+    reloadTests()
 
     setIsModalOpen(false)
     setExamName('')
@@ -63,6 +73,21 @@ export default function MockTestsPage() {
     setWeakAreasInput('')
     setNotes('')
     toast.success('Mock Test performance logged.')
+  }
+
+  const handleDeleteClick = (id: string) => {
+    setTestToDelete(id)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (testToDelete) {
+      studyERPStorage.removeTest(testToDelete)
+      reloadTests()
+      toast.success('Mock Test log deleted.')
+    }
+    setIsDeleteOpen(false)
+    setTestToDelete(null)
   }
 
   // Averages
@@ -84,7 +109,7 @@ export default function MockTestsPage() {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
         <MetricCard
           label="Mock Exams Attempted"
           value={tests.length}
@@ -107,21 +132,23 @@ export default function MockTestsPage() {
         <SectionHeader title="Exam History logs" />
 
         {tests.length === 0 ? (
-          <Card className="text-center py-12">
-            <Award className="mx-auto text-[var(--text-4)] mb-3" size={24} />
-            <p className="text-sm font-semibold text-[var(--text-2)]">No exams logged yet</p>
-            <p className="text-xs text-[var(--text-3)] mt-1 mb-4">Start recording marks, percentages, ranks, and syllabus weak areas.</p>
-            <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
-              Record First Test
-            </Button>
-          </Card>
+          <EmptyState
+            icon={<Award size={24} />}
+            title="No exams logged yet"
+            description="Log your Mock Test marks, percentages, ranks, and weak areas to optimize prep performance."
+            action={
+              <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+                Record first exam score
+              </Button>
+            }
+          />
         ) : (
           <div className="flex flex-col gap-3">
             {tests.map(test => (
               <Card key={test.id} className="p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="text-left flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-sm font-bold text-[var(--text)]">{test.examName}</h4>
                       <Badge variant="accent" size="sm">{test.date}</Badge>
                       {test.rank && <Badge variant="success" size="sm">Rank: {test.rank}</Badge>}
@@ -131,7 +158,7 @@ export default function MockTestsPage() {
                       Marks: <span className="font-semibold text-[var(--text)]">{test.marksObtained}/{test.totalMarks}</span> ({test.percentage}%) · Time: {test.timeTakenMinutes} mins
                     </p>
 
-                    {test.weakAreas.length > 0 && (
+                    {test.weakAreas && test.weakAreas.length > 0 && (
                       <div className="flex items-center gap-1.5 flex-wrap mt-3">
                         <span className="text-[10px] text-[var(--text-3)] font-semibold">Weak Areas:</span>
                         {test.weakAreas.map(area => (
@@ -141,14 +168,24 @@ export default function MockTestsPage() {
                     )}
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <span className="text-[10px] text-[var(--text-3)] font-semibold block">Mistakes count</span>
-                    <span className="text-sm font-bold text-[var(--error)] block mt-0.5">{test.mistakesCount} errors</span>
+                  <div className="flex items-center gap-4 shrink-0 text-right justify-between sm:justify-end">
+                    <div>
+                      <span className="text-[10px] text-[var(--text-3)] font-semibold block">Mistakes count</span>
+                      <span className="text-sm font-bold text-[var(--error)] block mt-0.5">{test.mistakesCount} errors</span>
+                    </div>
+                    
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteClick(test.id) }}
+                      className="text-[var(--text-4)] hover:text-[var(--error)] p-1.5 transition-colors"
+                      title="Delete Mock Test Log"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
 
                 {test.notes && (
-                  <p className="text-xs text-[var(--text-3)] leading-relaxed border-t border-[var(--border)] pt-2.5 mt-3">
+                  <p className="text-xs text-[var(--text-3)] leading-relaxed border-t border-[var(--border)] pt-2.5 mt-3 text-left">
                     {test.notes}
                   </p>
                 )}
@@ -165,12 +202,14 @@ export default function MockTestsPage() {
         title="Log Mock Exam Score"
         subtitle="Submit your details to populate your syllabus stats."
       >
-        <form onSubmit={handleAddTest} className="flex flex-col gap-4">
+        <form onSubmit={handleAddTest} className="flex flex-col gap-4 text-left">
           <Input
             label="Exam Name"
             placeholder="e.g. JEE Main Mock Test 14"
             value={examName}
             onChange={e => setExamName(e.target.value)}
+            required
+            autoFocus
           />
 
           <div className="grid grid-cols-2 gap-3">
@@ -179,12 +218,14 @@ export default function MockTestsPage() {
               type="number"
               value={marks}
               onChange={e => setMarks(e.target.value)}
+              required
             />
             <Input
               label="Total Marks"
               type="number"
               value={totalMarks}
               onChange={e => setTotalMarks(e.target.value)}
+              required
             />
           </div>
 
@@ -194,6 +235,7 @@ export default function MockTestsPage() {
               type="number"
               value={timeTaken}
               onChange={e => setTimeTaken(e.target.value)}
+              required
             />
             <Input
               label="Rank / Percentile"
@@ -206,6 +248,7 @@ export default function MockTestsPage() {
               type="number"
               value={mistakes}
               onChange={e => setMistakes(e.target.value)}
+              required
             />
           </div>
 
@@ -233,6 +276,15 @@ export default function MockTestsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => { setIsDeleteOpen(false); setTestToDelete(null) }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Mock Test Log"
+        description="Are you sure you want to permanently delete this mock exam log?"
+      />
     </PageWrapper>
   )
 }
