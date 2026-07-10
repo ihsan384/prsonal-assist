@@ -18,6 +18,11 @@ const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
 const NotFoundPage = lazy(() => import('@/features/common/NotFoundPage'))
 
+// Settings sub-pages
+const DatabaseHealthPage = lazy(() => import('@/features/settings/DatabaseHealthPage'))
+const BackupCenterPage = lazy(() => import('@/features/settings/BackupCenterPage'))
+const SyncLogPage = lazy(() => import('@/features/settings/SyncLogPage'))
+
 // Study ERP sub-routes
 const StudyLayout = lazy(() => import('@/features/study/layout/StudyLayout').then(m => ({ default: m.StudyLayout })))
 const StudyOverview = lazy(() => import('@/features/study/overview/StudyOverview'))
@@ -92,6 +97,9 @@ const router = createBrowserRouter([
       { path: 'finance', element: withSuspense(FinancePage) },
       { path: 'analytics', element: withSuspense(AnalyticsPage) },
       { path: 'settings', element: withSuspense(SettingsPage) },
+      { path: 'settings/db-health', element: withSuspense(DatabaseHealthPage) },
+      { path: 'settings/backup', element: withSuspense(BackupCenterPage) },
+      { path: 'settings/sync-log', element: withSuspense(SyncLogPage) },
       { path: 'profile', element: withSuspense(ProfilePage) },
     ],
     errorElement: withSuspense(NotFoundPage),

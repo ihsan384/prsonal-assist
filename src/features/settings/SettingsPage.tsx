@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   Bell, Volume2, Vibrate, Clock, Calendar,
-  Palette, Trash2, BookOpen, Droplet, Moon, Flame, RefreshCw, Upload, Download, AlertTriangle
+  Palette, Trash2, BookOpen, Droplet, Moon, Flame, RefreshCw, Upload, Download, AlertTriangle,
+  RotateCcw, Database, Archive, Activity, ChevronRight
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -38,6 +40,7 @@ function Toggle({ enabled, onToggle }: ToggleProps) {
 
 export default function SettingsPage() {
   const toast = useToast()
+  const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Settings from local storage
@@ -57,6 +60,8 @@ export default function SettingsPage() {
   const [isLocalWipeOpen, setIsLocalWipeOpen] = useState(false)
   const [confirmWipeInput, setConfirmWipeInput] = useState('')
   const [isCloudWipeOpen, setIsCloudWipeOpen] = useState(false)
+  const [isFactoryResetOpen, setIsFactoryResetOpen] = useState(false)
+  const [confirmResetInput, setConfirmResetInput] = useState('')
 
   useEffect(() => {
     // Sync settings back to engine
@@ -180,6 +185,21 @@ export default function SettingsPage() {
     }
   }
 
+  const handleFactoryReset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (confirmResetInput !== 'RESET') {
+      toast.error('Please type "RESET" exactly to confirm.')
+      return
+    }
+    try {
+      await syncEngine.factoryReset()
+      toast.success('Factory reset complete. Reloading...')
+      setTimeout(() => { window.location.href = '/' }, 1500)
+    } catch (err) {
+      toast.error('Factory reset failed.', String(err))
+    }
+  }
+
   const formatTime = (isoString: string | null) => {
     if (!isoString) return 'Never'
     try {
@@ -206,6 +226,38 @@ export default function SettingsPage() {
           </div>
         </Card>
       </motion.div>
+
+      {/* Management Pages */}
+      <div className="mb-5">
+        <SectionHeader title="Data Management" />
+        <Card padding="none">
+          <div className="divide-y divide-[var(--border)]">
+            {[
+              { label: 'Database Health', description: 'Record counts, storage & sync status', icon: Database, path: '/settings/db-health', color: 'text-[var(--accent)]', bg: 'bg-[var(--accent-bg)]' },
+              { label: 'Backup Center', description: 'Create, restore and export backups', icon: Archive, path: '/settings/backup', color: 'text-emerald-600', bg: 'bg-[var(--success-bg)]' },
+              { label: 'Sync History', description: 'Log of all upload/download operations', icon: Activity, path: '/settings/sync-log', color: 'text-violet-600', bg: 'bg-violet-50' },
+            ].map(item => {
+              const Icon = item.icon
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--bg-hover)] transition-colors text-left"
+                >
+                  <div className={`w-8 h-8 rounded-xl ${item.bg} flex items-center justify-center flex-shrink-0`}>
+                    <Icon size={16} className={item.color} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[var(--text)]">{item.label}</p>
+                    <p className="text-xs text-[var(--text-3)]">{item.description}</p>
+                  </div>
+                  <ChevronRight size={14} className="text-[var(--text-4)] flex-shrink-0" />
+                </button>
+              )
+            })}
+          </div>
+        </Card>
+      </div>
 
       {/* Sync Status and Options */}
       <div className="mb-5">
@@ -391,28 +443,38 @@ export default function SettingsPage() {
       {/* Danger Zone */}
       <div className="mb-5">
         <SectionHeader title="Danger Zone" />
-        <Card>
-          <div className="flex flex-col gap-3">
-            <Button
-              variant="destructive"
-              fullWidth
-              icon={<Trash2 size={16} />}
-              onClick={() => setIsLocalWipeOpen(true)}
-            >
-              Delete All Local Data
-            </Button>
-            
-            <Button
-              variant="destructive"
-              fullWidth
-              icon={<AlertTriangle size={16} />}
-              onClick={() => setIsCloudWipeOpen(true)}
-            >
-              Delete All Cloud Data
-            </Button>
+        <div className="rounded-[var(--radius-card)] border-2 border-[var(--error)] p-4 flex flex-col gap-3">
+          <div className="flex items-start gap-2 mb-1">
+            <AlertTriangle size={15} className="text-[var(--error)] flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-[var(--error)] font-medium leading-relaxed">
+              These actions are permanent and cannot be undone. Create a backup before proceeding.
+            </p>
           </div>
-          <p className="text-xs text-[var(--text-3)] text-center mt-3">Wiping settings clears IndexedDB stores permanently</p>
-        </Card>
+          <Button
+            variant="destructive"
+            fullWidth
+            icon={<Trash2 size={16} />}
+            onClick={() => setIsLocalWipeOpen(true)}
+          >
+            Delete All Local Data
+          </Button>
+          <Button
+            variant="destructive"
+            fullWidth
+            icon={<AlertTriangle size={16} />}
+            onClick={() => setIsCloudWipeOpen(true)}
+          >
+            Delete All Cloud Data
+          </Button>
+          <Button
+            variant="destructive"
+            fullWidth
+            icon={<RotateCcw size={16} />}
+            onClick={() => setIsFactoryResetOpen(true)}
+          >
+            Factory Reset
+          </Button>
+        </div>
       </div>
 
       {/* Wipe Local Data Modal */}
@@ -460,6 +522,37 @@ export default function SettingsPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Factory Reset Modal */}
+      <Modal isOpen={isFactoryResetOpen} onClose={() => setIsFactoryResetOpen(false)} title="Factory Reset">
+        <form onSubmit={handleFactoryReset} className="flex flex-col gap-4">
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-[var(--error-bg)] border border-[var(--error-border)]">
+            <AlertTriangle size={16} className="text-[var(--error)] flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-[var(--error)] leading-relaxed">
+              <strong>This will delete everything:</strong> IndexedDB, localStorage, sessionStorage, and all service worker caches.
+              The app will restart in first-launch state.
+            </p>
+          </div>
+          <p className="text-xs text-[var(--error)] font-bold">
+            Type <span className="font-mono">"RESET"</span> below to confirm:
+          </p>
+          <Input
+            placeholder="Type RESET here"
+            value={confirmResetInput}
+            onChange={e => setConfirmResetInput(e.target.value)}
+            required
+            autoFocus
+          />
+          <div className="flex justify-end gap-2 mt-2">
+            <Button variant="secondary" type="button" onClick={() => { setIsFactoryResetOpen(false); setConfirmResetInput('') }}>
+              Cancel
+            </Button>
+            <Button variant="destructive" type="submit" icon={<RotateCcw size={14} />}>
+              Yes, Factory Reset
+            </Button>
+          </div>
+        </form>
       </Modal>
     </PageWrapper>
   )

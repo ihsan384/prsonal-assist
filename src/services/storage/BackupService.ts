@@ -1,5 +1,6 @@
 import { idb, STORES } from './IndexedDB'
 import { memoryStore } from './MemoryStore'
+import { generateId } from '@/utils/format'
 
 export interface BackupData {
   version: string
@@ -35,10 +36,44 @@ export interface BackupData {
   }
 }
 
+export interface BackupHistoryEntry {
+  id: string
+  createdAt: string
+  sizeBytes: number
+  version: string
+  label: string
+  recordCount: number
+}
+
 const CURRENT_BACKUP_VERSION = '2.0.0'
 const SUPPORTED_VERSIONS = ['1.0.0', '2.0.0']
+const LS_LAST_BACKUP = 'ihsanos_last_backup'
+const LS_AUTO_BACKUP = 'ihsanos_auto_backup'
+const LS_BACKUP_FREQ = 'ihsanos_backup_freq'
 
 export const backupService = {
+  // ── Settings ────────────────────────────────────────────────────────────
+
+  get autoBackup(): boolean {
+    return localStorage.getItem(LS_AUTO_BACKUP) !== 'false'
+  },
+  set autoBackup(v: boolean) {
+    localStorage.setItem(LS_AUTO_BACKUP, String(v))
+  },
+
+  get backupFrequency(): 'daily' | 'weekly' | 'monthly' {
+    return (localStorage.getItem(LS_BACKUP_FREQ) as any) ?? 'daily'
+  },
+  set backupFrequency(v: 'daily' | 'weekly' | 'monthly') {
+    localStorage.setItem(LS_BACKUP_FREQ, v)
+  },
+
+  get lastBackupTime(): string | null {
+    return localStorage.getItem(LS_LAST_BACKUP)
+  },
+
+  // ── Core Export ─────────────────────────────────────────────────────────
+
   /**
    * Export all data as a backup JSON string.
    * Reads fresh from IndexedDB to guarantee the export is complete.
@@ -82,6 +117,86 @@ export const backupService = {
     return JSON.stringify(backup, null, 2)
   },
 
+  // ── Backup History ──────────────────────────────────────────────────────
+
+  /**
+   * Save a backup and persist its metadata to the BACKUP_HISTORY store.
+   * Returns the JSON string and the history entry.
+   */
+  async createAndSaveBackup(label?: string): Promise<{ json: string; entry: BackupHistoryEntry }> {
+    const json = await this.exportBackup()
+    const sizeBytes = new Blob([json]).size
+
+    // Count total records
+    let recordCount = 0
+    try {
+      const parsed = JSON.parse(json) as BackupData
+      recordCount = Object.values(parsed.data).reduce((total, val) => {
+        if (Array.isArray(val)) return total + val.length
+        return total
+      }, 0)
+    } catch { /* ignore */ }
+
+    const entry: BackupHistoryEntry = {
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+      sizeBytes,
+      version: CURRENT_BACKUP_VERSION,
+      label: label ?? `Backup ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+      recordCount,
+    }
+
+    await idb.put(STORES.BACKUP_HISTORY, entry)
+    localStorage.setItem(LS_LAST_BACKUP, entry.createdAt)
+    return { json, entry }
+  },
+
+  /**
+   * Retrieve all backup history entries, newest first.
+   */
+  async getBackupHistory(): Promise<BackupHistoryEntry[]> {
+    try {
+      const all = await idb.getAll<BackupHistoryEntry>(STORES.BACKUP_HISTORY)
+      return all.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    } catch {
+      return []
+    }
+  },
+
+  /**
+   * Delete a single backup history entry by ID.
+   */
+  async deleteBackupEntry(id: string): Promise<void> {
+    await idb.delete(STORES.BACKUP_HISTORY, id)
+  },
+
+  // ── Auto-backup Check ───────────────────────────────────────────────────
+
+  /**
+   * Run auto-backup if enabled and the frequency interval has elapsed.
+   * Safe to call on app startup.
+   */
+  async runAutoBackupIfDue(): Promise<void> {
+    if (!this.autoBackup) return
+
+    const last = this.lastBackupTime
+    if (!last) {
+      // No backup ever taken — take one now
+      await this.createAndSaveBackup('Auto Backup (First Run)')
+      return
+    }
+
+    const diffMs = Date.now() - new Date(last).getTime()
+    const thresholds = { daily: 86_400_000, weekly: 604_800_000, monthly: 2_592_000_000 }
+    const threshold = thresholds[this.backupFrequency] ?? thresholds.daily
+
+    if (diffMs >= threshold) {
+      await this.createAndSaveBackup(`Auto Backup (${this.backupFrequency})`)
+    }
+  },
+
+  // ── Import ──────────────────────────────────────────────────────────────
+
   /**
    * Import data from JSON backup string and restore into memory/IndexedDB.
    * All restored records are marked pendingSync = true so they get pushed to
@@ -90,7 +205,6 @@ export const backupService = {
   async importBackup(jsonString: string): Promise<void> {
     const raw = JSON.parse(jsonString)
 
-    // Version validation
     if (!raw.version || !raw.data) {
       throw new Error('Invalid backup file format: missing version or data fields.')
     }
@@ -103,24 +217,21 @@ export const backupService = {
     const { data } = backup
     const now = new Date().toISOString()
 
-    // 1. Wipe current database and in-memory state
     await idb.clearAll()
     memoryStore.clearMemory()
 
-    // ─── Helper to restore a record with correct sync fields ───────────
     function prepareRecord(record: any): any {
       return {
         ...record,
-        pendingSync: true,       // mark for upload to Supabase
-        lastSyncedAt: null,      // hasn't been synced since restore
+        pendingSync: true,
+        lastSyncedAt: null,
         updatedAt: record.updatedAt ?? now,
         createdAt: record.createdAt ?? now,
         deleted: record.deleted ?? false,
-        syncVersion: (record.syncVersion ?? 1) + 1, // bump version on restore
+        syncVersion: (record.syncVersion ?? 1) + 1,
       }
     }
 
-    // 2. Restore settings, profile, nutrition goals (singular items)
     if (data.settings) {
       const settings = prepareRecord({ id: 'app_settings', ...data.settings })
       memoryStore.settings = settings
@@ -139,7 +250,6 @@ export const backupService = {
       await idb.put(STORES.NUTRITION_GOALS, nutrGoals)
     }
 
-    // 3. Restore array stores
     const arrayRestores: Array<{ memKey: keyof typeof memoryStore; store: typeof STORES[keyof typeof STORES]; list: any[] }> = [
       { memKey: 'tasks', store: STORES.TASKS, list: data.tasks ?? [] },
       { memKey: 'habits', store: STORES.HABITS, list: data.habits ?? [] },
@@ -165,15 +275,11 @@ export const backupService = {
 
     for (const { memKey, store, list } of arrayRestores) {
       if (!Array.isArray(list)) continue
-
       const preparedList = list.map(prepareRecord)
       ;(memoryStore as any)[memKey] = preparedList
-
-      // Batch write to IndexedDB for performance
       await idb.putBatch(store, preparedList)
     }
 
-    // 4. Restore water logs
     if (data.waterLogs && typeof data.waterLogs === 'object') {
       memoryStore.waterLogs = data.waterLogs
       const waterEntries = Object.entries(data.waterLogs).map(([date, ml]) => ({
@@ -188,6 +294,37 @@ export const backupService = {
       }))
       await idb.putBatch(STORES.WATER_LOGS, waterEntries)
     }
+  },
+
+  // ── CSV Export ──────────────────────────────────────────────────────────
+
+  /**
+   * Export a specific data module as CSV.
+   * Returns a CSV string.
+   */
+  exportCSV(module: keyof BackupData['data'], data: any[]): string {
+    if (!Array.isArray(data) || data.length === 0) return ''
+
+    // Collect all unique keys across all records (omitting sync metadata)
+    const skipKeys = new Set(['pendingSync', 'lastSyncedAt', 'deleted', 'syncVersion'])
+    const allKeys = Array.from(
+      data.reduce((set, row) => {
+        Object.keys(row).forEach(k => { if (!skipKeys.has(k)) set.add(k) })
+        return set
+      }, new Set<string>())
+    ) as string[]
+
+    const escape = (val: unknown): string => {
+      if (val === null || val === undefined) return ''
+      const str = typeof val === 'object' ? JSON.stringify(val) : String(val)
+      return str.includes(',') || str.includes('"') || str.includes('\n')
+        ? `"${str.replace(/"/g, '""')}"`
+        : str
+    }
+
+    const header = allKeys.join(',')
+    const rows = data.map(row => allKeys.map(k => escape(row[k])).join(','))
+    return [header, ...rows].join('\n')
   },
 
   /**

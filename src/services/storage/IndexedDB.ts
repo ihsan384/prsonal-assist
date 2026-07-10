@@ -1,11 +1,11 @@
 /**
  * Standard HTML5 IndexedDB Service
  * Reusable zero-dependency async wrapper for local browser database
- * Version 2: adds lastSyncedAt tracking + pending sync index per store
+ * Version 3: adds BACKUP_HISTORY, SYNC_LOG, ACTIVITY_LOG stores
  */
 
 const DB_NAME = 'ihsanos_db'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 export const STORES = {
   TASKS: 'tasks',
@@ -35,9 +35,17 @@ export const STORES = {
   FORMULAS: 'formulas',
   NOTES: 'notes',
 
-  // Sync queue for failed retries
+  // Sync & management stores
   SYNC_QUEUE: 'sync_queue',
+  BACKUP_HISTORY: 'backup_history',
+  SYNC_LOG: 'sync_log',
+  ACTIVITY_LOG: 'activity_log',
 } as const
+
+// Stores that should NOT get sync metadata indexes
+const META_STORES = new Set([
+  'settings', 'profile', 'sync_queue', 'backup_history', 'sync_log', 'activity_log',
+])
 
 type StoreName = typeof STORES[keyof typeof STORES]
 
@@ -55,45 +63,52 @@ export class IndexedDBService {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result
         const oldVersion = event.oldVersion
+        const transaction = (event.target as IDBOpenDBRequest).transaction
 
-        // Create all stores (for fresh installs)
+        // Create all stores (for fresh installs or any missing stores)
         Object.values(STORES).forEach((storeName) => {
           if (!db.objectStoreNames.contains(storeName)) {
             const store = db.createObjectStore(storeName, { keyPath: 'id' })
 
-            // Add pendingSync index for efficient pending queries
-            if (storeName !== STORES.SETTINGS && storeName !== STORES.PROFILE && storeName !== STORES.SYNC_QUEUE) {
+            // Add pendingSync indexes only to data stores (not management stores)
+            if (!META_STORES.has(storeName)) {
               store.createIndex('pendingSync', 'pendingSync', { unique: false })
               store.createIndex('updatedAt', 'updatedAt', { unique: false })
               store.createIndex('deleted', 'deleted', { unique: false })
             }
+
+            // SYNC_LOG: index by timestamp and status for efficient filtering
+            if (storeName === STORES.SYNC_LOG) {
+              store.createIndex('timestamp', 'timestamp', { unique: false })
+              store.createIndex('status', 'status', { unique: false })
+            }
+
+            // BACKUP_HISTORY: index by createdAt
+            if (storeName === STORES.BACKUP_HISTORY) {
+              store.createIndex('createdAt', 'createdAt', { unique: false })
+            }
           }
         })
 
-        // v1 → v2 migration: add indexes to existing stores
-        if (oldVersion === 1) {
-          const transaction = (event.target as IDBOpenDBRequest).transaction
-          if (transaction) {
-            Object.values(STORES).forEach((storeName) => {
-              if (
-                db.objectStoreNames.contains(storeName) &&
-                storeName !== STORES.SETTINGS &&
-                storeName !== STORES.PROFILE &&
-                storeName !== STORES.SYNC_QUEUE
-              ) {
-                const store = transaction.objectStore(storeName)
-                if (!store.indexNames.contains('pendingSync')) {
-                  store.createIndex('pendingSync', 'pendingSync', { unique: false })
-                }
-                if (!store.indexNames.contains('updatedAt')) {
-                  store.createIndex('updatedAt', 'updatedAt', { unique: false })
-                }
-                if (!store.indexNames.contains('deleted')) {
-                  store.createIndex('deleted', 'deleted', { unique: false })
-                }
+        // v1 → v2 / v2 → v3 migration: add indexes to any existing data stores missing them
+        if (oldVersion < 3 && transaction) {
+          Object.values(STORES).forEach((storeName) => {
+            if (
+              db.objectStoreNames.contains(storeName) &&
+              !META_STORES.has(storeName)
+            ) {
+              const store = transaction.objectStore(storeName)
+              if (!store.indexNames.contains('pendingSync')) {
+                store.createIndex('pendingSync', 'pendingSync', { unique: false })
               }
-            })
-          }
+              if (!store.indexNames.contains('updatedAt')) {
+                store.createIndex('updatedAt', 'updatedAt', { unique: false })
+              }
+              if (!store.indexNames.contains('deleted')) {
+                store.createIndex('deleted', 'deleted', { unique: false })
+              }
+            }
+          })
         }
       }
 
@@ -276,9 +291,7 @@ export class IndexedDBService {
    */
   async countAllPending(): Promise<number> {
     let total = 0
-    const dataStores = Object.values(STORES).filter(
-      s => s !== STORES.SETTINGS && s !== STORES.PROFILE && s !== STORES.SYNC_QUEUE
-    )
+    const dataStores = Object.values(STORES).filter(s => !META_STORES.has(s))
     for (const storeName of dataStores) {
       try {
         const pending = await this.getPendingSync<any>(storeName)
@@ -288,6 +301,37 @@ export class IndexedDBService {
       }
     }
     return total
+  }
+
+  /**
+   * Count all records in a store (including deleted)
+   */
+  async countAll(storeName: StoreName): Promise<number> {
+    const db = await this.getDB()
+    return new Promise<number>((resolve, reject) => {
+      try {
+        const transaction = db.transaction(storeName, 'readonly')
+        const store = transaction.objectStore(storeName)
+        const request = store.count()
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      } catch (err) {
+        reject(err)
+      }
+    })
+  }
+
+  /**
+   * Get storage estimate from the browser Storage API
+   */
+  async getStorageEstimate(): Promise<{ usage: number; quota: number } | null> {
+    if (!navigator.storage?.estimate) return null
+    try {
+      const estimate = await navigator.storage.estimate()
+      return { usage: estimate.usage ?? 0, quota: estimate.quota ?? 0 }
+    } catch {
+      return null
+    }
   }
 }
 

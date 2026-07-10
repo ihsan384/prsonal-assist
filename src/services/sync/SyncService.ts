@@ -1,8 +1,23 @@
 import { supabase, isSupabaseConfigured } from '../supabase/supabase'
 import { idb, STORES } from '../storage/IndexedDB'
 import { memoryStore } from '../storage/MemoryStore'
+import { generateId } from '@/utils/format'
 
 export type SyncStatusType = 'offline' | 'online' | 'syncing' | 'synced' | 'failed' | 'pending'
+
+// ─── Sync Log Entry ────────────────────────────────────────────────────────
+
+export interface SyncLogEntry {
+  id: string
+  timestamp: string
+  store: string
+  operation: 'upload' | 'download' | 'delete'
+  status: 'success' | 'failed' | 'skipped'
+  recordCount: number
+  durationMs: number
+  retryCount: number
+  errorMessage?: string
+}
 
 // ─── Retry Queue Entry ─────────────────────────────────────────────────────
 
@@ -239,6 +254,8 @@ class SyncEngine {
    * Sync a single store: batch upsert new/modified, delete soft-deleted records
    */
   private async syncStore(storeName: typeof STORES[keyof typeof STORES]): Promise<void> {
+    const startMs = Date.now()
+
     // Use efficient index-based query if available
     let pending: any[]
     try {
@@ -264,27 +281,25 @@ class SyncEngine {
 
       const { error } = await supabase.from(tableName).delete().eq('id', record.id)
       if (!error) {
-        // Hard-delete locally after cloud confirms
         await idb.delete(storeName, record.id)
         this.retryQueue.delete(retryKey)
-
-        // Remove from memory arrays
         this.removeFromMemory(storeName, record.id)
+        void this.writeSyncLog({ timestamp: new Date().toISOString(), store: storeName, operation: 'delete', status: 'success', recordCount: 1, durationMs: Date.now() - startMs, retryCount: attempts })
       } else {
         console.error(`[SyncEngine] Delete failed for ${tableName}:${record.id}`, error)
         this.addToRetryQueue(storeName, record.id, attempts)
+        void this.writeSyncLog({ timestamp: new Date().toISOString(), store: storeName, operation: 'delete', status: 'failed', recordCount: 1, durationMs: Date.now() - startMs, retryCount: attempts + 1, errorMessage: error.message })
       }
     }
 
     // ── Handle batch upserts ───────────────────────────────────────────
-    // Process in chunks of BATCH_SIZE
     for (let i = 0; i < toUpsert.length; i += BATCH_SIZE) {
       const batch = toUpsert.slice(i, i + BATCH_SIZE)
+      const batchStart = Date.now()
 
       // Build snake_case payloads, stripping frontend-only fields
       const payloads = batch.map(record => {
         const snake = this.toSnakeCase({ ...record })
-        // Remove frontend-only fields not in Supabase schema
         delete snake.pending_sync
         delete snake.last_synced_at
         return snake
@@ -296,7 +311,6 @@ class SyncEngine {
         .select('id, sync_version, updated_at')
 
       if (!error) {
-        // Build a lookup of server-returned versions for conflict detection
         const serverVersionMap = new Map<string, number>(
           (returnedData ?? []).map((row: any) => [row.id, row.sync_version ?? 0])
         )
@@ -308,37 +322,28 @@ class SyncEngine {
           const serverVersion = serverVersionMap.get(record.id)
           const retryKey = `${storeName}:${record.id}`
 
-          // Conflict detection: if server version is ahead, server wins
           if (serverVersion !== undefined && serverVersion > (record.syncVersion ?? 1)) {
             console.warn(`[SyncEngine] Conflict detected for ${tableName}:${record.id} — server wins (v${serverVersion} > local v${record.syncVersion})`)
-            // Keep local record but mark synced — server version takes precedence on next full pull
           }
 
-          // Mark as synced locally
-          const updated = {
-            ...record,
-            pendingSync: false,
-            lastSyncedAt: now,
-          }
+          const updated = { ...record, pendingSync: false, lastSyncedAt: now }
           updatedRecords.push(updated)
           this.retryQueue.delete(retryKey)
-
-          // Update memory store
           this.updateInMemory(storeName, updated)
         }
 
-        // Batch write back to IndexedDB
         await idb.putBatch(storeName, updatedRecords)
+        void this.writeSyncLog({ timestamp: new Date().toISOString(), store: storeName, operation: 'upload', status: 'success', recordCount: batch.length, durationMs: Date.now() - batchStart, retryCount: 0 })
       } else {
         console.error(`[SyncEngine] Batch upsert failed for ${tableName}:`, error)
 
-        // Add each failed record to retry queue individually
         for (const record of batch) {
           const retryKey = `${storeName}:${record.id}`
           const retryEntry = this.retryQueue.get(retryKey)
           this.addToRetryQueue(storeName, record.id, retryEntry?.attempts ?? 0)
         }
 
+        void this.writeSyncLog({ timestamp: new Date().toISOString(), store: storeName, operation: 'upload', status: 'failed', recordCount: batch.length, durationMs: Date.now() - batchStart, retryCount: 1, errorMessage: (error as any).message ?? 'Unknown error' })
         throw error
       }
     }
@@ -368,6 +373,50 @@ class SyncEngine {
     }
   }
 
+  // ─── Sync Log ──────────────────────────────────────────────────────────
+
+  private async writeSyncLog(entry: Omit<SyncLogEntry, 'id'>): Promise<void> {
+    try {
+      const record: SyncLogEntry = { id: generateId(), ...entry }
+      await idb.put(STORES.SYNC_LOG, record)
+    } catch {
+      // Non-critical — never block sync on log failure
+    }
+  }
+
+  /**
+   * Retrieve the most recent sync log entries (newest first)
+   */
+  async getSyncLog(limit = 100): Promise<SyncLogEntry[]> {
+    try {
+      const all = await idb.getAll<SyncLogEntry>(STORES.SYNC_LOG)
+      return all.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, limit)
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Clear all sync log entries
+   */
+  async clearSyncLog(): Promise<void> {
+    await idb.clearStore(STORES.SYNC_LOG)
+  }
+
+  // ─── Retry Failed ──────────────────────────────────────────────────────
+
+  /**
+   * Immediately retry all entries currently in the retry queue
+   */
+  async retryFailed(): Promise<void> {
+    if (this.retryQueue.size === 0) {
+      console.log('[SyncEngine] No failed entries in retry queue.')
+      return
+    }
+    console.log(`[SyncEngine] Retrying ${this.retryQueue.size} failed entries...`)
+    await this.sync()
+  }
+
   // ─── Wipe Cloud Data ───────────────────────────────────────────────────
 
   /**
@@ -379,19 +428,47 @@ class SyncEngine {
       throw new Error('Supabase is not configured.')
     }
 
-    const tables = Object.values(STORES).filter(t => t !== STORES.SYNC_QUEUE)
+    const cloudTables = Object.values(STORES).filter(
+      t => t !== STORES.SYNC_QUEUE && t !== STORES.BACKUP_HISTORY && t !== STORES.SYNC_LOG && t !== STORES.ACTIVITY_LOG
+    )
 
-    for (const table of tables) {
-      // Deletes all rows that have a sync_version column (all our tables do)
+    for (const table of cloudTables) {
       const { error } = await supabase
         .from(table)
         .delete()
         .gte('sync_version', 0)
 
       if (error) {
-        // Some tables may not exist yet in cloud — log but continue
         console.warn(`[SyncEngine] Could not wipe table "${table}":`, error.message)
       }
+    }
+  }
+
+  // ─── Factory Reset ─────────────────────────────────────────────────────
+
+  /**
+   * Completely wipe all local data: IndexedDB, localStorage, sessionStorage,
+   * and all service worker caches. Then reload the app.
+   */
+  async factoryReset(): Promise<void> {
+    try {
+      // 1. Clear all IDB object stores
+      await idb.clearAll()
+      // 2. Clear Web Storage
+      localStorage.clear()
+      sessionStorage.clear()
+      // 3. Clear Service Worker caches
+      if ('caches' in window) {
+        const cacheKeys = await caches.keys()
+        await Promise.all(cacheKeys.map(key => caches.delete(key)))
+      }
+      // 4. Reset in-memory state
+      memoryStore.clearMemory()
+      memoryStore.isLoaded = false
+      ;(memoryStore as any).loadPromise = null
+    } catch (err) {
+      console.error('[SyncEngine] Factory reset error:', err)
+      throw err
     }
   }
 }
