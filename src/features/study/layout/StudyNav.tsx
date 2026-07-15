@@ -3,6 +3,7 @@ import { cn } from '@/utils/cn'
 
 const LINKS = [
   { path: '/study', label: 'Overview', exact: true },
+  { path: '/study/pomodoro', label: 'Pomodoro' },
   { path: '/study/subjects', label: 'Subjects' },
   { path: '/study/sessions', label: 'Sessions' },
   { path: '/study/revision', label: 'Revision' },

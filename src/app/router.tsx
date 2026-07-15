@@ -28,6 +28,7 @@ const SyncLogPage = lazy(() => import('@/features/settings/SyncLogPage'))
 // Study ERP sub-routes
 const StudyLayout = lazy(() => import('@/features/study/layout/StudyLayout').then(m => ({ default: m.StudyLayout })))
 const StudyOverview = lazy(() => import('@/features/study/overview/StudyOverview'))
+const PomodoroPage = lazy(() => import('@/features/study/pomodoro/PomodoroPage'))
 const SubjectsPage = lazy(() => import('@/features/study/subjects/SubjectsPage'))
 const SubjectDetail = lazy(() => import('@/features/study/subjects/SubjectDetail'))
 const ChapterDetail = lazy(() => import('@/features/study/chapters/ChapterDetail'))
@@ -73,6 +74,7 @@ const router = createBrowserRouter([
         element: withSuspense(StudyLayout as any),
         children: [
           { index: true, element: withSuspense(StudyOverview) },
+          { path: 'pomodoro', element: withSuspense(PomodoroPage) },
           { path: 'subjects', element: withSuspense(SubjectsPage) },
           { path: 'subjects/:id', element: withSuspense(SubjectDetail) },
           { path: 'chapters/:id', element: withSuspense(ChapterDetail) },

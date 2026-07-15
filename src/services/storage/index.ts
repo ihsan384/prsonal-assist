@@ -566,14 +566,42 @@ export const motivationStorage = {
   // Export helpers
   exportQuotesJSON: () => JSON.stringify(memoryStore.motivationQuotes.filter(q => !q.deleted), null, 2),
   exportNotesJSON: () => JSON.stringify(memoryStore.motivationNotes.filter(n => !n.deleted), null, 2),
-  importQuotesJSON: (json: string) => {
-    try {
-      const quotes = JSON.parse(json) as MotivationQuote[]
-      quotes.forEach(q => {
-        memoryStore.saveToStore(STORES.MOTIVATION_QUOTES, memoryStore.motivationQuotes, { ...q, pendingSync: true })
-      })
-    } catch (err) {
-      console.error('[motivationStorage] importQuotesJSON failed:', err)
+  importQuotesJSON: async (json: string): Promise<number> => {
+    const quotes = JSON.parse(json)
+    if (!Array.isArray(quotes)) {
+      throw new Error('Import data must be a JSON array')
     }
+    const generateUUID = () => {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID()
+      }
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0
+        const v = c === 'x' ? r : (r & 0x3) | 0x8
+        return v.toString(16)
+      })
+    }
+    
+    for (const q of quotes) {
+      const newId = generateUUID()
+      const record: MotivationQuote = {
+        id: newId,
+        quote: q.quote || '',
+        author: q.author,
+        source: q.source,
+        category: q.category || 'motivation',
+        tags: Array.isArray(q.tags) ? q.tags : [],
+        isFavourite: q.isFavourite || false,
+        isPinned: q.isPinned || false,
+        collectionIds: Array.isArray(q.collectionIds) ? q.collectionIds : [],
+        createdAt: q.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        deleted: false,
+        pendingSync: true,
+        syncVersion: 1,
+      }
+      await memoryStore.saveToStore(STORES.MOTIVATION_QUOTES, memoryStore.motivationQuotes, record)
+    }
+    return quotes.length
   },
 }

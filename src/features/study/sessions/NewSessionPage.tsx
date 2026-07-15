@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Play, Pause, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Play } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
@@ -36,79 +36,7 @@ export default function NewSessionPage() {
   const [wrongAnswers, setWrongAnswers] = useState('0')
   const [notes, setNotes] = useState('')
 
-  // Timer states
-  const [isTimerRunning, setIsTimerRunning] = useState(false)
-  const [timerSeconds, setTimerSeconds] = useState(0)
-  const timerRef = useRef<any>(null)
 
-  useEffect(() => {
-    setSubjects(studyERPStorage.getSubjects())
-    
-    // Prefill start time
-    const now = new Date()
-    const hh = String(now.getHours()).padStart(2, '0')
-    const mm = String(now.getMinutes()).padStart(2, '0')
-    setStartTime(`${hh}:${mm}`)
-  }, [])
-
-  // Sync chapters when subject changes
-  useEffect(() => {
-    if (selectedSubject) {
-      const filteredCh = studyERPStorage.getChapters().filter(c => c.subjectId === selectedSubject)
-      setChapters(filteredCh)
-      setSelectedChapter('')
-      setTopics([])
-      setSelectedTopic('')
-    } else {
-      setChapters([])
-      setTopics([])
-    }
-  }, [selectedSubject])
-
-  // Sync topics when chapter changes
-  useEffect(() => {
-    if (selectedChapter) {
-      const filteredTp = studyERPStorage.getTopics().filter(t => t.chapterId === selectedChapter)
-      setTopics(filteredTp)
-      setSelectedTopic('')
-    } else {
-      setTopics([])
-    }
-  }, [selectedChapter])
-
-  // Timer control
-  const startTimer = () => {
-    if (isTimerRunning) return
-    setIsTimerRunning(true)
-    timerRef.current = setInterval(() => {
-      setTimerSeconds(prev => prev + 1)
-    }, 1000)
-  }
-
-  const pauseTimer = () => {
-    if (!isTimerRunning) return
-    setIsTimerRunning(false)
-    if (timerRef.current) clearInterval(timerRef.current)
-  }
-
-  const resetTimer = () => {
-    setIsTimerRunning(false)
-    if (timerRef.current) clearInterval(timerRef.current)
-    setTimerSeconds(0)
-  }
-
-  const applyTimerDuration = () => {
-    const mins = Math.round(timerSeconds / 60)
-    setDuration(String(mins || 1))
-    
-    // Prefill end time
-    const now = new Date()
-    const hh = String(now.getHours()).padStart(2, '0')
-    const mm = String(now.getMinutes()).padStart(2, '0')
-    setEndTime(`${hh}:${mm}`)
-
-    toast.success(`Applied timer duration: ${mins} mins`)
-  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -156,13 +84,40 @@ export default function NewSessionPage() {
     navigate('/study/sessions')
   }
 
-  // Format timer values
-  const formatTimeStr = (totalSecs: number) => {
-    const hrs = Math.floor(totalSecs / 3600)
-    const mins = Math.floor((totalSecs % 3600) / 60)
-    const secs = totalSecs % 60
-    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-  }
+  useEffect(() => {
+    setSubjects(studyERPStorage.getSubjects())
+    
+    // Prefill start time
+    const now = new Date()
+    const hh = String(now.getHours()).padStart(2, '0')
+    const mm = String(now.getMinutes()).padStart(2, '0')
+    setStartTime(`${hh}:${mm}`)
+  }, [])
+
+  // Sync chapters when subject changes
+  useEffect(() => {
+    if (selectedSubject) {
+      const filteredCh = studyERPStorage.getChapters().filter(c => c.subjectId === selectedSubject)
+      setChapters(filteredCh)
+      setSelectedChapter('')
+      setTopics([])
+      setSelectedTopic('')
+    } else {
+      setChapters([])
+      setTopics([])
+    }
+  }, [selectedSubject])
+
+  // Sync topics when chapter changes
+  useEffect(() => {
+    if (selectedChapter) {
+      const filteredTp = studyERPStorage.getTopics().filter(t => t.chapterId === selectedChapter)
+      setTopics(filteredTp)
+      setSelectedTopic('')
+    } else {
+      setTopics([])
+    }
+  }, [selectedChapter])
 
   return (
     <PageWrapper>
@@ -180,32 +135,27 @@ export default function NewSessionPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Live focus timer section */}
+        {/* Pomodoro Timer Launch Card */}
         <div className="flex flex-col gap-4">
-          <SectionHeader title="Live Session Stopwatch" />
-          <Card className="text-center py-8">
-            <span className="text-[10px] text-[var(--text-3)] uppercase font-semibold">Active Study Timer</span>
-            <div className="text-3xl font-mono font-bold text-[var(--text)] mt-3 tracking-widest tabular-nums">
-              {formatTimeStr(timerSeconds)}
+          <SectionHeader title="Live Focus Timer" />
+          <Card className="text-center py-8 flex flex-col items-center justify-center gap-4 bg-[var(--accent-bg)] border-[var(--accent-border)]">
+            <div className="w-12 h-12 rounded-full bg-[var(--accent)] text-white flex items-center justify-center shadow-md">
+              <Play size={22} fill="white" className="ml-0.5" />
             </div>
-
-            <div className="flex items-center justify-center gap-3 mt-6">
-              {!isTimerRunning ? (
-                <Button variant="primary" size="icon" onClick={startTimer}>
-                  <Play size={15} />
-                </Button>
-              ) : (
-                <Button variant="secondary" size="icon" onClick={pauseTimer}>
-                  <Pause size={15} />
-                </Button>
-              )}
-              <Button variant="ghost" size="icon" onClick={resetTimer}>
-                <RotateCcw size={15} />
-              </Button>
-              <Button variant="secondary" size="sm" onClick={applyTimerDuration}>
-                Apply Minutes
-              </Button>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--accent-text)]">Pomodoro Focus System</h3>
+              <p className="text-xs text-[var(--accent)] mt-1 max-w-[200px] mx-auto">
+                Launch the dedicated Pomodoro Timer with auto-logging, break reminders, and cycle tracking.
+              </p>
             </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => navigate('/study/pomodoro')}
+              className="mt-2"
+            >
+              Launch Pomodoro Timer
+            </Button>
           </Card>
         </div>
 

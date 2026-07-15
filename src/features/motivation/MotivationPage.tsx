@@ -19,6 +19,8 @@ import { Modal } from '@/components/ui/Modal'
 import { motivationStorage } from '@/services/storage'
 import type { MotivationQuote, MotivationNote, MotivationCollection, MotivationCategory } from '@/types'
 import { cn } from '@/utils/cn'
+import { useToast } from '@/hooks/useToast'
+import { syncEngine } from '@/services/sync/SyncService'
 
 // ─── Category Config ──────────────────────────────────────────────────────────
 
@@ -480,6 +482,7 @@ type Tab = 'quotes' | 'notes' | 'collections'
 type QuoteFilter = 'all' | 'favourite' | 'pinned'
 
 export default function MotivationPage() {
+  const toast = useToast()
   const [tab, setTab] = useState<Tab>('quotes')
   const [quotes, setQuotes] = useState<MotivationQuote[]>(() => motivationStorage.getQuotes())
   const [notes, setNotes] = useState<MotivationNote[]>(() => motivationStorage.getNotes())
@@ -526,11 +529,17 @@ export default function MotivationPage() {
     URL.revokeObjectURL(url)
   }
 
-  const handleImport = () => {
-    motivationStorage.importQuotesJSON(importJson)
-    setImportJson('')
-    setShowImport(false)
-    reload()
+  const handleImport = async () => {
+    try {
+      const count = await motivationStorage.importQuotesJSON(importJson)
+      toast.success(`Successfully imported ${count} quotes.`)
+      setImportJson('')
+      setShowImport(false)
+      reload()
+      await syncEngine.sync()
+    } catch (err: any) {
+      toast.error('Failed to import quotes.', err?.message || 'Please check the JSON format.')
+    }
   }
 
   // Filter logic
