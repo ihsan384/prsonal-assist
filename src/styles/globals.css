@@ -221,3 +221,84 @@ button, a, [role="button"] {
 .table-row:last-child {
   border-bottom: none;
 }
+
+/* ─── Rich Text Editor (contenteditable) ───────────────────────────────────── */
+
+.reflection-editor,
+.motivation-editor {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.reflection-editor:empty:before,
+.motivation-editor:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-4);
+  pointer-events: none;
+}
+
+.reflection-editor h3,
+.motivation-editor h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0.75rem 0 0.25rem;
+}
+
+.reflection-editor blockquote,
+.motivation-editor blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0.5rem 0;
+  color: var(--text-2);
+  font-style: italic;
+}
+
+.reflection-editor pre,
+.motivation-editor pre {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-family: 'Courier New', monospace;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+  white-space: pre-wrap;
+}
+
+.reflection-editor ul,
+.motivation-editor ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0.25rem 0;
+}
+
+.reflection-editor ol,
+.motivation-editor ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 0.25rem 0;
+}
+
+.reflection-editor li,
+.motivation-editor li {
+  margin: 0.1rem 0;
+}
+
+.reflection-editor b, .reflection-editor strong,
+.motivation-editor b, .motivation-editor strong {
+  font-weight: 600;
+}
+
+.reflection-editor i, .reflection-editor em,
+.motivation-editor i, .motivation-editor em {
+  font-style: italic;
+}
+
+.reflection-editor u,
+.motivation-editor u {
+  text-decoration: underline;
+}
+

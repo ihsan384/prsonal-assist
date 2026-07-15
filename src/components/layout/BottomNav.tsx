@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, CheckSquare, Repeat2, Dumbbell,
-  Utensils, Moon, Target, Library, Wallet, BarChart2,
+  Utensils, Moon, Target, Library, Wallet, BarChart2, BookMarked, Flame,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 
@@ -17,6 +17,8 @@ const tabs = [
   { path: '/knowledge', icon: Library,          label: 'Know' },
   { path: '/finance',   icon: Wallet,           label: 'Finance' },
   { path: '/analytics', icon: BarChart2,        label: 'Stats' },
+  { path: '/reflection',icon: BookMarked,       label: 'Journal' },
+  { path: '/motivation',icon: Flame,            label: 'Motivate' },
 ]
 
 export function BottomNav() {

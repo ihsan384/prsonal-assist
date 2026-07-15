@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, BookOpen, CheckSquare, Repeat2, Dumbbell,
   Utensils, Moon, Target, Library, Wallet, BarChart2,
-  Settings, User, X
+  Settings, User, X, BookMarked, Flame,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 
@@ -19,6 +19,8 @@ const navItems = [
   { path: '/knowledge', icon: Library, label: 'Knowledge' },
   { path: '/finance', icon: Wallet, label: 'Finance' },
   { path: '/analytics', icon: BarChart2, label: 'Analytics' },
+  { path: '/reflection', icon: BookMarked, label: 'Daily Reflection' },
+  { path: '/motivation', icon: Flame, label: 'Motivation Center' },
 ]
 
 const bottomItems = [

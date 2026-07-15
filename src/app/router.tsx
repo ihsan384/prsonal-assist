@@ -17,6 +17,8 @@ const AnalyticsPage = lazy(() => import('@/features/analytics/AnalyticsPage'))
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'))
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
 const NotFoundPage = lazy(() => import('@/features/common/NotFoundPage'))
+const ReflectionPage = lazy(() => import('@/features/reflection/ReflectionPage'))
+const MotivationPage = lazy(() => import('@/features/motivation/MotivationPage'))
 
 // Settings sub-pages
 const DatabaseHealthPage = lazy(() => import('@/features/settings/DatabaseHealthPage'))
@@ -101,6 +103,8 @@ const router = createBrowserRouter([
       { path: 'settings/backup', element: withSuspense(BackupCenterPage) },
       { path: 'settings/sync-log', element: withSuspense(SyncLogPage) },
       { path: 'profile', element: withSuspense(ProfilePage) },
+      { path: 'reflection', element: withSuspense(ReflectionPage) },
+      { path: 'motivation', element: withSuspense(MotivationPage) },
     ],
     errorElement: withSuspense(NotFoundPage),
   },

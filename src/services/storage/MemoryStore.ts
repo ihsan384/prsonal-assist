@@ -1,5 +1,5 @@
 import { idb, STORES } from './IndexedDB'
-import type { Task, Habit, Goal, Workout, Meal, SleepLog, KnowledgeItem, Transaction, Budget, AppSettings, UserProfile, NutritionGoal, StudySession as GeneralStudySession } from '@/types'
+import type { Task, Habit, Goal, Workout, Meal, SleepLog, KnowledgeItem, Transaction, Budget, AppSettings, UserProfile, NutritionGoal, StudySession as GeneralStudySession, ReflectionEntry, MotivationQuote, MotivationNote, MotivationCollection, CustomMotivationCategory } from '@/types'
 import type { Subject, Chapter, Topic, StudySession, RevisionEntry, QuestionLog, MockTest, Mistake, Formula, StudyNote } from '@/types/study.types'
 
 class MemoryStoreService {
@@ -61,6 +61,13 @@ class MemoryStoreService {
   formulas: Formula[] = []
   notes: StudyNote[] = []
 
+  // Reflection & Motivation collections
+  reflectionEntries: ReflectionEntry[] = []
+  motivationQuotes: MotivationQuote[] = []
+  motivationNotes: MotivationNote[] = []
+  motivationCollections: MotivationCollection[] = []
+  customMotivationCategories: CustomMotivationCategory[] = []
+
   async init(): Promise<void> {
     if (this.isLoaded) return
     if (this.loadPromise) return this.loadPromise
@@ -120,6 +127,13 @@ class MemoryStoreService {
         this.mistakes = await idb.getAll<Mistake>(STORES.MISTAKES)
         this.formulas = await idb.getAll<Formula>(STORES.FORMULAS)
         this.notes = await idb.getAll<StudyNote>(STORES.NOTES)
+
+        // 5. Load Reflection & Motivation
+        this.reflectionEntries = await idb.getAll<ReflectionEntry>(STORES.REFLECTION_ENTRIES)
+        this.motivationQuotes = await idb.getAll<MotivationQuote>(STORES.MOTIVATION_QUOTES)
+        this.motivationNotes = await idb.getAll<MotivationNote>(STORES.MOTIVATION_NOTES)
+        this.motivationCollections = await idb.getAll<MotivationCollection>(STORES.MOTIVATION_COLLECTIONS)
+        this.customMotivationCategories = await idb.getAll<CustomMotivationCategory>(STORES.CUSTOM_MOTIVATION_CATEGORIES)
 
         // Populate initial data if completely clean install
         if (this.subjects.length === 0) {
@@ -205,6 +219,11 @@ class MemoryStoreService {
     this.mistakes = []
     this.formulas = []
     this.notes = []
+    this.reflectionEntries = []
+    this.motivationQuotes = []
+    this.motivationNotes = []
+    this.motivationCollections = []
+    this.customMotivationCategories = []
   }
 }
 

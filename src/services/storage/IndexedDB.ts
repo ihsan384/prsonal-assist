@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = 'ihsanos_db'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 export const STORES = {
   TASKS: 'tasks',
@@ -34,6 +34,13 @@ export const STORES = {
   MISTAKES: 'mistakes',
   FORMULAS: 'formulas',
   NOTES: 'notes',
+
+  // Reflection & Motivation stores
+  REFLECTION_ENTRIES: 'reflection_entries',
+  MOTIVATION_QUOTES: 'motivation_quotes',
+  MOTIVATION_NOTES: 'motivation_notes',
+  MOTIVATION_COLLECTIONS: 'motivation_collections',
+  CUSTOM_MOTIVATION_CATEGORIES: 'custom_motivation_categories',
 
   // Sync & management stores
   SYNC_QUEUE: 'sync_queue',

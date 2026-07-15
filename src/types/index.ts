@@ -281,3 +281,87 @@ export interface ToastMessage {
   description?: string
   duration?: number
 }
+
+// ─── Daily Reflection (Diary) ──────────────────────────────────────────────
+
+export type ReflectionMood = 'amazing' | 'good' | 'okay' | 'bad' | 'terrible'
+export type ReflectionSleepQuality = 'excellent' | 'good' | 'fair' | 'poor'
+
+export interface ReflectionEntry extends BaseEntity {
+  date: string                    // YYYY-MM-DD
+  dayOfWeek: string
+  startTime?: string
+  endTime?: string
+  mood: ReflectionMood
+  energyLevel: number             // 1-10
+  focusLevel: number              // 1-10
+  productivityRating: number      // 1-10
+  stressLevel: number             // 1-10
+  sleepQuality?: ReflectionSleepQuality
+  weather?: string
+  location?: string
+  content: string                 // HTML rich text (main writing area)
+  // Structured reflection question answers
+  howWasToday?: string
+  accomplishments?: string
+  distractions?: string
+  learnings?: string
+  happiness?: string
+  frustrations?: string
+  mistakes?: string
+  improvements?: string
+  iitProgress?: string
+  timeWasted?: string
+  gratitude?: string
+  tomorrowPriorities?: string
+  freeNotes?: string
+  // Metadata
+  wordCount: number
+  isPinned: boolean
+  isFavourite: boolean
+  tags: string[]
+}
+
+// ─── Motivation & Discipline Center ────────────────────────────────────────
+
+export type MotivationCategory =
+  | 'motivation' | 'discipline' | 'success' | 'study'
+  | 'fitness' | 'islamic' | 'life_lessons' | 'books'
+  | 'quotes' | 'rules' | 'principles' | 'affirmations'
+  | 'failures' | 'wins' | 'custom'
+
+export interface MotivationQuote extends BaseEntity {
+  quote: string
+  author?: string
+  source?: string
+  category: MotivationCategory
+  customCategory?: string
+  tags: string[]
+  isFavourite: boolean
+  isPinned: boolean
+  collectionIds: string[]
+}
+
+export interface MotivationNote extends BaseEntity {
+  title: string
+  content: string                 // HTML rich text
+  category: MotivationCategory
+  customCategory?: string
+  tags: string[]
+  isFavourite: boolean
+  isPinned: boolean
+  collectionIds: string[]
+}
+
+export interface MotivationCollection extends BaseEntity {
+  name: string
+  description?: string
+  color: string
+  icon: string
+}
+
+export interface CustomMotivationCategory extends BaseEntity {
+  name: string
+  color: string
+  icon: string
+}

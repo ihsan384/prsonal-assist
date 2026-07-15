@@ -2,7 +2,7 @@ import { generateId } from '@/utils/format'
 import { getTodayString } from '@/utils/date'
 import { memoryStore } from './MemoryStore'
 import { STORES } from './IndexedDB'
-import type { Task, Habit, Goal, Workout, Meal, SleepLog, KnowledgeItem, Transaction, Budget, AppSettings, UserProfile, NutritionGoal } from '@/types'
+import type { Task, Habit, Goal, Workout, Meal, SleepLog, KnowledgeItem, Transaction, Budget, AppSettings, UserProfile, NutritionGoal, ReflectionEntry, MotivationQuote, MotivationNote, MotivationCollection, CustomMotivationCategory } from '@/types'
 import type { StudySession } from '@/types/study.types'
 
 function isToday(dateStr: string) {
@@ -385,5 +385,195 @@ export const profileStorage = {
     const updated = { ...current, ...profile }
     memoryStore.profile = updated
     memoryStore.saveToStore(STORES.PROFILE, [], { id: 'user_profile', ...updated })
+  },
+}
+
+// ─── Reflection (Diary) ────────────────────────────────────────────────────
+
+export const reflectionStorage = {
+  getAll: () => memoryStore.reflectionEntries.filter(e => !e.deleted),
+  getById: (id: string) => memoryStore.reflectionEntries.find(e => e.id === id && !e.deleted),
+  getByDate: (date: string) => memoryStore.reflectionEntries.find(e => !e.deleted && e.date === date),
+  add: (entry: Omit<ReflectionEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
+    const now = new Date().toISOString()
+    const record: ReflectionEntry = {
+      ...entry,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.REFLECTION_ENTRIES, memoryStore.reflectionEntries, record)
+    return memoryStore.reflectionEntries.filter(e => !e.deleted)
+  },
+  update: (id: string, partial: Partial<ReflectionEntry>) => {
+    const current = memoryStore.reflectionEntries.find(e => e.id === id)
+    if (!current) return memoryStore.reflectionEntries.filter(e => !e.deleted)
+    const record: ReflectionEntry = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.REFLECTION_ENTRIES, memoryStore.reflectionEntries, record)
+    return memoryStore.reflectionEntries.filter(e => !e.deleted)
+  },
+  remove: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.REFLECTION_ENTRIES, memoryStore.reflectionEntries, id)
+    return memoryStore.reflectionEntries.filter(e => !e.deleted)
+  },
+  getToday: () => {
+    const today = getTodayString()
+    return memoryStore.reflectionEntries.find(e => !e.deleted && e.date === today)
+  },
+  getStreak: () => {
+    const entries = memoryStore.reflectionEntries
+      .filter(e => !e.deleted)
+      .sort((a, b) => b.date.localeCompare(a.date))
+    if (entries.length === 0) return 0
+    let streak = 0
+    const today = new Date()
+    for (let i = 0; i < entries.length; i++) {
+      const entryDate = new Date(entries[i].date)
+      const diff = Math.floor((today.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24))
+      if (diff === i || diff === i + 1) {
+        streak++
+      } else {
+        break
+      }
+    }
+    return streak
+  },
+}
+
+// ─── Motivation ────────────────────────────────────────────────────────────
+
+export const motivationStorage = {
+  // Quotes
+  getQuotes: () => memoryStore.motivationQuotes.filter(q => !q.deleted),
+  getQuoteById: (id: string) => memoryStore.motivationQuotes.find(q => q.id === id && !q.deleted),
+  addQuote: (quote: Omit<MotivationQuote, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
+    const now = new Date().toISOString()
+    const record: MotivationQuote = {
+      ...quote,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.MOTIVATION_QUOTES, memoryStore.motivationQuotes, record)
+    return memoryStore.motivationQuotes.filter(q => !q.deleted)
+  },
+  updateQuote: (id: string, partial: Partial<MotivationQuote>) => {
+    const current = memoryStore.motivationQuotes.find(q => q.id === id)
+    if (!current) return memoryStore.motivationQuotes.filter(q => !q.deleted)
+    const record: MotivationQuote = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.MOTIVATION_QUOTES, memoryStore.motivationQuotes, record)
+    return memoryStore.motivationQuotes.filter(q => !q.deleted)
+  },
+  removeQuote: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.MOTIVATION_QUOTES, memoryStore.motivationQuotes, id)
+    return memoryStore.motivationQuotes.filter(q => !q.deleted)
+  },
+  getRandomQuote: () => {
+    const quotes = memoryStore.motivationQuotes.filter(q => !q.deleted)
+    if (quotes.length === 0) return null
+    return quotes[Math.floor(Math.random() * quotes.length)]
+  },
+
+  // Notes
+  getNotes: () => memoryStore.motivationNotes.filter(n => !n.deleted),
+  getNoteById: (id: string) => memoryStore.motivationNotes.find(n => n.id === id && !n.deleted),
+  addNote: (note: Omit<MotivationNote, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
+    const now = new Date().toISOString()
+    const record: MotivationNote = {
+      ...note,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.MOTIVATION_NOTES, memoryStore.motivationNotes, record)
+    return memoryStore.motivationNotes.filter(n => !n.deleted)
+  },
+  updateNote: (id: string, partial: Partial<MotivationNote>) => {
+    const current = memoryStore.motivationNotes.find(n => n.id === id)
+    if (!current) return memoryStore.motivationNotes.filter(n => !n.deleted)
+    const record: MotivationNote = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.MOTIVATION_NOTES, memoryStore.motivationNotes, record)
+    return memoryStore.motivationNotes.filter(n => !n.deleted)
+  },
+  removeNote: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.MOTIVATION_NOTES, memoryStore.motivationNotes, id)
+    return memoryStore.motivationNotes.filter(n => !n.deleted)
+  },
+
+  // Collections
+  getCollections: () => memoryStore.motivationCollections.filter(c => !c.deleted),
+  addCollection: (collection: Omit<MotivationCollection, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
+    const now = new Date().toISOString()
+    const record: MotivationCollection = {
+      ...collection,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.MOTIVATION_COLLECTIONS, memoryStore.motivationCollections, record)
+    return memoryStore.motivationCollections.filter(c => !c.deleted)
+  },
+  updateCollection: (id: string, partial: Partial<MotivationCollection>) => {
+    const current = memoryStore.motivationCollections.find(c => c.id === id)
+    if (!current) return memoryStore.motivationCollections.filter(c => !c.deleted)
+    const record: MotivationCollection = { ...current, ...partial, updatedAt: new Date().toISOString() }
+    memoryStore.saveToStore(STORES.MOTIVATION_COLLECTIONS, memoryStore.motivationCollections, record)
+    return memoryStore.motivationCollections.filter(c => !c.deleted)
+  },
+  removeCollection: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.MOTIVATION_COLLECTIONS, memoryStore.motivationCollections, id)
+    return memoryStore.motivationCollections.filter(c => !c.deleted)
+  },
+
+  // Custom Categories
+  getCustomCategories: () => memoryStore.customMotivationCategories.filter(c => !c.deleted),
+  addCustomCategory: (cat: Omit<CustomMotivationCategory, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = generateId()
+    const now = new Date().toISOString()
+    const record: CustomMotivationCategory = {
+      ...cat,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+    }
+    memoryStore.saveToStore(STORES.CUSTOM_MOTIVATION_CATEGORIES, memoryStore.customMotivationCategories, record)
+    return memoryStore.customMotivationCategories.filter(c => !c.deleted)
+  },
+  removeCustomCategory: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.CUSTOM_MOTIVATION_CATEGORIES, memoryStore.customMotivationCategories, id)
+    return memoryStore.customMotivationCategories.filter(c => !c.deleted)
+  },
+
+  // Export helpers
+  exportQuotesJSON: () => JSON.stringify(memoryStore.motivationQuotes.filter(q => !q.deleted), null, 2),
+  exportNotesJSON: () => JSON.stringify(memoryStore.motivationNotes.filter(n => !n.deleted), null, 2),
+  importQuotesJSON: (json: string) => {
+    try {
+      const quotes = JSON.parse(json) as MotivationQuote[]
+      quotes.forEach(q => {
+        memoryStore.saveToStore(STORES.MOTIVATION_QUOTES, memoryStore.motivationQuotes, { ...q, pendingSync: true })
+      })
+    } catch (err) {
+      console.error('[motivationStorage] importQuotesJSON failed:', err)
+    }
   },
 }

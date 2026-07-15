@@ -627,3 +627,171 @@ begin
     );
   end loop;
 end $$;
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- VERSION 4 ADDITIONS — Reflection (Diary) + Motivation Center
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- ─── 25. REFLECTION ENTRIES (Daily Diary) ─────────────────────────────────────
+create table if not exists reflection_entries (
+  id text primary key,
+  date text not null,
+  day_of_week text not null,
+  start_time text,
+  end_time text,
+  mood text not null default 'good',
+  energy_level integer not null default 7 check (energy_level between 1 and 10),
+  focus_level integer not null default 7 check (focus_level between 1 and 10),
+  productivity_rating integer not null default 7 check (productivity_rating between 1 and 10),
+  stress_level integer not null default 4 check (stress_level between 1 and 10),
+  sleep_quality text,
+  weather text,
+  location text,
+  content text not null default '',
+  how_was_today text,
+  accomplishments text,
+  distractions text,
+  learnings text,
+  happiness text,
+  frustrations text,
+  mistakes text,
+  improvements text,
+  iit_progress text,
+  time_wasted text,
+  gratitude text,
+  tomorrow_priorities text,
+  free_notes text,
+  word_count integer not null default 0,
+  is_pinned boolean not null default false,
+  is_favourite boolean not null default false,
+  tags text[] default '{}',
+  -- Sync Metadata
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1
+);
+
+-- ─── 26. MOTIVATION QUOTES ────────────────────────────────────────────────────
+create table if not exists motivation_quotes (
+  id text primary key,
+  quote text not null,
+  author text,
+  source text,
+  category text not null default 'motivation',
+  custom_category text,
+  tags text[] default '{}',
+  is_favourite boolean not null default false,
+  is_pinned boolean not null default false,
+  collection_ids text[] default '{}',
+  -- Sync Metadata
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1
+);
+
+-- ─── 27. MOTIVATION NOTES ─────────────────────────────────────────────────────
+create table if not exists motivation_notes (
+  id text primary key,
+  title text not null,
+  content text not null default '',
+  category text not null default 'motivation',
+  custom_category text,
+  tags text[] default '{}',
+  is_favourite boolean not null default false,
+  is_pinned boolean not null default false,
+  collection_ids text[] default '{}',
+  -- Sync Metadata
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1
+);
+
+-- ─── 28. MOTIVATION COLLECTIONS ───────────────────────────────────────────────
+create table if not exists motivation_collections (
+  id text primary key,
+  name text not null,
+  description text,
+  color text not null default '#2563eb',
+  icon text not null default '📚',
+  -- Sync Metadata
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1
+);
+
+-- ─── 29. CUSTOM MOTIVATION CATEGORIES ─────────────────────────────────────────
+create table if not exists custom_motivation_categories (
+  id text primary key,
+  name text not null,
+  color text not null default '#2563eb',
+  icon text not null default '📌',
+  -- Sync Metadata
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1
+);
+
+-- RLS for new tables
+alter table reflection_entries enable row level security;
+alter table motivation_quotes enable row level security;
+alter table motivation_notes enable row level security;
+alter table motivation_collections enable row level security;
+alter table custom_motivation_categories enable row level security;
+
+do $$
+declare
+  tbl text;
+  tables text[] := array[
+    'reflection_entries','motivation_quotes','motivation_notes',
+    'motivation_collections','custom_motivation_categories'
+  ];
+begin
+  foreach tbl in array tables loop
+    execute format('drop policy if exists authenticated_access_policy on %I', tbl);
+    execute format(
+      'create policy authenticated_access_policy on %I for all using (true) with check (true)',
+      tbl
+    );
+  end loop;
+end $$;
+
+-- Indexes for new tables
+create index if not exists idx_reflection_entries_sync on reflection_entries(updated_at, deleted);
+create index if not exists idx_reflection_entries_date on reflection_entries(date, deleted);
+create index if not exists idx_reflection_entries_mood on reflection_entries(mood, deleted);
+create index if not exists idx_motivation_quotes_sync  on motivation_quotes(updated_at, deleted);
+create index if not exists idx_motivation_quotes_cat   on motivation_quotes(category, deleted);
+create index if not exists idx_motivation_quotes_fav   on motivation_quotes(is_favourite, deleted);
+create index if not exists idx_motivation_notes_sync   on motivation_notes(updated_at, deleted);
+create index if not exists idx_motivation_notes_cat    on motivation_notes(category, deleted);
+create index if not exists idx_motivation_collections_sync on motivation_collections(updated_at, deleted);
+create index if not exists idx_custom_categories_sync  on custom_motivation_categories(updated_at, deleted);
+
+-- Triggers for new tables
+do $$
+declare
+  tbl text;
+  tables text[] := array[
+    'reflection_entries','motivation_quotes','motivation_notes',
+    'motivation_collections','custom_motivation_categories'
+  ];
+begin
+  foreach tbl in array tables loop
+    execute format('drop trigger if exists trg_set_updated_at on %I', tbl);
+    execute format(
+      'create trigger trg_set_updated_at before update on %I
+       for each row execute function set_updated_at()',
+      tbl
+    );
+  end loop;
+end $$;
