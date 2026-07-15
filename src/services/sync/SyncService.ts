@@ -279,7 +279,7 @@ class SyncEngine {
       const retryEntry = this.retryQueue.get(retryKey)
       const attempts = retryEntry?.attempts ?? 0
 
-      const { error } = await supabase.from(tableName).delete().eq('id', record.id)
+      const { error } = await supabase.from(tableName as any).delete().eq('id', record.id)
       if (!error) {
         await idb.delete(storeName, record.id)
         this.retryQueue.delete(retryKey)
@@ -302,11 +302,15 @@ class SyncEngine {
         const snake = this.toSnakeCase({ ...record })
         delete snake.pending_sync
         delete snake.last_synced_at
+        if (storeName === STORES.HABITS) {
+          if (snake.completed_today === undefined) snake.completed_today = false
+          if (snake.week_days === undefined) snake.week_days = [true, true, true, true, true, true, true]
+        }
         return snake
       })
 
       const { data: returnedData, error } = await supabase
-        .from(tableName)
+        .from(tableName as any)
         .upsert(payloads, { onConflict: 'id' })
         .select('id, sync_version, updated_at')
 
@@ -406,14 +410,15 @@ class SyncEngine {
   // ─── Retry Failed ──────────────────────────────────────────────────────
 
   /**
-   * Immediately retry all entries currently in the retry queue
+   * Immediately retry all entries currently in the retry queue or pending in IndexedDB
    */
   async retryFailed(): Promise<void> {
-    if (this.retryQueue.size === 0) {
+    if (this.retryQueue.size === 0 && this.pendingCount === 0) {
       console.log('[SyncEngine] No failed entries in retry queue.')
       return
     }
-    console.log(`[SyncEngine] Retrying ${this.retryQueue.size} failed entries...`)
+    console.log(`[SyncEngine] Retrying ${this.retryQueue.size} failed entries and ${this.pendingCount} pending records...`)
+    this.retryQueue.clear() // Clear retry attempt counters so records get fresh retry attempts
     await this.sync()
   }
 
@@ -434,7 +439,7 @@ class SyncEngine {
 
     for (const table of cloudTables) {
       const { error } = await supabase
-        .from(table)
+        .from(table as any)
         .delete()
         .gte('sync_version', 0)
 

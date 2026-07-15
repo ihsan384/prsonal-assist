@@ -68,6 +68,9 @@ export interface Habit extends BaseEntity {
   longestStreak: number
   completions: HabitCompletion[]
   isActive: boolean
+  completedToday?: boolean
+  weekDays?: boolean[]
+  category?: string
 }
 
 export interface HabitCompletion {
