@@ -185,6 +185,20 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(LS_KEY, JSON.stringify(state))
   }, [state])
 
+  // Autoplay Spotify playlist when Focus starts
+  useEffect(() => {
+    if (state.phase === 'running' && state.mode === 'focus') {
+      const autoplay = localStorage.getItem('spotify_pomodoro_autoplay') === 'true'
+      const playlistUrl = localStorage.getItem('spotify_pomodoro_playlist_url')
+      if (autoplay && playlistUrl) {
+        import('@/services/spotify/SpotifyService').then(({ spotifyService }) => {
+          spotifyService.launchPlaylist(playlistUrl)
+        })
+      }
+    }
+  }, [state.phase, state.mode])
+
+
   const clearTimer = useCallback(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
   }, [])

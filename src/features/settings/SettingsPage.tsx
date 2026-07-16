@@ -316,6 +316,46 @@ export default function SettingsPage() {
         </Card>
       </div>
 
+      {/* Productivity & Health Integrations */}
+      <div className="mb-5">
+        <SectionHeader title="Productivity & Health Integrations" />
+        <Card padding="none">
+          <div className="divide-y divide-[var(--border)]">
+            <button
+              onClick={() => navigate('/settings/integrations')}
+              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-[var(--bg-subtle)] transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0 text-[var(--accent)]">
+                  <Activity size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-[var(--text)]">Connections Settings</p>
+                  <p className="text-xs text-[var(--text-3)]">Spotify, Health Connect, and NotebookLM</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-[var(--text-4)]" />
+            </button>
+
+            <button
+              onClick={() => navigate('/settings/diagnostics')}
+              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-[var(--bg-subtle)] transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0 text-[var(--accent)]">
+                  <Database size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-[var(--text)]">Connection Diagnostics</p>
+                  <p className="text-xs text-[var(--text-3)]">Sync stats, token lifecycle log history</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-[var(--text-4)]" />
+            </button>
+          </div>
+        </Card>
+      </div>
+
       {/* Toggle Preferences */}
       <div className="mb-5">
         <SectionHeader title="Preferences" />

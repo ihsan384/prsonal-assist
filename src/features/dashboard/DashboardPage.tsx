@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Flame, AlertCircle } from 'lucide-react'
+import { BookOpen, Flame, AlertCircle, Activity, Radio, Brain, Heart, ChevronRight } from 'lucide-react'
 import { Card, MetricCard } from '@/components/ui/Card'
 import { ProgressBar } from '@/components/ui/ProgressRing'
 import { Badge } from '@/components/ui/Badge'
@@ -8,7 +8,11 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Button } from '@/components/ui/Button'
 import { getGreeting, formatDate, formatTime } from '@/utils/date'
 import { studyERPStorage } from '@/services/storage/studyERP.storage'
-import { taskStorage, habitStorage } from '@/services/storage'
+import { taskStorage, habitStorage, healthRecordStorage, notebookStorage } from '@/services/storage'
+import { spotifyService } from '@/services/spotify/SpotifyService'
+import { healthConnectService } from '@/services/health/HealthConnectService'
+import { syncEngine } from '@/services/sync/SyncService'
+
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -20,6 +24,17 @@ export default function DashboardPage() {
   const [chapters, setChapters] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [habits, setHabits] = useState<any[]>([])
+  
+  const [integrationsInfo, setIntegrationsInfo] = useState({
+    spotifyConnected: false,
+    spotifyPlaylist: 'None',
+    hcStatus: 'Disconnected',
+    todaySteps: 0,
+    sleepSummary: 'No sleep log',
+    lastNotebook: 'None',
+    lastSync: 'Never'
+  })
+
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000 * 30)
@@ -31,8 +46,48 @@ export default function DashboardPage() {
     setTasks(taskStorage.getAll())
     setHabits(habitStorage.getAll())
 
+    // Load integrations details
+    const isSpotifyConnected = spotifyService.isConnected()
+    const favPlaylist = localStorage.getItem('spotify_pomodoro_playlist_url')
+    const spotifyPlaylist = favPlaylist ? 'Linked Study Playlist' : 'None'
+    
+    let hcStatusVal = 'Disconnected'
+    let todayStepsVal = 0
+    let sleepVal = 'No sleep log'
+    
+    healthConnectService.getStatus().then(status => {
+      hcStatusVal = status === 'granted' ? 'Connected' : 'Unavailable / Manual'
+      
+      const records = healthRecordStorage.getAll()
+      const todayStr = new Date().toDateString()
+      const todayRecs = records.filter(r => new Date(r.timestamp).toDateString() === todayStr)
+      
+      const stepsRec = todayRecs.find(r => r.type === 'steps')
+      todayStepsVal = stepsRec ? Number(stepsRec.value) : 0
+      
+      const sleepRec = todayRecs.find(r => r.type === 'sleep_hours')
+      sleepVal = sleepRec ? `${sleepRec.value}h slept` : 'No sleep log'
+      
+      const notebooksList = notebookStorage.getAll()
+      const opened = [...notebooksList]
+        .filter(n => n.lastOpened)
+        .sort((a, b) => new Date(b.lastOpened).getTime() - new Date(a.lastOpened).getTime())[0]
+      const lastNotebookVal = opened ? opened.name : 'None'
+      
+      setIntegrationsInfo({
+        spotifyConnected: isSpotifyConnected,
+        spotifyPlaylist,
+        hcStatus: hcStatusVal,
+        todaySteps: todayStepsVal,
+        sleepSummary: sleepVal,
+        lastNotebook: lastNotebookVal,
+        lastSync: syncEngine.lastSyncTime ? new Date(syncEngine.lastSyncTime).toLocaleTimeString() : 'Never'
+      })
+    })
+
     return () => clearInterval(interval)
   }, [])
+
 
   const greeting = getGreeting()
   const dateStr = formatDate(currentTime)
@@ -306,6 +361,83 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
+          </Card>
+
+          {/* Integrations & Health Status Card */}
+          <Card className="text-left">
+            <h3 className="text-sm font-bold text-[var(--text)] mb-3 flex items-center gap-1.5">
+              <Activity size={15} className="text-[var(--accent)]" />
+              Connected Services
+            </h3>
+            
+            <div className="flex flex-col gap-2.5 text-xs">
+              <div className="flex justify-between items-center border-b border-[var(--border)] pb-2">
+                <div className="flex items-center gap-1.5">
+                  <Radio size={14} className="text-green-500" />
+                  <span className="text-[var(--text-2)]">Spotify</span>
+                </div>
+                <span className="font-semibold text-[var(--text)] text-[11px]">
+                  {integrationsInfo.spotifyConnected ? (
+                    <span className="text-green-500 font-bold">Connected</span>
+                  ) : (
+                    <span className="text-[var(--text-4)]">Disconnected</span>
+                  )}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center border-b border-[var(--border)] pb-2">
+                <div className="flex items-center gap-1.5">
+                  <Heart size={14} className="text-red-500" />
+                  <span className="text-[var(--text-2)]">Health Connect</span>
+                </div>
+                <span className="font-semibold text-[var(--text)] text-[11px]">
+                  {integrationsInfo.hcStatus}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center border-b border-[var(--border)] pb-2">
+                <div className="flex items-center gap-1.5">
+                  <Brain size={14} className="text-blue-500" />
+                  <span className="text-[var(--text-2)]">NotebookLM Manager</span>
+                </div>
+                <span className="font-semibold text-[var(--text)] text-[11px] text-blue-500">
+                  Active
+                </span>
+              </div>
+
+              <div className="bg-[var(--bg-subtle)] p-2.5 rounded-xl border border-[var(--border)] flex flex-col gap-1.5 text-[10.5px]">
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-3)] font-medium">Last Sync:</span>
+                  <span className="font-semibold text-[var(--text)]">{integrationsInfo.lastSync}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-3)] font-medium">Steps Today:</span>
+                  <span className="font-semibold text-[var(--text)]">{integrationsInfo.todaySteps} steps</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-3)] font-medium">Sleep Last Night:</span>
+                  <span className="font-semibold text-[var(--text)]">{integrationsInfo.sleepSummary}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-3)] font-medium">Spotify Playlist:</span>
+                  <span className="font-semibold text-[var(--text)] truncate max-w-[120px]">{integrationsInfo.spotifyPlaylist}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-3)] font-medium">Recent Notebook:</span>
+                  <span className="font-semibold text-[var(--text)] truncate max-w-[120px]">{integrationsInfo.lastNotebook}</span>
+                </div>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                fullWidth
+                onClick={() => navigate('/settings/integrations')}
+                className="text-[10px] uppercase font-bold tracking-wider mt-1 cursor-pointer"
+              >
+                Manage Connections <ChevronRight size={10} className="ml-1" />
+              </Button>
+            </div>
           </Card>
 
           {/* Short Stats info */}

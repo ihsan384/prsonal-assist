@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Dumbbell, Flame, Clock, Plus, Zap, Trash2 } from 'lucide-react'
+import { Dumbbell, Flame, Clock, Plus, Zap, Trash2, Heart, Activity, ShieldAlert, Award } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -12,7 +12,9 @@ import { Modal } from '@/components/ui/Modal'
 import { Input, Select } from '@/components/ui/Input'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
-import { fitnessStorage } from '@/services/storage'
+import { fitnessStorage, healthRecordStorage } from '@/services/storage'
+import { healthConnectService } from '@/services/health/HealthConnectService'
+
 
 const typeColors: Record<string, string> = {
   Strength: 'var(--accent)',
@@ -102,6 +104,30 @@ export default function FitnessPage() {
   const [calories, setCalories] = useState('')
   const [rating, setRating] = useState('4')
 
+  const [activeSubTab, setActiveSubTab] = useState<'workouts' | 'health'>('workouts')
+  
+  // Health Connect & Records
+  const [hcSupported, setHcSupported] = useState(() => healthConnectService.isSupported())
+  const [hcStatus, setHcStatus] = useState<string>('denied')
+  const [hcLastSync, setHcLastSync] = useState<string | null>(null)
+  const [healthRecords, setHealthRecords] = useState<any[]>(() => healthRecordStorage.getAll())
+
+  // Manual Health Entry
+  const [isHealthModalOpen, setIsHealthModalOpen] = useState(false)
+  const [healthType, setHealthType] = useState('steps')
+  const [healthValue, setHealthValue] = useState('')
+
+  useEffect(() => {
+    healthConnectService.getStatus().then(status => setHcStatus(status))
+    setHcLastSync(localStorage.getItem('health_connect_last_sync'))
+    setHealthRecords(healthRecordStorage.getAll())
+  }, [])
+
+  const reloadHealth = () => {
+    setHealthRecords(healthRecordStorage.getAll())
+  }
+
+
   // Delete states
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [workoutToDelete, setWorkoutToDelete] = useState<string | null>(null)
@@ -149,6 +175,29 @@ export default function FitnessPage() {
     setRating('4')
   }
 
+  const handleAddManualHealth = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!healthValue.trim()) return
+
+    const val = Number(healthValue)
+    if (isNaN(val)) return
+
+    let unit = 'count'
+    if (healthType === 'distance') unit = 'km'
+    else if (healthType === 'calories_burned') unit = 'kcal'
+    else if (healthType === 'active_minutes') unit = 'minutes'
+    else if (healthType === 'heart_rate') unit = 'bpm'
+    else if (healthType === 'sleep_hours') unit = 'hours'
+    else if (healthType === 'weight') unit = 'kg'
+    else if (healthType === 'bmi') unit = 'ratio'
+
+    healthConnectService.saveManualRecord(healthType, val, unit)
+    reloadHealth()
+    setIsHealthModalOpen(false)
+    setHealthValue('')
+  }
+
+
   const handleDeleteClick = (id: string) => {
     setWorkoutToDelete(id)
     setIsDeleteOpen(true)
@@ -163,10 +212,144 @@ export default function FitnessPage() {
     setWorkoutToDelete(null)
   }
 
+  // Health Metrics View
+  const renderHealthMetrics = () => {
+    const today = new Date().toDateString()
+    const todayRecs = healthRecords.filter(r => new Date(r.timestamp).toDateString() === today)
+    
+    const getMetric = (type: string, defVal = '0', unitStr = '') => {
+      const rec = todayRecs.find(r => r.type === type)
+      return rec ? `${rec.value} ${rec.unit || unitStr}` : `${defVal} ${unitStr}`
+    }
+
+    const handleSync = async () => {
+      const success = await healthConnectService.syncHealthConnect()
+      if (success) {
+        setHcLastSync(new Date().toLocaleString())
+        localStorage.setItem('health_connect_last_sync', new Date().toLocaleString())
+        setHealthRecords(healthRecordStorage.getAll())
+      }
+    }
+
+    const metrics = [
+      { label: 'Today\'s Steps', value: getMetric('steps', '0', 'steps'), icon: Activity, color: 'var(--accent)' },
+      { label: 'Sleep Last Night', value: getMetric('sleep_hours', '0.0', 'hours'), icon: Clock, color: '#7c3aed' },
+      { label: 'Calories Burned', value: getMetric('calories_burned', '0', 'kcal'), icon: Flame, color: '#ea580c' },
+      { label: 'Distance', value: getMetric('distance', '0.0', 'km'), icon: Zap, color: '#16a34a' },
+      { label: 'Active Minutes', value: getMetric('active_minutes', '0', 'minutes'), icon: Clock, color: '#d97706' },
+      { label: 'Heart Rate', value: getMetric('heart_rate', '--', 'bpm'), icon: Heart, color: '#dc2626' },
+      { label: 'Weight', value: getMetric('weight', '--', 'kg'), icon: Dumbbell, color: '#0284c7' },
+      { label: 'BMI', value: getMetric('bmi', '--', ''), icon: Award, color: '#db2777' },
+    ]
+
+    return (
+      <div className="flex flex-col gap-5 text-left animate-fade-in">
+        <Card>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-3 bg-red-500/10 rounded-2xl text-red-500 shrink-0">
+                <Heart size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text)]">Google Health Connect</h3>
+                <p className="text-xs text-[var(--text-3)] mt-0.5">
+                  {!hcSupported ? 'Health Connect is not available on this device.' : `Native Sync status: ${hcStatus}`}
+                </p>
+                <p className="text-[10px] text-[var(--text-4)] mt-1.5 font-medium">
+                  Last Sync: {hcLastSync || 'Never'}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              {hcSupported && hcStatus === 'granted' && (
+                <Button variant="primary" size="sm" onClick={handleSync}>
+                  Sync Now
+                </Button>
+              )}
+              <Button variant="secondary" size="sm" onClick={() => setIsHealthModalOpen(true)}>
+                Add Manual Log
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        <div>
+          <SectionHeader title="Today's Health Metrics" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {metrics.map(m => (
+              <div key={m.label} className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-2xl flex flex-col gap-1.5 hover:border-[var(--border-strong)] transition-all">
+                <m.icon size={16} style={{ color: m.color }} />
+                <p className="text-sm font-bold text-[var(--text)] truncate">{m.value}</p>
+                <p className="text-[10px] text-[var(--text-3)] font-semibold uppercase tracking-wider">{m.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {todayRecs.length > 0 && (
+          <div>
+            <SectionHeader title="Today's Log Entries" />
+            <Card padding="none">
+              <div className="divide-y divide-[var(--border)] text-xs">
+                {todayRecs.map(rec => (
+                  <div key={rec.id} className="flex justify-between items-center p-3">
+                    <span className="font-semibold text-[var(--text)] capitalize">
+                      {rec.type.replace('_', ' ')}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[var(--text-3)] font-medium">
+                        {rec.value} {rec.unit}
+                      </span>
+                      <Badge variant={rec.source === 'health_connect' ? 'violet' : 'default'} size="sm">
+                        {rec.source}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <PageWrapper>
-      {/* Weekly Overview */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+      {/* Sub tabs switcher */}
+      <div className="flex gap-1 bg-[var(--bg-subtle)] rounded-xl p-1 mb-5 border border-[var(--border)]">
+        <button
+          onClick={() => setActiveSubTab('workouts')}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            activeSubTab === 'workouts'
+              ? 'bg-[var(--accent)] text-white'
+              : 'text-[var(--text-3)] hover:text-[var(--text-2)] hover:bg-[var(--bg-hover)]'
+          }`}
+        >
+          <div className="flex items-center justify-center gap-1.5">
+            <Dumbbell size={14} /> Workouts Log
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveSubTab('health')}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            activeSubTab === 'health'
+              ? 'bg-[var(--accent)] text-white'
+              : 'text-[var(--text-3)] hover:text-[var(--text-2)] hover:bg-[var(--bg-hover)]'
+          }`}
+        >
+          <div className="flex items-center justify-center gap-1.5">
+            <Heart size={14} /> Health Metrics
+          </div>
+        </button>
+      </div>
+
+      {activeSubTab === 'health' ? renderHealthMetrics() : (
+        <div className="animate-fade-in">
+          {/* Weekly Overview */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+
         <Card>
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -322,6 +505,8 @@ export default function FitnessPage() {
           </div>
         </>
       )}
+      </div>
+      )}
 
       <FAB onClick={() => setIsModalOpen(true)} label="Log Workout" extended />
 
@@ -398,6 +583,49 @@ export default function FitnessPage() {
         title="Delete Workout"
         description="Are you sure you want to permanently delete this workout log?"
       />
+
+      {/* Manual Health Entry Modal */}
+      <Modal isOpen={isHealthModalOpen} onClose={() => setIsHealthModalOpen(false)} title="Log Health Metric">
+        <form onSubmit={handleAddManualHealth} className="flex flex-col gap-4 text-left">
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-3)] mb-1 block">Metric Type</label>
+            <Select
+              value={healthType}
+              onChange={e => setHealthType(e.target.value)}
+              options={[
+                { value: 'steps', label: 'Steps (count)' },
+                { value: 'sleep_hours', label: 'Sleep Hours (hours)' },
+                { value: 'calories_burned', label: 'Calories Burned (kcal)' },
+                { value: 'distance', label: 'Distance (km)' },
+                { value: 'active_minutes', label: 'Active Minutes (minutes)' },
+                { value: 'heart_rate', label: 'Heart Rate (bpm)' },
+                { value: 'weight', label: 'Weight (kg)' },
+                { value: 'bmi', label: 'BMI' }
+              ]}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-3)] mb-1 block">Value</label>
+            <Input
+              type="number"
+              step="any"
+              value={healthValue}
+              onChange={e => setHealthValue(e.target.value)}
+              placeholder="e.g. 7500 or 7.5"
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button variant="secondary" onClick={() => setIsHealthModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              Save Metric
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </PageWrapper>
   )
 }
+

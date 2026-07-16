@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = 'ihsanos_db'
-const DB_VERSION = 4
+const DB_VERSION = 5
 
 export const STORES = {
   TASKS: 'tasks',
@@ -47,6 +47,12 @@ export const STORES = {
   BACKUP_HISTORY: 'backup_history',
   SYNC_LOG: 'sync_log',
   ACTIVITY_LOG: 'activity_log',
+
+  // Integrations & Health Connect
+  INTEGRATION_SETTINGS: 'integration_settings',
+  INTEGRATION_LOGS: 'integration_logs',
+  NOTEBOOKS: 'notebooks',
+  HEALTH_RECORDS: 'health_records',
 } as const
 
 // Stores that should NOT get sync metadata indexes

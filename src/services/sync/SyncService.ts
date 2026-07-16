@@ -93,17 +93,35 @@ class SyncEngine {
       }
     }
 
-    // Background sync every 15s — only count pending and sync if due
-    setInterval(() => {
+    // Sync on startup (after small delay for network stability)
+    setTimeout(() => {
       this.updatePendingCount()
-      if (this.autoSync && this.backgroundSync && this.status === 'online' && !this.syncInProgress) {
+      if (this.autoSync && this.status === 'online') {
         this.sync()
       }
-    }, 15_000)
+    }, 3000)
 
-    // Initial pending count after DB is ready
-    setTimeout(() => this.updatePendingCount(), 2000)
+    // Check for daily sync on window focus
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', () => {
+        this.updatePendingCount()
+        if (this.autoSync && this.status === 'online' && !this.syncInProgress) {
+          const lastSync = this.lastSyncTime ? new Date(this.lastSyncTime).getTime() : 0
+          const oneDayMs = 24 * 60 * 60 * 1000
+          if (Date.now() - lastSync > oneDayMs) {
+            console.log('[SyncEngine] Daily sync triggered on focus')
+            this.sync()
+          }
+        }
+      })
+    }
+
+    // Periodically count pending records offline (every 60s) with no network request
+    setInterval(() => {
+      this.updatePendingCount()
+    }, 60_000)
   }
+
 
   // ─── Subscription ──────────────────────────────────────────────────────
 
@@ -267,7 +285,6 @@ class SyncEngine {
   private async syncStore(storeName: typeof STORES[keyof typeof STORES]): Promise<void> {
     const startMs = Date.now()
 
-    // Use efficient index-based query if available
     let pending: any[]
     try {
       pending = await idb.getPendingSync<any>(storeName)
@@ -288,18 +305,30 @@ class SyncEngine {
     for (const record of toDelete) {
       const retryKey = `${storeName}:${record.id}`
       const retryEntry = this.retryQueue.get(retryKey)
-      const attempts = retryEntry?.attempts ?? 0
+      const attempts = (retryEntry?.attempts ?? 0) + 1
 
       const { error } = await supabase.from(tableName as any).delete().eq('id', record.id)
       if (!error) {
         await idb.delete(storeName, record.id)
         this.retryQueue.delete(retryKey)
         this.removeFromMemory(storeName, record.id)
-        void this.writeSyncLog({ timestamp: new Date().toISOString(), store: storeName, operation: 'delete', status: 'success', recordCount: 1, durationMs: Date.now() - startMs, retryCount: attempts })
+        void this.writeSyncLog({ timestamp: new Date().toISOString(), store: storeName, operation: 'delete', status: 'success', recordCount: 1, durationMs: Date.now() - startMs, retryCount: attempts - 1 })
       } else {
         console.error(`[SyncEngine] Delete failed for ${tableName}:${record.id}`, error)
-        this.addToRetryQueue(storeName, record.id, attempts)
-        void this.writeSyncLog({ timestamp: new Date().toISOString(), store: storeName, operation: 'delete', status: 'failed', recordCount: 1, durationMs: Date.now() - startMs, retryCount: attempts + 1, errorMessage: error.message })
+        this.addToRetryQueue(storeName, record.id, attempts - 1)
+        
+        const nowStr = new Date().toISOString()
+        const updated = {
+          ...record,
+          syncStatus: 'failed',
+          retryCount: attempts,
+          lastRetry: nowStr,
+          lastError: error.message
+        }
+        await idb.put(storeName, updated)
+        this.updateInMemory(storeName, updated)
+        
+        void this.writeSyncLog({ timestamp: new Date().toISOString(), store: storeName, operation: 'delete', status: 'failed', recordCount: 1, durationMs: Date.now() - startMs, retryCount: attempts, errorMessage: error.message })
       }
     }
 
@@ -308,7 +337,6 @@ class SyncEngine {
       const batch = toUpsert.slice(i, i + BATCH_SIZE)
       const batchStart = Date.now()
 
-      // Build snake_case payloads, stripping frontend-only fields
       const payloads = batch.map(record => {
         const snake = this.toSnakeCase({ ...record })
         delete snake.pending_sync
@@ -341,7 +369,15 @@ class SyncEngine {
             console.warn(`[SyncEngine] Conflict detected for ${tableName}:${record.id} — server wins (v${serverVersion} > local v${record.syncVersion})`)
           }
 
-          const updated = { ...record, pendingSync: false, lastSyncedAt: now }
+          const updated = { 
+            ...record, 
+            pendingSync: false, 
+            lastSyncedAt: now,
+            syncStatus: 'success',
+            retryCount: 0,
+            lastRetry: now,
+            lastError: null
+          }
           updatedRecords.push(updated)
           this.retryQueue.delete(retryKey)
           this.updateInMemory(storeName, updated)
@@ -352,17 +388,32 @@ class SyncEngine {
       } else {
         console.error(`[SyncEngine] Batch upsert failed for ${tableName}:`, error)
 
+        const nowStr = new Date().toISOString()
+        const failedRecords: any[] = []
         for (const record of batch) {
           const retryKey = `${storeName}:${record.id}`
           const retryEntry = this.retryQueue.get(retryKey)
+          const attempts = (retryEntry?.attempts ?? 0) + 1
           this.addToRetryQueue(storeName, record.id, retryEntry?.attempts ?? 0)
+
+          const updated = {
+            ...record,
+            syncStatus: 'failed',
+            retryCount: attempts,
+            lastRetry: nowStr,
+            lastError: (error as any).message ?? 'Unknown error'
+          }
+          failedRecords.push(updated)
+          this.updateInMemory(storeName, updated)
         }
 
+        await idb.putBatch(storeName, failedRecords)
         void this.writeSyncLog({ timestamp: new Date().toISOString(), store: storeName, operation: 'upload', status: 'failed', recordCount: batch.length, durationMs: Date.now() - batchStart, retryCount: 1, errorMessage: (error as any).message ?? 'Unknown error' })
         throw error
       }
     }
   }
+
 
   // ─── Memory Store Helpers ──────────────────────────────────────────────
 

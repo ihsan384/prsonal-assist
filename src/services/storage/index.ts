@@ -605,3 +605,124 @@ export const motivationStorage = {
     return quotes.length
   },
 }
+
+// ─── Integrations ──────────────────────────────────────────────────────────
+
+export const integrationSettingsStorage = {
+  getAll: () => memoryStore.integrationSettings.filter(s => !s.deleted),
+  getById: (id: string) => memoryStore.integrationSettings.find(s => s.id === id && !s.deleted),
+  save: (setting: { id: string; status: string; lastSync?: string; metadata?: any; encryptedTokens?: string; syncStatus?: string; retryCount?: number; lastRetry?: string; lastError?: string }) => {
+    const existing = memoryStore.integrationSettings.find(s => s.id === setting.id)
+    const record = {
+      ...existing,
+      ...setting,
+      id: setting.id,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deleted: false,
+      pendingSync: true,
+      syncVersion: (existing?.syncVersion || 0) + 1,
+      syncStatus: setting.syncStatus || 'pending',
+      retryCount: setting.retryCount || 0,
+      lastRetry: setting.lastRetry,
+      lastError: setting.lastError
+    }
+    memoryStore.saveToStore(STORES.INTEGRATION_SETTINGS, memoryStore.integrationSettings, record)
+    return record
+  }
+}
+
+export const integrationLogsStorage = {
+  getAll: () => memoryStore.integrationLogs.filter(l => !l.deleted),
+  add: (log: { provider: string; action: string; status: string; duration: number; timestamp: string; device?: string; retryCount?: number; errorMessage?: string }) => {
+    const id = generateId()
+    const record = {
+      ...log,
+      id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+      syncStatus: 'pending',
+      retryCount: log.retryCount || 0,
+      lastRetry: undefined,
+      lastError: log.errorMessage
+    }
+    memoryStore.saveToStore(STORES.INTEGRATION_LOGS, memoryStore.integrationLogs, record)
+    return record
+  }
+}
+
+export const notebookStorage = {
+  getAll: () => memoryStore.notebooks.filter(n => !n.deleted),
+  getById: (id: string) => memoryStore.notebooks.find(n => n.id === id && !n.deleted),
+  add: (notebook: { name: string; url: string; description?: string; category?: string; tags?: string[]; lastOpened?: string; lastModified?: string; estimatedReadingTime?: string; isFavourite?: boolean; isArchived?: boolean; isPinned?: boolean; collections?: string[] }) => {
+    const id = generateId()
+    const now = new Date().toISOString()
+    const record = {
+      ...notebook,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      dateAdded: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+      syncStatus: 'pending',
+      retryCount: 0,
+      lastRetry: undefined,
+      lastError: undefined
+    }
+    memoryStore.saveToStore(STORES.NOTEBOOKS, memoryStore.notebooks, record)
+    return record
+  },
+  update: (id: string, partial: Partial<any>) => {
+    const current = memoryStore.notebooks.find(n => n.id === id)
+    if (!current) return null
+    const record = {
+      ...current,
+      ...partial,
+      updatedAt: new Date().toISOString(),
+      pendingSync: true,
+      syncVersion: (current.syncVersion || 0) + 1,
+      syncStatus: 'pending'
+    }
+    memoryStore.saveToStore(STORES.NOTEBOOKS, memoryStore.notebooks, record)
+    return record
+  },
+  remove: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.NOTEBOOKS, memoryStore.notebooks, id)
+  }
+}
+
+export const healthRecordStorage = {
+  getAll: () => memoryStore.healthRecords.filter(r => !r.deleted),
+  getToday: () => {
+    const today = new Date().toDateString()
+    return memoryStore.healthRecords.filter(r => !r.deleted && new Date(r.timestamp).toDateString() === today)
+  },
+  add: (record: { type: string; value: number; unit: string; source: string; timestamp: string }) => {
+    const id = generateId()
+    const now = new Date().toISOString()
+    const dataRecord = {
+      ...record,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: 1,
+      syncStatus: 'pending',
+      retryCount: 0,
+      lastRetry: undefined,
+      lastError: undefined
+    }
+    memoryStore.saveToStore(STORES.HEALTH_RECORDS, memoryStore.healthRecords, dataRecord)
+    return dataRecord
+  },
+  remove: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.HEALTH_RECORDS, memoryStore.healthRecords, id)
+  }
+}
+

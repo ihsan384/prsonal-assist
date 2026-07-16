@@ -67,6 +67,13 @@ class MemoryStoreService {
   motivationNotes: MotivationNote[] = []
   motivationCollections: MotivationCollection[] = []
   customMotivationCategories: CustomMotivationCategory[] = []
+  
+  // Integrations collections
+  integrationSettings: any[] = []
+  integrationLogs: any[] = []
+  notebooks: any[] = []
+  healthRecords: any[] = []
+
 
   async init(): Promise<void> {
     if (this.isLoaded) return
@@ -134,6 +141,13 @@ class MemoryStoreService {
         this.motivationNotes = await idb.getAll<MotivationNote>(STORES.MOTIVATION_NOTES)
         this.motivationCollections = await idb.getAll<MotivationCollection>(STORES.MOTIVATION_COLLECTIONS)
         this.customMotivationCategories = await idb.getAll<CustomMotivationCategory>(STORES.CUSTOM_MOTIVATION_CATEGORIES)
+        
+        // 6. Load Integrations & Health Connect
+        this.integrationSettings = await idb.getAll<any>(STORES.INTEGRATION_SETTINGS)
+        this.integrationLogs = await idb.getAll<any>(STORES.INTEGRATION_LOGS)
+        this.notebooks = await idb.getAll<any>(STORES.NOTEBOOKS)
+        this.healthRecords = await idb.getAll<any>(STORES.HEALTH_RECORDS)
+
 
         // Populate initial data if completely clean install
         if (this.subjects.length === 0) {
@@ -224,7 +238,12 @@ class MemoryStoreService {
     this.motivationNotes = []
     this.motivationCollections = []
     this.customMotivationCategories = []
+    this.integrationSettings = []
+    this.integrationLogs = []
+    this.notebooks = []
+    this.healthRecords = []
   }
+
 }
 
 export const memoryStore = new MemoryStoreService()

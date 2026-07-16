@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Brain, Book, Link, Video, Headphones, Plus, Star, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Brain, Book, Link, Video, Headphones, Plus, Star, Trash2, ArrowRight } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { SectionHeader } from '@/components/ui/SectionHeader'
+
 import { SearchBar, Input, Select } from '@/components/ui/Input'
 import { ProgressBar } from '@/components/ui/ProgressRing'
 import { FAB } from '@/components/ui/FAB'
@@ -48,7 +50,9 @@ const statusBadge: Record<string, { label: string; variant: 'violet' | 'success'
 }
 
 export default function KnowledgePage() {
+  const navigate = useNavigate()
   const [items, setItems] = useState<any[]>(() => knowledgeStorage.getAll())
+
   const [activeTab, setActiveTab] = useState('all')
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -126,7 +130,28 @@ export default function KnowledgePage() {
 
   return (
     <PageWrapper>
+      {/* NotebookLM Promotion Banner */}
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+        <Card className="bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-950/20 via-[var(--bg-subtle)] to-[var(--bg-subtle)] border-blue-500/20 p-4 relative overflow-hidden">
+          <div className="flex items-center justify-between gap-4 text-left">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-500 shrink-0">
+                <Brain size={18} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text)]">NotebookLM Hub</h3>
+                <p className="text-[10px] text-[var(--text-3)]">Organize Physics, Chemistry, Maths, and Programming notebooks.</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/knowledge/notebooklm')} className="shrink-0 flex items-center gap-1 text-xs cursor-pointer">
+              Open Hub <ArrowRight size={12} />
+            </Button>
+          </div>
+        </Card>
+      </motion.div>
+
       <SearchBar
+
         placeholder="Search your library..."
         value={search}
         onChange={e => setSearch(e.target.value)}

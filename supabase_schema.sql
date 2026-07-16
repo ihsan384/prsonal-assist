@@ -795,3 +795,132 @@ begin
     );
   end loop;
 end $$;
+
+-- ─── 30. INTEGRATION SETTINGS ───────────────────────────────────────────────
+create table if not exists integration_settings (
+  id text primary key,
+  status text not null default 'disconnected',
+  last_sync text,
+  metadata jsonb default '{}'::jsonb,
+  encrypted_tokens text,
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1,
+  sync_status text default 'success',
+  retry_count integer default 0,
+  last_retry text,
+  last_error text
+);
+
+alter table integration_settings enable row level security;
+drop policy if exists authenticated_access_policy on integration_settings;
+create policy authenticated_access_policy on integration_settings for all using (true) with check (true);
+create index if not exists idx_integration_settings_sync on integration_settings(updated_at, deleted);
+
+-- ─── 31. NOTEBOOKS ───────────────────────────────────────────────────────────
+create table if not exists notebooks (
+  id text primary key,
+  name text not null,
+  description text,
+  topic text,
+  last_opened text,
+  date_added text not null,
+  is_favourite boolean default false,
+  is_pinned boolean default false,
+  tags text[] default '{}',
+  categories text[] default '{}',
+  resources jsonb default '[]'::jsonb,
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1,
+  sync_status text default 'pending',
+  retry_count integer default 0,
+  last_retry text,
+  last_error text,
+  is_archived boolean default false,
+  url text,
+  last_modified text,
+  estimated_reading_time text,
+  collections text[] default '{}'
+);
+
+alter table notebooks enable row level security;
+drop policy if exists authenticated_access_policy on notebooks;
+create policy authenticated_access_policy on notebooks for all using (true) with check (true);
+create index if not exists idx_notebooks_sync on notebooks(updated_at, deleted);
+create index if not exists idx_notebooks_pinned on notebooks(is_pinned, deleted);
+create index if not exists idx_notebooks_fav on notebooks(is_favourite, deleted);
+
+-- ─── 32. INTEGRATION LOGS ───────────────────────────────────────────────────
+create table if not exists integration_logs (
+  id text primary key,
+  provider text not null,
+  action text not null,
+  status text not null,
+  timestamp text not null,
+  duration integer default 0,
+  error_message text,
+  retry_count integer default 0,
+  device text,
+  last_retry text,
+  last_error text,
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1,
+  sync_status text default 'pending'
+);
+
+alter table integration_logs enable row level security;
+drop policy if exists authenticated_access_policy on integration_logs;
+create policy authenticated_access_policy on integration_logs for all using (true) with check (true);
+create index if not exists idx_integration_logs_sync on integration_logs(updated_at, deleted);
+
+-- ─── 33. HEALTH RECORDS ──────────────────────────────────────────────────────
+create table if not exists health_records (
+  id text primary key,
+  type text not null,
+  value numeric not null,
+  unit text not null,
+  source text not null,
+  timestamp text not null,
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1,
+  sync_status text default 'pending',
+  retry_count integer default 0,
+  last_retry text,
+  last_error text
+);
+
+alter table health_records enable row level security;
+drop policy if exists authenticated_access_policy on health_records;
+create policy authenticated_access_policy on health_records for all using (true) with check (true);
+create index if not exists idx_health_records_sync on health_records(updated_at, deleted);
+create index if not exists idx_health_records_type_time on health_records(type, timestamp);
+
+-- Triggers for new tables
+do $$
+declare
+  tbl text;
+  tables text[] := array[
+    'integration_settings','notebooks','integration_logs','health_records'
+  ];
+begin
+  foreach tbl in array tables loop
+    execute format('drop trigger if exists trg_set_updated_at on %I', tbl);
+    execute format(
+      'create trigger trg_set_updated_at before update on %I
+       for each row execute function set_updated_at()',
+      tbl
+    );
+  end loop;
+end $$;
+
