@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react'
-import { Outlet } from 'react-router-dom'
+import { useState, useEffect, type ReactNode } from 'react'
+import { Outlet, useNavigate } from 'react-router-dom'
 import { MobileDrawer } from './MobileDrawer'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
@@ -14,10 +14,21 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const navigate = useNavigate()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   
   // Initialize native back button handling
   useNativeBackButton()
+
+  // Initialize shortcut & deep-link service
+  useEffect(() => {
+    import('@/services/native/ShortcutService').then(({ shortcutService }) => {
+      shortcutService.init((path) => {
+        console.log('[AppLayout] Deep link navigation to:', path)
+        navigate(path)
+      })
+    })
+  }, [navigate])
 
   return (
     <PomodoroProvider>

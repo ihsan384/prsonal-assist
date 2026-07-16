@@ -1,5 +1,6 @@
 import { integrationSettingsStorage, integrationLogsStorage } from '../storage'
 import { encryptToken, decryptToken } from '@/utils/crypto'
+import { Capacitor } from '@capacitor/core'
 
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '867c1596a947440bb28a66206509a36b'
 const SCOPES = 'user-read-recently-played playlist-read-private playlist-read-collaborative'
@@ -22,7 +23,10 @@ class SpotifyService {
   private lastCacheTime = 0
 
   private getRedirectUri(): string {
-    return `${window.location.origin}/settings/integrations`
+    if (Capacitor.isNativePlatform()) {
+      return 'com.ihsan.ihsanos://callback'
+    }
+    return import.meta.env.VITE_SPOTIFY_REDIRECT_URI || 'https://prsonal-assist.vercel.app/callback'
   }
 
   // ─── OAuth2 PKCE Flow Helper Methods ───────────────────────────────────────
@@ -57,40 +61,65 @@ class SpotifyService {
     const state = this.generateRandomString(16)
     localStorage.setItem('spotify_auth_state', state)
     
+    const redirectUri = this.getRedirectUri()
+    console.log('[SpotifyService] startLoginFlow parameters:', {
+      client_id: CLIENT_ID,
+      response_type: 'code',
+      redirect_uri: redirectUri,
+      scope: SCOPES,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+      state: state,
+      code_verifier_local: verifier
+    })
+
     const url = new URL('https://accounts.spotify.com/authorize')
     url.search = new URLSearchParams({
       response_type: 'code',
       client_id: CLIENT_ID,
       scope: SCOPES,
-      redirect_uri: this.getRedirectUri(),
+      redirect_uri: redirectUri,
       state: state,
       code_challenge_method: 'S256',
       code_challenge: codeChallenge,
     }).toString()
     
+    console.log('[SpotifyService] Redirecting authorization URL:', url.toString())
     window.location.href = url.toString()
   }
 
   // Exchanges authorization code for access/refresh tokens
   async handleCallback(code: string, state: string): Promise<boolean> {
     const startMs = Date.now()
+    console.log('[SpotifyService] handleCallback raw payload:', { code, state })
     try {
       const savedState = localStorage.getItem('spotify_auth_state')
+      console.log('[SpotifyService] Verifying state params:', { received: state, expected: savedState })
       if (state !== savedState) {
-        throw new Error('State mismatch. OAuth transaction aborted.')
+        throw new Error(`State mismatch error. Received "${state}" but expected "${savedState}".`)
       }
       
       const verifier = localStorage.getItem('spotify_code_verifier')
+      console.log('[SpotifyService] Retrieved local code verifier:', verifier)
       if (!verifier) {
-        throw new Error('No code verifier found. Run login flow first.')
+        throw new Error('No local code verifier found in localStorage.')
       }
 
+      const redirectUri = this.getRedirectUri()
       const params = new URLSearchParams({
         client_id: CLIENT_ID,
         grant_type: 'authorization_code',
         code: code,
-        redirect_uri: this.getRedirectUri(),
+        redirect_uri: redirectUri,
         code_verifier: verifier,
+      })
+
+      console.log('[SpotifyService] Posting token exchange payload:', {
+        url: 'https://accounts.spotify.com/api/token',
+        client_id: CLIENT_ID,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+        code_verifier: verifier
       })
 
       const response = await fetch('https://accounts.spotify.com/api/token', {
@@ -101,11 +130,18 @@ class SpotifyService {
 
       if (!response.ok) {
         const errorText = await response.text()
-        throw new Error(`Token exchange failed: ${errorText}`)
+        throw new Error(`Token exchange server error: ${errorText}`)
       }
 
       const data = await response.json()
       
+      console.log('[SpotifyService] Token exchange successful. Payload:', {
+        accessToken: data.access_token ? 'SUCCESS (length: ' + data.access_token.length + ')' : 'MISSING',
+        refreshToken: data.refresh_token ? 'SUCCESS (length: ' + data.refresh_token.length + ')' : 'MISSING',
+        expiresIn: data.expires_in,
+        expiresAt: new Date(Date.now() + data.expires_in * 1000).toLocaleString()
+      })
+
       // Store tokens securely encrypted
       await this.saveTokens(
         data.access_token,
@@ -206,10 +242,17 @@ class SpotifyService {
   // Refreshes the Spotify access token using the refresh token (PKCE, no Client Secret)
   private async refreshToken(): Promise<boolean> {
     const startMs = Date.now()
-    if (!this.activeTokens?.refreshToken) return false
+    if (!this.activeTokens?.refreshToken) {
+      console.error('[SpotifyService] Cannot refresh token: No refresh token is loaded.')
+      return false
+    }
 
     try {
-      console.log('[SpotifyService] Token expired. Triggering silent refresh...')
+      console.log('[SpotifyService] Refreshing access token with refresh token:', {
+        client_id: CLIENT_ID,
+        grant_type: 'refresh_token',
+        refresh_token_preview: this.activeTokens.refreshToken.slice(0, 10) + '...'
+      })
       const params = new URLSearchParams({
         client_id: CLIENT_ID,
         grant_type: 'refresh_token',
@@ -223,11 +266,18 @@ class SpotifyService {
       })
 
       if (!response.ok) {
-        throw new Error('Refresh request failed')
+        const errorText = await response.text()
+        throw new Error(`Refresh request failed: ${errorText}`)
       }
 
       const data = await response.json()
       
+      console.log('[SpotifyService] Token refresh successful:', {
+        accessToken: data.access_token ? 'SUCCESS' : 'MISSING',
+        refreshToken: data.refresh_token ? 'NEW (SUCCESS)' : 'PRESERVED OLD',
+        expiresIn: data.expires_in
+      })
+
       // Save refreshed tokens
       await this.saveTokens(
         data.access_token,

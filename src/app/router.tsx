@@ -27,6 +27,7 @@ const SyncLogPage = lazy(() => import('@/features/settings/SyncLogPage'))
 const IntegrationsPage = lazy(() => import('@/features/settings/IntegrationsPage'))
 const DiagnosticsPage = lazy(() => import('@/features/settings/DiagnosticsPage'))
 const SyncQueuePage = lazy(() => import('@/features/settings/SyncQueuePage'))
+const SpotifyCallbackPage = lazy(() => import('@/features/settings/SpotifyCallbackPage'))
 const NotebookLMHubPage = lazy(() => import('@/features/knowledge/NotebookLMHubPage'))
 
 
@@ -112,6 +113,7 @@ const router = createBrowserRouter([
       { path: 'settings/integrations', element: withSuspense(IntegrationsPage) },
       { path: 'settings/diagnostics', element: withSuspense(DiagnosticsPage) },
       { path: 'settings/sync-queue', element: withSuspense(SyncQueuePage) },
+      { path: 'callback', element: withSuspense(SpotifyCallbackPage) },
       { path: 'knowledge/notebooklm', element: withSuspense(NotebookLMHubPage) },
 
       { path: 'profile', element: withSuspense(ProfilePage) },
