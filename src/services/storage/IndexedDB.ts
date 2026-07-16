@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = 'ihsanos_db'
-const DB_VERSION = 5
+const DB_VERSION = 6
 
 export const STORES = {
   TASKS: 'tasks',
@@ -53,11 +53,19 @@ export const STORES = {
   INTEGRATION_LOGS: 'integration_logs',
   NOTEBOOKS: 'notebooks',
   HEALTH_RECORDS: 'health_records',
+
+  // Android Productivity Features
+  ATTACHMENTS: 'attachments',
+  ATTACHMENTS_DATA: 'attachments_data',
+  CONFLICT_QUEUE: 'conflict_queue',
+  NOTIFICATION_SCHEDULES: 'notification_schedules',
+  NOTIFICATION_HISTORY: 'notification_history',
 } as const
 
 // Stores that should NOT get sync metadata indexes
 const META_STORES = new Set([
   'settings', 'profile', 'sync_queue', 'backup_history', 'sync_log', 'activity_log',
+  'conflict_queue', 'notification_schedules', 'notification_history', 'attachments_data',
 ])
 
 type StoreName = typeof STORES[keyof typeof STORES]

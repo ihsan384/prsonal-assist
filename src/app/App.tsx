@@ -12,7 +12,13 @@ export default function App() {
 
   useEffect(() => {
     // Initialize Database
-    memoryStore.init().then(() => setDbReady(true))
+    memoryStore.init().then(() => {
+      setDbReady(true)
+      // Restore notification schedules from storage
+      import('@/services/notifications/NotificationService').then(({ notificationService }) => {
+        notificationService.restoreSchedules().catch(err => console.error(err))
+      })
+    })
 
     // Initialize Native UI Styles
     if (Capacitor.isNativePlatform()) {

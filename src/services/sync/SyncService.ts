@@ -75,6 +75,7 @@ class SyncEngine {
     localStorage.setItem(LS_BG_SYNC, String(value))
   }
 
+
   constructor() {
     this.status = typeof navigator !== 'undefined' && navigator.onLine ? 'online' : 'offline'
     this.lastSyncTime = localStorage.getItem(LS_LAST_SYNC)
@@ -203,16 +204,19 @@ class SyncEngine {
       return
     }
 
-    const delay = RETRY_BACKOFF_BASE_MS * Math.pow(2, currentAttempts) // 2s, 4s, 8s
+    let delay = 30000 // 30s
+    if (attempts === 2) delay = 120000 // 2m
+    else if (attempts >= 3) delay = 600000 // 10m
+    
     const nextRetryAt = Date.now() + delay
 
     this.retryQueue.set(key, { storeName, recordId, attempts, nextRetryAt })
     console.log(`[SyncEngine] Scheduled retry ${attempts}/${MAX_RETRY_ATTEMPTS} for ${key} in ${delay}ms`)
 
-    // Schedule retry timer (reset if already set)
     if (this.retryTimer) clearTimeout(this.retryTimer)
     this.retryTimer = setTimeout(() => this.processRetryQueue(), delay + 100)
   }
+
 
   private async processRetryQueue() {
     if (!navigator.onLine || this.syncInProgress || !isSupabaseConfigured()) return
@@ -235,8 +239,18 @@ class SyncEngine {
       return
     }
 
+    // Check Wi-Fi Only setting
+    if (this.syncWifiOnly) {
+      if (Capacitor.isNativePlatform()) {
+        const status = await Network.getStatus()
+        if (status.connectionType !== 'wifi') {
+          console.log('[SyncEngine] Wifi-only mode active. Skipping sync on cellular/ethernet.')
+          return
+        }
+      }
+    }
+
     if (!isSupabaseConfigured()) {
-      // Supabase not configured — stay in online/pending state but don't error
       if (this.status !== 'offline') {
         this.status = this.pendingCount > 0 ? 'pending' : 'online'
         this.notify()
@@ -251,12 +265,25 @@ class SyncEngine {
     let hadError = false
 
     try {
-      // Skip settings/profile/sync_queue from data sync loop
-      const skipStores = new Set([STORES.SYNC_QUEUE])
+      // Skip local management tables from cloud sync
+      const skipStores = new Set([
+        STORES.SYNC_QUEUE, 
+        STORES.BACKUP_HISTORY, 
+        STORES.SYNC_LOG, 
+        STORES.ACTIVITY_LOG, 
+        STORES.CONFLICT_QUEUE,
+        STORES.INTEGRATION_LOGS,
+        STORES.NOTIFICATION_HISTORY,
+        STORES.NOTIFICATION_SCHEDULES
+      ])
       const storeEntries = Object.entries(STORES).filter(([, v]) => !skipStores.has(v as any))
 
       for (const [, storeName] of storeEntries) {
         try {
+          // 1. Download server modifications
+          await this.downloadStore(storeName as any)
+
+          // 2. Upload pending modifications
           await this.syncStore(storeName as any)
         } catch (err) {
           console.error(`[SyncEngine] Failed to sync store "${storeName}":`, err)
@@ -269,6 +296,11 @@ class SyncEngine {
 
       await this.updatePendingCount()
       this.status = hadError ? 'failed' : (this.pendingCount > 0 ? 'pending' : 'synced')
+
+      // Auto update native widget payload on completion
+      import('@/services/native/WidgetRepository').then(({ widgetRepository }) => {
+        widgetRepository.updateWidgetPayload().catch(e => console.error(e))
+      })
     } catch (err) {
       console.error('[SyncEngine] Sync failed:', err)
       this.status = 'failed'
@@ -278,6 +310,71 @@ class SyncEngine {
       this.notify()
     }
   }
+
+  /**
+   * Two-way Download Sync: Fetch server modifications and detect conflicts
+   */
+  private async downloadStore(storeName: typeof STORES[keyof typeof STORES]): Promise<void> {
+    const tableName = storeName
+    const lastSync = this.lastSyncTime || '1970-01-01T00:00:00.000Z'
+
+    const { data: serverRecords, error } = await supabase
+      .from(tableName as any)
+      .select('*')
+      .gt('updated_at', lastSync)
+
+    if (error) {
+      console.error(`[SyncEngine] Download failed for ${tableName}:`, error)
+      throw error
+    }
+
+    if (!serverRecords || serverRecords.length === 0) return
+
+    console.log(`[SyncEngine] Downloaded ${serverRecords.length} records for ${tableName}`)
+
+    const nowStr = new Date().toISOString()
+    const updatedLocally: any[] = []
+
+    for (const sRaw of serverRecords) {
+      const serverRecord = this.toCamelCase(sRaw)
+      const localRecord = await idb.get<any>(storeName, serverRecord.id)
+
+      if (!localRecord) {
+        const newRecord = { ...serverRecord, pendingSync: false, lastSyncedAt: nowStr }
+        updatedLocally.push(newRecord)
+        this.updateInMemory(storeName, newRecord)
+        continue
+      }
+
+      if (localRecord.pendingSync) {
+        if (serverRecord.syncVersion !== localRecord.syncVersion) {
+          console.warn(`[SyncEngine] Conflict detected in ${tableName}:${localRecord.id}`)
+          
+          await idb.put(STORES.CONFLICT_QUEUE, {
+            id: localRecord.id,
+            table: storeName,
+            localData: localRecord,
+            serverData: serverRecord,
+            resolved: false,
+            timestamp: nowStr
+          })
+          
+          const conflictedLocal = { ...localRecord, syncStatus: 'conflict' }
+          updatedLocally.push(conflictedLocal)
+          this.updateInMemory(storeName, conflictedLocal)
+        }
+      } else {
+        const updated = { ...serverRecord, pendingSync: false, lastSyncedAt: nowStr }
+        updatedLocally.push(updated)
+        this.updateInMemory(storeName, updated)
+      }
+    }
+
+    if (updatedLocally.length > 0) {
+      await idb.putBatch(storeName, updatedLocally)
+    }
+  }
+
 
   /**
    * Sync a single store: batch upsert new/modified, delete soft-deleted records
@@ -509,6 +606,63 @@ class SyncEngine {
         console.warn(`[SyncEngine] Could not wipe table "${table}":`, error.message)
       }
     }
+  }
+
+  // ─── Queue Getters ────────────────────────────────────────────────────
+
+  async getUploadQueue(): Promise<any[]> {
+    const list: any[] = []
+    const skipStores = new Set<string>([
+      STORES.SYNC_QUEUE, STORES.BACKUP_HISTORY, STORES.SYNC_LOG, STORES.ACTIVITY_LOG,
+      STORES.CONFLICT_QUEUE, STORES.INTEGRATION_LOGS, STORES.NOTIFICATION_HISTORY, STORES.NOTIFICATION_SCHEDULES
+    ])
+    for (const storeName of Object.values(STORES)) {
+      if (skipStores.has(storeName)) continue
+      try {
+        const pending = await idb.getAll<any>(storeName as any)
+        const filtered = pending.filter(r => r.pendingSync === true && r.syncStatus !== 'conflict' && r.syncStatus !== 'failed')
+        filtered.forEach(r => list.push({ id: r.id, table: storeName, name: r.name || r.title || r.question || r.id, status: r.syncStatus || 'pending' }))
+      } catch {}
+    }
+    return list
+  }
+
+  async getFailedQueue(): Promise<any[]> {
+    const list: any[] = []
+    const skipStores = new Set<string>([
+      STORES.SYNC_QUEUE, STORES.BACKUP_HISTORY, STORES.SYNC_LOG, STORES.ACTIVITY_LOG,
+      STORES.CONFLICT_QUEUE, STORES.INTEGRATION_LOGS, STORES.NOTIFICATION_HISTORY, STORES.NOTIFICATION_SCHEDULES
+    ])
+    for (const storeName of Object.values(STORES)) {
+      if (skipStores.has(storeName)) continue
+      try {
+        const pending = await idb.getAll<any>(storeName as any)
+        const filtered = pending.filter(r => r.syncStatus === 'failed')
+        filtered.forEach(r => list.push({ id: r.id, table: storeName, name: r.name || r.title || r.question || r.id, error: r.lastError || 'Upload failed' }))
+      } catch {}
+    }
+    return list
+  }
+
+  async getConflictQueue(): Promise<any[]> {
+    try {
+      return await idb.getAll<any>(STORES.CONFLICT_QUEUE)
+    } catch {
+      return []
+    }
+  }
+
+  getRetryQueue(): any[] {
+    const list: any[] = []
+    this.retryQueue.forEach((val) => {
+      list.push({
+        id: val.recordId,
+        table: val.storeName,
+        attempts: val.attempts,
+        nextRetryAt: new Date(val.nextRetryAt).toLocaleTimeString()
+      })
+    })
+    return list
   }
 
   // ─── Factory Reset ─────────────────────────────────────────────────────

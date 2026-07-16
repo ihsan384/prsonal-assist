@@ -19,6 +19,9 @@ import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
 import { reflectionStorage } from '@/services/storage'
 import type { ReflectionEntry, ReflectionMood } from '@/types'
 import { cn } from '@/utils/cn'
+import { generateId } from '@/utils/format'
+import { AttachmentList } from '@/components/ui/AttachmentList'
+
 
 // ─── Mood Config ─────────────────────────────────────────────────────────────
 
@@ -222,6 +225,7 @@ interface EditorProps {
 }
 
 function ReflectionEditor({ entry, onClose, onSave }: EditorProps) {
+  const [entryId] = useState(() => entry?.id || generateId())
   const now = new Date()
   const todayStr = now.toISOString().split('T')[0]
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -309,7 +313,7 @@ function ReflectionEditor({ entry, onClose, onSave }: EditorProps) {
     if (entry) {
       reflectionStorage.update(entry.id, payload)
     } else {
-      reflectionStorage.add(payload)
+      reflectionStorage.add({ id: entryId, ...payload })
     }
     onSave()
     onClose()
@@ -423,6 +427,12 @@ function ReflectionEditor({ entry, onClose, onSave }: EditorProps) {
 
           {/* Tags */}
           <Input label="Tags (comma separated)" placeholder="e.g. study, productive, focus" value={tags} onChange={e => setTags(e.target.value)} />
+
+          {/* Secure File Attachments */}
+          <div className="mt-4 pt-4 border-t border-[var(--border)]">
+            <p className="text-xs font-semibold text-[var(--text-2)] mb-3">Secure Attachments</p>
+            <AttachmentList parentType="reflection" parentId={entryId} />
+          </div>
         </div>
       </div>
     </div>

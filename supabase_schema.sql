@@ -924,3 +924,54 @@ begin
   end loop;
 end $$;
 
+-- ─── 34. ATTACHMENTS ─────────────────────────────────────────────────────────
+create table if not exists attachments (
+  id text primary key,
+  name text not null,
+  size integer not null,
+  mime_type text not null,
+  local_path text,
+  remote_url text,
+  parent_type text not null,
+  parent_id text not null,
+  sha256_hash text not null,
+  checksum text not null,
+  upload_status text default 'pending',
+  upload_progress numeric default 0,
+  paused boolean default false,
+  resumed boolean default false,
+  uploaded_at text,
+  downloaded_at text,
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1,
+  sync_status text default 'pending',
+  retry_count integer default 0,
+  last_retry text,
+  last_error text
+);
+
+alter table attachments enable row level security;
+drop policy if exists authenticated_access_policy on attachments;
+create policy authenticated_access_policy on attachments for all using (true) with check (true);
+create index if not exists idx_attachments_sync on attachments(updated_at, deleted);
+create index if not exists idx_attachments_parent on attachments(parent_id);
+
+-- Drop trigger if exists and recreate
+drop trigger if exists trg_set_updated_at on attachments;
+create trigger trg_set_updated_at before update on attachments
+  for each row execute function set_updated_at();
+
+-- Register storage bucket attachments
+insert into storage.buckets (id, name, public)
+values ('attachments', 'attachments', false)
+on conflict (id) do nothing;
+
+-- Enable objects policy for bucket
+drop policy if exists "Allow all operations for anyone on attachments bucket" on storage.objects;
+create policy "Allow all operations for anyone on attachments bucket" on storage.objects
+  for all using (bucket_id = 'attachments') with check (bucket_id = 'attachments');
+
+

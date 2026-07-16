@@ -74,6 +74,13 @@ class MemoryStoreService {
   notebooks: any[] = []
   healthRecords: any[] = []
 
+  // Android Productivity Feature collections
+  attachments: any[] = []
+  conflicts: any[] = []
+  notificationSchedules: any[] = []
+  notificationHistory: any[] = []
+
+
 
   async init(): Promise<void> {
     if (this.isLoaded) return
@@ -148,6 +155,13 @@ class MemoryStoreService {
         this.notebooks = await idb.getAll<any>(STORES.NOTEBOOKS)
         this.healthRecords = await idb.getAll<any>(STORES.HEALTH_RECORDS)
 
+        // 7. Load Attachments & Notifications
+        this.attachments = await idb.getAll<any>(STORES.ATTACHMENTS)
+        this.conflicts = await idb.getAll<any>(STORES.CONFLICT_QUEUE)
+        this.notificationSchedules = await idb.getAll<any>(STORES.NOTIFICATION_SCHEDULES)
+        this.notificationHistory = await idb.getAll<any>(STORES.NOTIFICATION_HISTORY)
+
+
 
         // Populate initial data if completely clean install
         if (this.subjects.length === 0) {
@@ -210,6 +224,19 @@ class MemoryStoreService {
     }
   }
 
+  // Hard delete helper
+  async removeFromStore<T extends { id: string }>(
+    storeName: any,
+    localArray: T[],
+    id: string
+  ): Promise<void> {
+    const index = localArray.findIndex(item => item.id === id)
+    if (index >= 0) {
+      localArray.splice(index, 1)
+      await idb.delete(storeName, id)
+    }
+  }
+
   // Clear memory state (useful for wiping data)
   clearMemory() {
     this.tasks = []
@@ -242,6 +269,11 @@ class MemoryStoreService {
     this.integrationLogs = []
     this.notebooks = []
     this.healthRecords = []
+    
+    this.attachments = []
+    this.conflicts = []
+    this.notificationSchedules = []
+    this.notificationHistory = []
   }
 
 }

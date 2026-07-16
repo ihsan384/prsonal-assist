@@ -12,6 +12,8 @@ import type { StudyNote } from '@/types/study.types'
 import { useToast } from '@/hooks/useToast'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
+import { AttachmentList } from '@/components/ui/AttachmentList'
+
 
 export default function NotesPage() {
   const toast = useToast()
@@ -206,10 +208,17 @@ export default function NotesPage() {
                 <div className="mt-4 text-xs text-[var(--text-2)] leading-relaxed whitespace-pre-wrap font-sans">
                   {activeNote.content}
                 </div>
+
+                {/* Secure File Attachments */}
+                <div className="mt-6 pt-5 border-t border-[var(--border)]">
+                  <h3 className="text-xs font-bold text-[var(--text)] mb-3">Secure Attachments</h3>
+                  <AttachmentList parentType="notes" parentId={activeNote.id} />
+                </div>
               </div>
               
-              <div className="border-t border-[var(--border)] pt-3 mt-4 text-[10px] text-[var(--text-4)] text-left">
-                Ihsan OS Markdown Note Viewer
+              <div className="border-t border-[var(--border)] pt-3 mt-4 text-[10px] text-[var(--text-4)] text-left flex justify-between items-center">
+                <span>Ihsan OS Markdown Note Viewer</span>
+                <span className="font-semibold text-indigo-500">Secure Isolated Sandbox</span>
               </div>
             </Card>
           ) : (

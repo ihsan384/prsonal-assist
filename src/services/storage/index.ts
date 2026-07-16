@@ -1,7 +1,7 @@
 import { generateId } from '@/utils/format'
 import { getTodayString } from '@/utils/date'
 import { memoryStore } from './MemoryStore'
-import { STORES } from './IndexedDB'
+import { STORES, idb } from './IndexedDB'
 import type { Task, Habit, Goal, Workout, Meal, SleepLog, KnowledgeItem, Transaction, Budget, AppSettings, UserProfile, NutritionGoal, ReflectionEntry, MotivationQuote, MotivationNote, MotivationCollection, CustomMotivationCategory } from '@/types'
 import type { StudySession } from '@/types/study.types'
 
@@ -394,8 +394,8 @@ export const reflectionStorage = {
   getAll: () => memoryStore.reflectionEntries.filter(e => !e.deleted),
   getById: (id: string) => memoryStore.reflectionEntries.find(e => e.id === id && !e.deleted),
   getByDate: (date: string) => memoryStore.reflectionEntries.find(e => !e.deleted && e.date === date),
-  add: (entry: Omit<ReflectionEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const id = generateId()
+  add: (entry: Omit<ReflectionEntry, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
+    const id = entry.id || generateId()
     const now = new Date().toISOString()
     const record: ReflectionEntry = {
       ...entry,
@@ -725,4 +725,87 @@ export const healthRecordStorage = {
     memoryStore.softDeleteFromStore(STORES.HEALTH_RECORDS, memoryStore.healthRecords, id)
   }
 }
+
+// ─── Attachments, Conflicts, & Notifications ───────────────────────────────
+
+export const attachmentStorage = {
+  getAll: () => memoryStore.attachments.filter(a => !a.deleted),
+  getById: (id: string) => memoryStore.attachments.find(a => a.id === id && !a.deleted),
+  getByParent: (parentType: string, parentId: string) => 
+    memoryStore.attachments.filter(a => a.parentType === parentType && a.parentId === parentId && !a.deleted),
+  getByChecksum: (checksum: string) =>
+    memoryStore.attachments.find(a => a.checksum === checksum && !a.deleted),
+  save: (attachment: any) => {
+    const existing = memoryStore.attachments.find(a => a.id === attachment.id)
+    const now = new Date().toISOString()
+    const record = {
+      ...existing,
+      ...attachment,
+      id: attachment.id || existing?.id || generateId(),
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      deleted: false,
+      pendingSync: true,
+      syncVersion: (existing?.syncVersion || 0) + 1,
+      syncStatus: attachment.syncStatus || 'pending'
+    }
+    memoryStore.saveToStore(STORES.ATTACHMENTS, memoryStore.attachments, record)
+    return record
+  },
+  remove: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.ATTACHMENTS, memoryStore.attachments, id)
+  }
+}
+
+export const conflictStorage = {
+  getAll: () => memoryStore.conflicts,
+  getById: (id: string) => memoryStore.conflicts.find(c => c.id === id),
+  save: (conflict: { id: string; table: string; localData: any; serverData: any; resolved: boolean }) => {
+    const existing = memoryStore.conflicts.find(c => c.id === conflict.id)
+    const record = {
+      ...existing,
+      ...conflict
+    }
+    memoryStore.saveToStore(STORES.CONFLICT_QUEUE, memoryStore.conflicts, record)
+    return record
+  },
+  remove: (id: string) => {
+    memoryStore.removeFromStore(STORES.CONFLICT_QUEUE, memoryStore.conflicts, id)
+  }
+}
+
+export const notificationScheduleStorage = {
+  getAll: () => memoryStore.notificationSchedules,
+  save: (schedule: { id: string; title: string; body: string; scheduledAt: string; category: string; repeats?: string; enabled: boolean }) => {
+    const existing = memoryStore.notificationSchedules.find(s => s.id === schedule.id)
+    const record = {
+      ...existing,
+      ...schedule
+    }
+    memoryStore.saveToStore(STORES.NOTIFICATION_SCHEDULES, memoryStore.notificationSchedules, record)
+    return record
+  },
+  remove: (id: string) => {
+    memoryStore.removeFromStore(STORES.NOTIFICATION_SCHEDULES, memoryStore.notificationSchedules, id)
+  }
+}
+
+export const notificationHistoryStorage = {
+  getAll: () => memoryStore.notificationHistory,
+  add: (log: { title: string; body: string; category: string; firedAt: string; status: 'delivered' | 'clicked' | 'snoozed' | 'dismissed' }) => {
+    const id = generateId()
+    const record = {
+      id,
+      ...log
+    }
+    memoryStore.saveToStore(STORES.NOTIFICATION_HISTORY, memoryStore.notificationHistory, record)
+    return record
+  },
+  clear: () => {
+    idb.clearStore(STORES.NOTIFICATION_HISTORY).then(() => {
+      memoryStore.notificationHistory = []
+    })
+  }
+}
+
 

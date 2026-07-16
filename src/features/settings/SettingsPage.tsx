@@ -56,6 +56,33 @@ export default function SettingsPage() {
   const [wifiOnly, setWifiOnly] = useState(syncEngine.syncWifiOnly)
   const [backgroundSync, setBackgroundSync] = useState(syncEngine.backgroundSync)
 
+  // Android features toggles
+  const [notifEnabled, setNotifEnabled] = useState(() => localStorage.getItem('settings_notifications_enabled') !== 'false')
+  const [quietHoursEnabled, setQuietHoursEnabled] = useState(() => localStorage.getItem('settings_quiet_hours_enabled') !== 'false')
+  const [widgetsEnabled, setWidgetsEnabled] = useState(() => localStorage.getItem('settings_android_widgets_enabled') !== 'false')
+  const [shortcutsEnabled, setShortcutsEnabled] = useState(() => localStorage.getItem('settings_quick_actions_enabled') !== 'false')
+
+  useEffect(() => {
+    localStorage.setItem('settings_notifications_enabled', String(notifEnabled))
+  }, [notifEnabled])
+
+  useEffect(() => {
+    localStorage.setItem('settings_quiet_hours_enabled', String(quietHoursEnabled))
+  }, [quietHoursEnabled])
+
+  useEffect(() => {
+    localStorage.setItem('settings_android_widgets_enabled', String(widgetsEnabled))
+    if (widgetsEnabled) {
+      import('@/services/native/WidgetRepository').then(({ widgetRepository }) => {
+        widgetRepository.updateWidgetPayload().catch(e => console.error(e))
+      })
+    }
+  }, [widgetsEnabled])
+
+  useEffect(() => {
+    localStorage.setItem('settings_quick_actions_enabled', String(shortcutsEnabled))
+  }, [shortcutsEnabled])
+
   // Modals
   const [isLocalWipeOpen, setIsLocalWipeOpen] = useState(false)
   const [confirmWipeInput, setConfirmWipeInput] = useState('')
@@ -235,6 +262,7 @@ export default function SettingsPage() {
             {[
               { label: 'Database Health', description: 'Record counts, storage & sync status', icon: Database, path: '/settings/db-health', color: 'text-[var(--accent)]', bg: 'bg-[var(--accent-bg)]' },
               { label: 'Backup Center', description: 'Create, restore and export backups', icon: Archive, path: '/settings/backup', color: 'text-emerald-600', bg: 'bg-[var(--success-bg)]' },
+              { label: 'Sync Transaction Center', description: 'Inspect queues and resolve conflicts', icon: RefreshCw, path: '/settings/sync-queue', color: 'text-indigo-500', bg: 'bg-indigo-50' },
               { label: 'Sync History', description: 'Log of all upload/download operations', icon: Activity, path: '/settings/sync-log', color: 'text-violet-600', bg: 'bg-violet-50' },
             ].map(item => {
               const Icon = item.icon
@@ -312,6 +340,46 @@ export default function SettingsPage() {
             <Button variant="primary" fullWidth icon={<RefreshCw size={14} />} onClick={handleManualSync}>
               Sync Cloud Backup Now
             </Button>
+          </div>
+        </Card>
+      </div>
+
+      {/* Android Native capabilities preferences */}
+      <div className="mb-5">
+        <SectionHeader title="Android OS Native Features" />
+        <Card>
+          <div className="flex flex-col gap-4 text-left">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">Enable Notifications</p>
+                <p className="text-xs text-[var(--text-3)]">Receive task, study, and reflection reminders</p>
+              </div>
+              <Toggle enabled={notifEnabled} onToggle={() => setNotifEnabled(!notifEnabled)} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">Respect Quiet Hours</p>
+                <p className="text-xs text-[var(--text-3)]">Silence alerts between 10 PM and 7 AM</p>
+              </div>
+              <Toggle enabled={quietHoursEnabled} onToggle={() => setQuietHoursEnabled(!quietHoursEnabled)} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">Widget Data Synchronization</p>
+                <p className="text-xs text-[var(--text-3)]">Compile stats for Android home screen widgets</p>
+              </div>
+              <Toggle enabled={widgetsEnabled} onToggle={() => setWidgetsEnabled(!widgetsEnabled)} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">Home Screen Shortcuts</p>
+                <p className="text-xs text-[var(--text-3)]">Support Android application shortcuts on press</p>
+              </div>
+              <Toggle enabled={shortcutsEnabled} onToggle={() => setShortcutsEnabled(!shortcutsEnabled)} />
+            </div>
           </div>
         </Card>
       </div>
