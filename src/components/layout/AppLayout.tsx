@@ -7,6 +7,7 @@ import { ToastContainer } from '../ui/Toast'
 import { PWAReloadPrompt } from './PWAReloadPrompt'
 import { PomodoroProvider } from '@/features/study/pomodoro/PomodoroContext'
 import { PomodoroMiniTimer } from '@/features/study/pomodoro/PomodoroMiniTimer'
+import { useNativeBackButton } from '@/hooks/useNativeBackButton'
 
 interface AppLayoutProps {
   children?: ReactNode
@@ -14,6 +15,9 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  
+  // Initialize native back button handling
+  useNativeBackButton()
 
   return (
     <PomodoroProvider>

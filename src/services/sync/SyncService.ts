@@ -2,6 +2,8 @@ import { supabase, isSupabaseConfigured } from '../supabase/supabase'
 import { idb, STORES } from '../storage/IndexedDB'
 import { memoryStore } from '../storage/MemoryStore'
 import { generateId } from '@/utils/format'
+import { Network } from '@capacitor/network'
+import { Capacitor } from '@capacitor/core'
 
 export type SyncStatusType = 'offline' | 'online' | 'syncing' | 'synced' | 'failed' | 'pending'
 
@@ -77,9 +79,18 @@ class SyncEngine {
     this.status = typeof navigator !== 'undefined' && navigator.onLine ? 'online' : 'offline'
     this.lastSyncTime = localStorage.getItem(LS_LAST_SYNC)
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('online', () => this.handleConnectionChange(true))
-      window.addEventListener('offline', () => this.handleConnectionChange(false))
+    if (Capacitor.isNativePlatform()) {
+      Network.getStatus().then(status => {
+        this.handleConnectionChange(status.connected)
+      })
+      Network.addListener('networkStatusChange', status => {
+        this.handleConnectionChange(status.connected)
+      })
+    } else {
+      if (typeof window !== 'undefined') {
+        window.addEventListener('online', () => this.handleConnectionChange(true))
+        window.addEventListener('offline', () => this.handleConnectionChange(false))
+      }
     }
 
     // Background sync every 15s — only count pending and sync if due

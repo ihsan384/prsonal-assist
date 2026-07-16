@@ -79,6 +79,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
   transition: background 0.2s, color 0.2s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input, textarea, [contenteditable], .selectable {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.overflow-y-auto, .overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
 }
 
 #root {
