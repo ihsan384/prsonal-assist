@@ -37,8 +37,7 @@ export function BottomSheet({ isOpen, onClose, title, children, className }: Bot
           <motion.div
             className={cn(
               'relative w-full bg-[var(--bg)] rounded-t-3xl border-t border-[var(--border)]',
-              'shadow-[var(--shadow-lg)] max-h-[92dvh] overflow-y-auto',
-              'pb-[env(safe-area-inset-bottom,0px)]',
+              'shadow-[var(--shadow-lg)] max-h-[90dvh] flex flex-col overflow-hidden',
               className
             )}
             initial={{ y: '100%' }}
@@ -47,12 +46,12 @@ export function BottomSheet({ isOpen, onClose, title, children, className }: Bot
             transition={{ type: 'spring', stiffness: 350, damping: 30 }}
           >
             {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1">
+            <div className="flex justify-center pt-3 pb-1 shrink-0">
               <div className="w-10 h-1 rounded-full bg-[var(--border-strong)]" />
             </div>
 
             {title && (
-              <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] shrink-0">
                 <h3 className="text-base font-semibold text-[var(--text)]">{title}</h3>
                 <Button variant="ghost" size="icon" onClick={onClose}>
                   <X size={16} />
@@ -60,7 +59,7 @@ export function BottomSheet({ isOpen, onClose, title, children, className }: Bot
               </div>
             )}
 
-            <div className="p-5">{children}</div>
+            <div className="flex-1 overflow-y-auto p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))]">{children}</div>
           </motion.div>
         </div>
       )}

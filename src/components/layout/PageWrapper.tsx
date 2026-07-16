@@ -12,8 +12,8 @@ export function PageWrapper({ children, className, padBottom = true }: PageWrapp
   return (
     <motion.div
       className={cn(
-        'min-h-[calc(100dvh-56px)] px-4 py-5 max-w-5xl mx-auto w-full flex flex-col gap-5',
-        padBottom && 'pb-10',
+        'min-h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] px-4 py-5 max-w-5xl mx-auto w-full flex flex-col gap-5',
+        padBottom && 'pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]',
         className
       )}
       initial={{ opacity: 0, y: 6 }}

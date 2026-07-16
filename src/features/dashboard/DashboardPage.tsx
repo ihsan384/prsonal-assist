@@ -6,6 +6,7 @@ import { ProgressBar } from '@/components/ui/ProgressRing'
 import { Badge } from '@/components/ui/Badge'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Button } from '@/components/ui/Button'
+import { PageWrapper } from '@/components/layout/PageWrapper'
 import { getGreeting, formatDate, formatTime } from '@/utils/date'
 import { studyERPStorage } from '@/services/storage/studyERP.storage'
 import { taskStorage, habitStorage, healthRecordStorage, notebookStorage } from '@/services/storage'
@@ -181,7 +182,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] pb-10 px-4 max-w-5xl mx-auto w-full pt-4">
+    <PageWrapper className="pt-4" padBottom={true}>
       {/* Hero / Header Section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between pb-6 border-b border-[var(--border)] mb-6 gap-4">
         <div className="text-left">
@@ -455,6 +456,6 @@ export default function DashboardPage() {
         </div>
 
       </div>
-    </div>
+    </PageWrapper>
   )
 }

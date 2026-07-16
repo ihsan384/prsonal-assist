@@ -60,7 +60,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
 
           {/* Drawer Panel */}
           <motion.aside
-            className="absolute top-0 left-0 bottom-0 w-72 bg-[var(--bg)] border-r border-[var(--border)] flex flex-col h-full shadow-lg"
+            className="absolute top-0 left-0 bottom-0 w-72 bg-[var(--bg)] border-r border-[var(--border)] flex flex-col h-full shadow-lg pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
@@ -86,7 +86,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
             </div>
 
             {/* Navigation List */}
-            <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-0.5">
+            <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-1">
               {navItems.map(item => {
                 const active = isActive(item.path)
                 return (
@@ -94,9 +94,9 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                     key={item.path}
                     onClick={() => handleNavigate(item.path)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-sm font-medium transition-all duration-100',
+                      'w-full flex items-center gap-3 px-3 h-12 rounded-[8px] text-sm font-medium transition-all duration-100 relative overflow-hidden',
                       active
-                        ? 'bg-[var(--accent-bg)] text-[var(--accent-text)]'
+                        ? 'bg-[var(--accent-bg)] text-[var(--accent-text)] font-semibold border-l-4 border-[var(--accent)] rounded-l-none'
                         : 'text-[var(--text-3)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)]'
                     )}
                   >
@@ -108,7 +108,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
             </nav>
 
             {/* Bottom Links */}
-            <div className="p-2 border-t border-[var(--border)] space-y-0.5">
+            <div className="p-2 border-t border-[var(--border)] space-y-1">
               {bottomItems.map(item => {
                 const active = isActive(item.path)
                 return (
@@ -116,9 +116,9 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                     key={item.path}
                     onClick={() => handleNavigate(item.path)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-[8px] text-sm font-medium transition-all duration-100',
+                      'w-full flex items-center gap-3 px-3 h-12 rounded-[8px] text-sm font-medium transition-all duration-100 relative overflow-hidden',
                       active
-                        ? 'bg-[var(--accent-bg)] text-[var(--accent-text)]'
+                        ? 'bg-[var(--accent-bg)] text-[var(--accent-text)] font-semibold border-l-4 border-[var(--accent)] rounded-l-none'
                         : 'text-[var(--text-3)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)]'
                     )}
                   >

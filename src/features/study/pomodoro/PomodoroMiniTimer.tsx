@@ -39,7 +39,7 @@ export function PomodoroMiniTimer() {
   return (
     <div
       className={cn(
-        'fixed bottom-20 right-4 z-50',
+        'fixed bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] right-4 z-50',
         'lg:bottom-6 lg:right-6',
       )}
     >

@@ -12,7 +12,7 @@ interface FABProps {
 
 export function FAB({ onClick, label, extended = false, icon, className }: FABProps) {
   return (
-    <div className="fixed bottom-20 right-4 z-50">
+    <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-4 z-50">
       <button
         onClick={onClick}
         className={cn(

@@ -44,7 +44,7 @@ export function TopBar({ onMenuClick, rightContent, className }: TopBarProps) {
   return (
     <header
       className={cn(
-        'sticky top-0 z-20 flex items-center justify-between h-14 px-4 shrink-0',
+        'sticky top-0 z-20 flex items-center justify-between h-[calc(3.5rem+env(safe-area-inset-top,0px))] pt-[env(safe-area-inset-top,0px)] px-4 shrink-0',
         'bg-[var(--bg)] border-b border-[var(--border)]',
         className
       )}

@@ -22,8 +22,8 @@ export default function App() {
 
     // Initialize Native UI Styles
     if (Capacitor.isNativePlatform()) {
-      StatusBar.setStyle({ style: Style.Dark }).catch(err => console.error(err))
-      StatusBar.setBackgroundColor({ color: '#0a0a0f' }).catch(err => console.error(err))
+      StatusBar.setStyle({ style: Style.Light }).catch(err => console.error(err))
+      StatusBar.setBackgroundColor({ color: '#ffffff' }).catch(err => console.error(err))
     }
   }, [])
 

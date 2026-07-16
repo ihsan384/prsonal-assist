@@ -396,7 +396,7 @@ function NoteEditorScreen({ note, onClose, onSave }: {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[var(--bg)] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[100] bg-[var(--bg)] flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
       <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--border)] shrink-0">
         <button onClick={onClose} className="flex items-center gap-2 text-sm text-[var(--text-3)] hover:text-[var(--text)] transition-colors">
           <ArrowLeft size={16} /> Back

@@ -180,20 +180,24 @@ export default function SleepPage() {
             <SectionHeader title="This Week" subtitle={`Avg ${avgSleep.toFixed(1)}h per night`} />
             <Card>
               <div className="flex items-end gap-2 h-24 pt-4">
-                {[...sleepLogs].slice(0, 7).reverse().map((log, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <div
-                      className="w-full rounded-lg transition-all"
-                      style={{
-                        height: `${(log.durationHours / sleepGoal) * 60}px`,
-                        backgroundColor: qualityColors[log.quality] ?? 'var(--accent)',
-                        opacity: 0.7 + (i === Math.min(sleepLogs.length, 7) - 1 ? 0.3 : 0),
-                        minHeight: 8,
-                      }}
-                    />
-                    <span className="text-[9px] text-[var(--text-3)] font-semibold uppercase">{log.date.slice(0, 3)}</span>
-                  </div>
-                ))}
+                {[...sleepLogs].slice(0, 7).reverse().map((log, i) => {
+                  const maxVal = Math.max(sleepGoal, ...weekData)
+                  const heightPct = Math.round((log.durationHours / maxVal) * 100)
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <div
+                        className="w-full rounded-lg transition-all"
+                        style={{
+                          height: `${heightPct}%`,
+                          backgroundColor: qualityColors[log.quality] ?? 'var(--accent)',
+                          opacity: 0.7 + (i === Math.min(sleepLogs.length, 7) - 1 ? 0.3 : 0),
+                          minHeight: 8,
+                        }}
+                      />
+                      <span className="text-[9px] text-[var(--text-3)] font-semibold uppercase">{log.date.slice(0, 3)}</span>
+                    </div>
+                  )
+                })}
               </div>
               <div className="flex gap-3 mt-3 text-[10px] flex-wrap">
                 {Object.entries(qualityColors).map(([q, c]) => (
