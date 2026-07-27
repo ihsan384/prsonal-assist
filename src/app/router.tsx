@@ -1,7 +1,20 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { CardSkeleton } from '@/components/ui/Skeleton'
+
+// Lazy-loaded Auth & Role pages
+const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
+const UserManagementPage = lazy(() => import('@/features/admin/UserManagementPage'))
+const WorkspacePage = lazy(() => import('@/features/workspace/WorkspacePage'))
+const ClientPortalPage = lazy(() => import('@/features/client/ClientPortalPage'))
+
+// Legacy/Module Portal views (preserved for Gym module)
+const AdminDashboardPage = lazy(() => import('@/features/admin/AdminDashboardPage'))
+const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionDashboard'))
+const TrainerDashboard = lazy(() => import('@/features/trainer/TrainerDashboard'))
+const MemberDashboard = lazy(() => import('@/features/member/MemberDashboard'))
 
 // Lazy-loaded top level pages
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'))
@@ -29,7 +42,6 @@ const DiagnosticsPage = lazy(() => import('@/features/settings/DiagnosticsPage')
 const SyncQueuePage = lazy(() => import('@/features/settings/SyncQueuePage'))
 const SpotifyCallbackPage = lazy(() => import('@/features/settings/SpotifyCallbackPage'))
 const NotebookLMHubPage = lazy(() => import('@/features/knowledge/NotebookLMHubPage'))
-
 
 // Study ERP sub-routes
 const StudyLayout = lazy(() => import('@/features/study/layout/StudyLayout').then(m => ({ default: m.StudyLayout })))
@@ -69,11 +81,47 @@ function withSuspense(Component: React.LazyExoticComponent<() => React.ReactElem
 
 const router = createBrowserRouter([
   {
+    path: '/login',
+    element: withSuspense(LoginPage),
+  },
+  {
     path: '/',
     element: <AppLayout />,
     children: [
       { index: true, element: withSuspense(DashboardPage) },
-      
+
+      // Personal ERP Role-based Protected Routes
+      {
+        path: 'admin/users',
+        element: (
+          <ProtectedRoute allowedRoles={['owner', 'admin']}>
+            {withSuspense(UserManagementPage)}
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'workspace',
+        element: (
+          <ProtectedRoute allowedRoles={['owner', 'admin', 'employee']}>
+            {withSuspense(WorkspacePage)}
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'client',
+        element: (
+          <ProtectedRoute allowedRoles={['owner', 'admin', 'employee', 'client']}>
+            {withSuspense(ClientPortalPage)}
+          </ProtectedRoute>
+        ),
+      },
+
+      // Gym Module Sub-routes (Decoupled from Core Auth)
+      { path: 'admin/dashboard', element: withSuspense(AdminDashboardPage) },
+      { path: 'reception', element: withSuspense(ReceptionDashboard) },
+      { path: 'trainer', element: withSuspense(TrainerDashboard) },
+      { path: 'member', element: withSuspense(MemberDashboard) },
+
       // Study ERP Nested Sub-routes
       {
         path: 'study',
@@ -93,8 +141,8 @@ const router = createBrowserRouter([
           { path: 'formulas', element: withSuspense(FormulaBookPage) },
           { path: 'notes', element: withSuspense(NotesPage) },
           { path: 'calendar', element: withSuspense(StudyCalendar) },
-          { path: 'stats', element: withSuspense(StatsPage) }
-        ]
+          { path: 'stats', element: withSuspense(StatsPage) },
+        ],
       },
 
       { path: 'tasks', element: withSuspense(TasksPage) },

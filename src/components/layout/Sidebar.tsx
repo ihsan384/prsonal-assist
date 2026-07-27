@@ -2,9 +2,10 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, CheckSquare, Repeat2, Dumbbell,
   Utensils, Moon, Target, Library, Wallet, BarChart2,
-  Settings, User, BookMarked, Flame,
+  Settings, User, BookMarked, Flame, Shield, LogIn, Users, Briefcase, FolderKanban
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
+import { useAuth } from '@/contexts/AuthContext'
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -22,14 +23,10 @@ const navItems = [
   { path: '/motivation', icon: Flame, label: 'Motivation' },
 ]
 
-const bottomItems = [
-  { path: '/settings', icon: Settings, label: 'Settings' },
-  { path: '/profile', icon: User, label: 'Profile' },
-]
-
 export function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { isAuthenticated, role, profile } = useAuth()
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
@@ -39,19 +36,70 @@ export function Sidebar() {
       {/* Logo */}
       <div className="px-4 py-4 border-b border-[var(--border)]">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-[8px] bg-[var(--accent)] flex items-center justify-center">
+          <div className="w-7 h-7 rounded-[8px] bg-gradient-to-tr from-primary-600 to-blue-500 flex items-center justify-center">
             <span className="text-white text-xs font-bold">I</span>
           </div>
           <div>
-            <p className="text-sm font-semibold text-[var(--text)] leading-none">Ihsan OS</p>
-            <p className="text-[10px] text-[var(--text-4)] mt-0.5">Personal OS</p>
+            <p className="text-sm font-bold text-[var(--text)] leading-none">Ihsan OS</p>
+            <p className="text-[10px] text-[var(--text-4)] mt-0.5">
+              {isAuthenticated ? `Role: ${role.toUpperCase()}` : 'Personal ERP'}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-3 overflow-y-auto">
-        {navItems.map(item => {
+        {/* Role Portal Shortcuts if Authenticated */}
+        {isAuthenticated && (role === 'owner' || role === 'admin') && (
+          <div className="mb-2 pb-2 border-b border-[var(--border)]">
+            <button
+              onClick={() => navigate('/admin/users')}
+              className={cn(
+                'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-sm font-semibold transition-all duration-100',
+                isActive('/admin/users')
+                  ? 'bg-purple-500/10 text-purple-600'
+                  : 'text-purple-500 hover:bg-purple-500/10'
+              )}
+            >
+              <Users size={16} /> User Management
+            </button>
+          </div>
+        )}
+
+        {isAuthenticated && role === 'employee' && (
+          <div className="mb-2 pb-2 border-b border-[var(--border)]">
+            <button
+              onClick={() => navigate('/workspace')}
+              className={cn(
+                'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-sm font-semibold transition-all duration-100',
+                isActive('/workspace')
+                  ? 'bg-amber-500/10 text-amber-600'
+                  : 'text-amber-500 hover:bg-amber-500/10'
+              )}
+            >
+              <Briefcase size={16} /> Workspace
+            </button>
+          </div>
+        )}
+
+        {isAuthenticated && role === 'client' && (
+          <div className="mb-2 pb-2 border-b border-[var(--border)]">
+            <button
+              onClick={() => navigate('/client')}
+              className={cn(
+                'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-sm font-semibold transition-all duration-100',
+                isActive('/client')
+                  ? 'bg-emerald-500/10 text-emerald-600'
+                  : 'text-emerald-500 hover:bg-emerald-500/10'
+              )}
+            >
+              <FolderKanban size={16} /> Client Portal
+            </button>
+          </div>
+        )}
+
+        {navItems.map((item) => {
           const active = isActive(item.path)
           return (
             <button
@@ -72,25 +120,46 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom */}
-      <div className="px-2 py-3 border-t border-[var(--border)]">
-        {bottomItems.map(item => {
-          const active = isActive(item.path)
-          return (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={cn(
-                'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-sm font-medium transition-all duration-100 mb-0.5',
-                active
-                  ? 'bg-[var(--accent-bg)] text-[var(--accent-text)]'
-                  : 'text-[var(--text-3)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)]'
-              )}
-            >
-              <item.icon size={15} />
-              {item.label}
-            </button>
-          )
-        })}
+      <div className="px-2 py-3 border-t border-[var(--border)] space-y-1">
+        <button
+          onClick={() => navigate('/settings')}
+          className={cn(
+            'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-sm font-medium transition-all duration-100',
+            isActive('/settings')
+              ? 'bg-[var(--accent-bg)] text-[var(--accent-text)]'
+              : 'text-[var(--text-3)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)]'
+          )}
+        >
+          <Settings size={15} />
+          Settings
+        </button>
+
+        {isAuthenticated ? (
+          <button
+            onClick={() => navigate('/profile')}
+            className={cn(
+              'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-sm font-medium transition-all duration-100',
+              isActive('/profile')
+                ? 'bg-[var(--accent-bg)] text-[var(--accent-text)]'
+                : 'text-[var(--text-3)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)]'
+            )}
+          >
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Profile" className="w-4 h-4 rounded-full object-cover" />
+            ) : (
+              <User size={15} />
+            )}
+            Profile
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate('/login')}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] text-sm font-semibold bg-primary-500/10 text-primary-600 hover:bg-primary-500/20 transition-colors"
+          >
+            <LogIn size={15} />
+            Sign In / Register
+          </button>
+        )}
       </div>
     </aside>
   )
