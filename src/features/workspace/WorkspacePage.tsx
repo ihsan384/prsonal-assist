@@ -10,7 +10,13 @@ export default function WorkspacePage() {
   const navigate = useNavigate()
 
   return (
-    <PageWrapper title="Employee Workspace" subtitle="Assigned Operations & Workspace Tools">
+    <PageWrapper>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--text)]">Employee Workspace</h1>
+        <p className="text-sm text-[var(--text-3)]">Assigned Operations & Workspace Tools</p>
+      </div>
+
       {/* Header Info */}
       <Card className="mb-6 p-6 border-amber-500/20 bg-amber-500/5 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">

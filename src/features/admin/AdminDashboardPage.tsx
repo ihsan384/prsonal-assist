@@ -1,4 +1,4 @@
-import { useNavigate } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ShieldCheck, Users, Dumbbell, Wallet, BarChart3, Settings, LogOut, ArrowRight, UserPlus } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
@@ -11,7 +11,13 @@ export default function AdminDashboardPage() {
   const { profile, logout } = useAuth()
 
   return (
-    <PageWrapper title="Admin Control Center" subtitle="Comprehensive management for Gym ERP">
+    <PageWrapper>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--text)]">Admin Control Center</h1>
+        <p className="text-sm text-[var(--text-3)]">Comprehensive management for Gym ERP</p>
+      </div>
+
       {/* Welcome Banner */}
       <Card className="mb-6 p-6 bg-gradient-to-r from-purple-900/30 via-indigo-900/20 to-[var(--card-bg)] border border-purple-500/20 relative overflow-hidden">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
@@ -63,7 +69,7 @@ export default function AdminDashboardPage() {
           </div>
           <h3 className="text-lg font-bold text-[var(--text)] mb-1">User Management</h3>
           <p className="text-xs text-[var(--text-3)]">
-            Manage authenticated users, roles (admin, receptionist, trainer, member), and profile links.
+            Manage authenticated users, roles (owner, admin, employee, client), and profile information.
           </p>
         </Card>
 

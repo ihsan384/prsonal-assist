@@ -10,7 +10,13 @@ export default function ClientPortalPage() {
   const navigate = useNavigate()
 
   return (
-    <PageWrapper title="Client Portal" subtitle="Access your projects, files, invoices, and shared resources">
+    <PageWrapper>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--text)]">Client Portal</h1>
+        <p className="text-sm text-[var(--text-3)]">Access your projects, files, invoices, and shared resources</p>
+      </div>
+
       {/* Header Info */}
       <Card className="mb-6 p-6 border-emerald-500/20 bg-emerald-500/5 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">

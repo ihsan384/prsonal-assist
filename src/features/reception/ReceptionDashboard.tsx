@@ -6,23 +6,38 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useAuth } from '@/contexts/AuthContext'
-import { authService } from '@/services/auth/authService'
-import { useToast } from '@/contexts/ToastContext'
+import { useToastContext } from '@/contexts/ToastContext'
+import { supabase } from '@/services/supabase/supabase'
 import type { GymMember } from '@/types/auth.types'
 
 export default function ReceptionDashboard() {
   const { profile, logout } = useAuth()
-  const toast = useToast()
+  const { toast } = useToastContext()
   const [members, setMembers] = useState<GymMember[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [checkedInIds, setCheckedInIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    authService.getAllMembers()
-      .then(setMembers)
-      .catch((err) => console.error('Failed to load members:', err))
-      .finally(() => setLoading(false))
+    async function loadMembers() {
+      try {
+        const { data, error } = await supabase
+          .from('members')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error('Failed to load members:', error)
+        } else if (data) {
+          setMembers(data as GymMember[])
+        }
+      } catch (err) {
+        console.error('Failed to load members:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadMembers()
   }, [])
 
   const handleCheckIn = (member: GymMember) => {
@@ -36,7 +51,13 @@ export default function ReceptionDashboard() {
   )
 
   return (
-    <PageWrapper title="Reception Desk" subtitle="Member Check-In, Attendance & Registration">
+    <PageWrapper>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--text)]">Reception Desk</h1>
+        <p className="text-sm text-[var(--text-3)]">Member Check-In, Attendance & Registration</p>
+      </div>
+
       {/* Header Info */}
       <Card className="mb-6 p-6 border-blue-500/20 bg-blue-500/5 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -45,7 +66,7 @@ export default function ReceptionDashboard() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-[var(--text)]">{profile?.full_name || 'Reception Staff'}</h2>
-            <p className="text-xs text-[var(--text-3)]">Role: RECEPTIONIST</p>
+            <p className="text-xs text-[var(--text-3)]">Role: {profile?.role?.toUpperCase()}</p>
           </div>
         </div>
         <Button onClick={logout} variant="outline" className="gap-2 text-xs">

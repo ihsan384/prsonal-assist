@@ -1,4 +1,4 @@
-import { useNavigate } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   User, Dumbbell, Utensils, CalendarCheck, CreditCard, ShieldCheck,
@@ -12,10 +12,16 @@ import { useAuth } from '@/contexts/AuthContext'
 
 export default function MemberDashboard() {
   const navigate = useNavigate()
-  const { profile, member, logout } = useAuth()
+  const { profile, logout } = useAuth()
 
   return (
-    <PageWrapper title="Member Portal" subtitle="Your gym membership, workout routines, and attendance">
+    <PageWrapper>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--text)]">Member Portal</h1>
+        <p className="text-sm text-[var(--text-3)]">Your gym membership, workout routines, and attendance</p>
+      </div>
+
       {/* Profile Overview Card */}
       <Card className="mb-8 p-6 bg-gradient-to-r from-emerald-950/30 via-teal-950/20 to-[var(--card-bg)] border border-emerald-500/20 relative overflow-hidden">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
@@ -54,38 +60,21 @@ export default function MemberDashboard() {
         </div>
       </Card>
 
-      {/* Member Linking Alert / Membership Status */}
-      {member ? (
-        <Card className="mb-8 p-6 border-emerald-500/20 bg-emerald-500/10">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="text-emerald-500 shrink-0" size={24} />
-              <div>
-                <h3 className="text-base font-bold text-[var(--text)]">Linked Gym Member Account</h3>
-                <p className="text-xs text-[var(--text-2)]">
-                  Plan: <strong className="text-[var(--text)]">{member.membership_type}</strong> | Joined:{' '}
-                  <strong className="text-[var(--text)]">{member.joined_date}</strong>
-                </p>
-              </div>
-            </div>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-sm">
-              Status: {member.membership_status}
-            </span>
-          </div>
-        </Card>
-      ) : (
-        <Card className="mb-8 p-6 border-amber-500/30 bg-amber-500/10">
-          <div className="flex items-start gap-4">
-            <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={24} />
+      {/* Account Status */}
+      <Card className="mb-8 p-6 border-emerald-500/20 bg-emerald-500/10">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="text-emerald-500 shrink-0" size={24} />
             <div>
-              <h3 className="text-base font-bold text-amber-500">Member Record Not Linked</h3>
-              <p className="text-xs text-[var(--text-2)] mt-1 leading-relaxed">
-                Your authenticated profile is active. Please ask a gym receptionist or administrator to link your profile to your active gym membership record.
+              <h3 className="text-base font-bold text-[var(--text)]">Active Personal ERP Profile</h3>
+              <p className="text-xs text-[var(--text-2)]">
+                Email: <strong className="text-[var(--text)]">{profile?.email}</strong> | Role:{' '}
+                <strong className="text-[var(--text)]">{profile?.role?.toUpperCase()}</strong>
               </p>
             </div>
           </div>
-        </Card>
-      )}
+        </div>
+      </Card>
 
       {/* Access Cards */}
       <h3 className="text-lg font-bold text-[var(--text)] mb-4 flex items-center gap-2">

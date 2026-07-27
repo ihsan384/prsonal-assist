@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Sparkles, Mail, Lock, User, ArrowRight, Loader2, AlertCircle, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { useToast } from '@/contexts/ToastContext'
+import { useToastContext } from '@/contexts/ToastContext'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import type { UserRole } from '@/types/auth.types'
@@ -12,7 +12,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { isAuthenticated, role, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth()
-  const toast = useToast()
+  const { toast } = useToastContext()
 
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')

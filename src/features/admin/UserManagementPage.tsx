@@ -9,11 +9,11 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { authService } from '@/services/auth/authService'
-import { useToast } from '@/contexts/ToastContext'
+import { useToastContext } from '@/contexts/ToastContext'
 import type { UserProfile, UserRole } from '@/types/auth.types'
 
 export default function UserManagementPage() {
-  const toast = useToast()
+  const { toast } = useToastContext()
   const [profiles, setProfiles] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -104,10 +104,15 @@ export default function UserManagementPage() {
   }
 
   return (
-    <PageWrapper
-      title="User Management"
-      subtitle="Manage authenticated users, assign roles (owner, admin, employee, client), and soft-disable accounts"
-    >
+    <PageWrapper>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--text)]">User Management</h1>
+        <p className="text-sm text-[var(--text-3)]">
+          Manage authenticated users, assign roles (owner, admin, employee, client), and soft-disable accounts
+        </p>
+      </div>
+
       {/* Controls Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3 flex-1">

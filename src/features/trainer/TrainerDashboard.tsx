@@ -10,7 +10,13 @@ export default function TrainerDashboard() {
   const { profile, logout } = useAuth()
 
   return (
-    <PageWrapper title="Trainer Portal" subtitle="Workout Plans & Diet Program Management">
+    <PageWrapper>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--text)]">Trainer Portal</h1>
+        <p className="text-sm text-[var(--text-3)]">Workout Plans & Diet Program Management</p>
+      </div>
+
       {/* Header Info */}
       <Card className="mb-6 p-6 border-amber-500/20 bg-amber-500/5 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -19,7 +25,7 @@ export default function TrainerDashboard() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-[var(--text)]">{profile?.full_name || 'Personal Trainer'}</h2>
-            <p className="text-xs text-[var(--text-3)]">Role: TRAINER</p>
+            <p className="text-xs text-[var(--text-3)]">Role: {profile?.role?.toUpperCase()}</p>
           </div>
         </div>
         <Button onClick={logout} variant="outline" className="gap-2 text-xs">

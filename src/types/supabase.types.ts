@@ -568,6 +568,84 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          is_disabled: boolean
+          phone: string | null
+          role: 'owner' | 'admin' | 'employee' | 'client'
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          is_disabled?: boolean
+          phone?: string | null
+          role?: 'owner' | 'admin' | 'employee' | 'client'
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          is_disabled?: boolean
+          phone?: string | null
+          role?: 'owner' | 'admin' | 'employee' | 'client'
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      members: {
+        Row: {
+          created_at: string
+          email: string | null
+          end_date: string | null
+          full_name: string
+          id: string
+          joined_date: string
+          membership_status: string
+          membership_type: string
+          phone: string | null
+          profile_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          end_date?: string | null
+          full_name: string
+          id?: string
+          joined_date?: string
+          membership_status?: string
+          membership_type?: string
+          phone?: string | null
+          profile_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          end_date?: string | null
+          full_name?: string
+          id?: string
+          joined_date?: string
+          membership_status?: string
+          membership_type?: string
+          phone?: string | null
+          profile_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       motivation_notes: {
         Row: {
           category: string
