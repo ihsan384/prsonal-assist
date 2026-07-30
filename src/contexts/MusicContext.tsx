@@ -9,6 +9,8 @@ export interface ActiveTrack {
   embedUrl: string
   type: 'spotify' | 'audio' | 'youtube'
   category?: string
+  spotifyEmbedUrl?: string
+  youtubeEmbedUrl?: string
 }
 
 interface MusicContextType {
@@ -16,62 +18,93 @@ interface MusicContextType {
   isPlaying: boolean
   isMinimized: boolean
   playTrack: (track: { title: string; artist?: string; url: string; category?: string; type?: 'spotify' | 'audio' | 'youtube' }) => void
+  switchToFullSongMode: () => void
+  switchToSpotifyMode: () => void
   closePlayer: () => void
   toggleMinimize: () => void
-  formatSpotifyEmbedUrl: (urlOrUri: string) => { embedUrl: string; type: 'spotify' | 'audio' | 'youtube' }
+  formatSpotifyEmbedUrl: (urlOrUri: string, title?: string, artist?: string) => { embedUrl: string; type: 'spotify' | 'audio' | 'youtube'; spotifyEmbedUrl?: string; youtubeEmbedUrl?: string }
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined)
 
-export function formatSpotifyEmbedUrl(urlOrUri: string): { embedUrl: string; type: 'spotify' | 'audio' | 'youtube' } {
+export function formatSpotifyEmbedUrl(
+  urlOrUri: string,
+  title?: string,
+  artist?: string
+): {
+  embedUrl: string
+  type: 'spotify' | 'audio' | 'youtube'
+  spotifyEmbedUrl?: string
+  youtubeEmbedUrl?: string
+} {
   if (!urlOrUri) return { embedUrl: '', type: 'spotify' }
 
   const trimmed = urlOrUri.trim()
 
-  // YouTube URL format
+  // 1. YouTube URL format
   const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)
   if (ytMatch && ytMatch[1]) {
+    const ytUrl = `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&enablejsapi=1`
     return {
-      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&enablejsapi=1`,
+      embedUrl: ytUrl,
       type: 'youtube',
+      youtubeEmbedUrl: ytUrl,
     }
   }
 
-  // Spotify URI format: spotify:track:id or spotify:playlist:id
-  if (trimmed.startsWith('spotify:')) {
-    const parts = trimmed.split(':')
-    if (parts.length >= 3) {
-      const mediaType = parts[1] // track, playlist, album, episode, show
-      const mediaId = parts[2]
-      return {
-        embedUrl: `https://open.spotify.com/embed/${mediaType}/${mediaId}?utm_source=generator`,
-        type: 'spotify',
-      }
-    }
-  }
+  // 2. Spotify URL or URI
+  if (trimmed.includes('open.spotify.com') || trimmed.startsWith('spotify:')) {
+    let spotEmbed = ''
+    let isSingleTrack = false
 
-  // Spotify Web URL format: https://open.spotify.com/track/id...
-  if (trimmed.includes('open.spotify.com')) {
-    try {
-      const urlObj = new URL(trimmed)
-      const pathname = urlObj.pathname // e.g. /track/4cOdK... or /embed/track/4cOdK...
-      if (pathname.includes('/embed/')) {
-        return { embedUrl: trimmed, type: 'spotify' }
+    if (trimmed.startsWith('spotify:')) {
+      const parts = trimmed.split(':')
+      if (parts.length >= 3) {
+        spotEmbed = `https://open.spotify.com/embed/${parts[1]}/${parts[2]}?utm_source=generator`
+        isSingleTrack = parts[1] === 'track'
       }
-      const cleanPath = pathname.startsWith('/') ? pathname.slice(1) : pathname
-      return {
-        embedUrl: `https://open.spotify.com/embed/${cleanPath}?utm_source=generator`,
-        type: 'spotify',
-      }
-    } catch {
-      // Fallback regex if URL parsing fails
-      const match = trimmed.match(/open\.spotify\.com\/(track|playlist|album|artist|episode|show)\/([a-zA-Z0-9]+)/)
-      if (match) {
-        return {
-          embedUrl: `https://open.spotify.com/embed/${match[1]}/${match[2]}?utm_source=generator`,
-          type: 'spotify',
+    } else {
+      try {
+        const urlObj = new URL(trimmed)
+        const pathname = urlObj.pathname
+        if (pathname.includes('/embed/')) {
+          spotEmbed = trimmed
+          isSingleTrack = pathname.includes('/track/')
+        } else {
+          const cleanPath = pathname.startsWith('/') ? pathname.slice(1) : pathname
+          spotEmbed = `https://open.spotify.com/embed/${cleanPath}?utm_source=generator`
+          isSingleTrack = pathname.includes('/track/')
+        }
+      } catch {
+        const match = trimmed.match(/open\.spotify\.com\/(track|playlist|album|artist|episode|show)\/([a-zA-Z0-9]+)/)
+        if (match) {
+          spotEmbed = `https://open.spotify.com/embed/${match[1]}/${match[2]}?utm_source=generator`
+          isSingleTrack = match[1] === 'track'
         }
       }
+    }
+
+    const searchQuery = [title, artist].filter(Boolean).join(' ')
+    const ytEmbed = searchQuery
+      ? `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(searchQuery)}&autoplay=1`
+      : ''
+
+    // If it's a single Spotify track, standard embeds are limited to 30s previews by Spotify.
+    // Default to YouTube Full Song embed so the user gets 100% full song playback directly inside ERP!
+    if (isSingleTrack && ytEmbed) {
+      return {
+        embedUrl: ytEmbed,
+        type: 'youtube',
+        spotifyEmbedUrl: spotEmbed,
+        youtubeEmbedUrl: ytEmbed,
+      }
+    }
+
+    return {
+      embedUrl: spotEmbed || trimmed,
+      type: 'spotify',
+      spotifyEmbedUrl: spotEmbed,
+      youtubeEmbedUrl: ytEmbed,
     }
   }
 
@@ -103,14 +136,16 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   }, [currentTrack])
 
   const playTrack = (track: { title: string; artist?: string; url: string; category?: string; type?: 'spotify' | 'audio' | 'youtube' }) => {
-    const { embedUrl, type } = formatSpotifyEmbedUrl(track.url)
+    const { embedUrl, type, spotifyEmbedUrl, youtubeEmbedUrl } = formatSpotifyEmbedUrl(track.url, track.title, track.artist)
     const activeTrack: ActiveTrack = {
       title: track.title,
       artist: track.artist || 'Unknown Artist',
       url: track.url,
-      embedUrl,
+      embedUrl: track.type === 'spotify' && spotifyEmbedUrl ? spotifyEmbedUrl : embedUrl,
       type: track.type || type,
       category: track.category || 'focus',
+      spotifyEmbedUrl,
+      youtubeEmbedUrl,
     }
     setCurrentTrack(activeTrack)
     setIsPlaying(true)
@@ -119,6 +154,31 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     // Attempt remote full playback if connected
     if (activeTrack.type === 'spotify' && spotifyService.isConnected()) {
       spotifyService.playUriRemote(track.url).catch(err => console.warn(err))
+    }
+  }
+
+  const switchToFullSongMode = () => {
+    if (!currentTrack) return
+    const searchQuery = [currentTrack.title, currentTrack.artist].filter(Boolean).join(' ')
+    const ytEmbed = currentTrack.youtubeEmbedUrl || (searchQuery ? `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(searchQuery)}&autoplay=1` : '')
+    if (ytEmbed) {
+      setCurrentTrack({
+        ...currentTrack,
+        embedUrl: ytEmbed,
+        type: 'youtube',
+      })
+    }
+  }
+
+  const switchToSpotifyMode = () => {
+    if (!currentTrack) return
+    const spotEmbed = currentTrack.spotifyEmbedUrl || formatSpotifyEmbedUrl(currentTrack.url, currentTrack.title, currentTrack.artist).spotifyEmbedUrl || currentTrack.url
+    if (spotEmbed) {
+      setCurrentTrack({
+        ...currentTrack,
+        embedUrl: spotEmbed,
+        type: 'spotify',
+      })
     }
   }
 
@@ -138,6 +198,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         isPlaying,
         isMinimized,
         playTrack,
+        switchToFullSongMode,
+        switchToSpotifyMode,
         closePlayer,
         toggleMinimize,
         formatSpotifyEmbedUrl,

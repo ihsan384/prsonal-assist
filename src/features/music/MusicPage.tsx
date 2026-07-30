@@ -26,7 +26,7 @@ const CATEGORY_MAP = {
 
 export default function MusicPage() {
   const toast = useToast()
-  const { currentTrack, playTrack } = useMusic()
+  const { currentTrack, playTrack, switchToFullSongMode, switchToSpotifyMode } = useMusic()
 
   // State collections
   const [songs, setSongs] = useState<CustomSong[]>(() => musicStorage.getAll())
@@ -202,21 +202,31 @@ export default function MusicPage() {
                       <div className="flex items-center gap-2 text-left">
                         <Sparkles size={16} className="text-red-400 shrink-0" />
                         <div>
-                          <p className="text-xs font-bold text-[var(--text)]">Full Song Streaming (YouTube)</p>
+                          <p className="text-xs font-bold text-[var(--text)]">Full Song Mode Active (YouTube Stream)</p>
                           <p className="text-[11px] text-[var(--text-3)]">
-                            Playing full song/video stream without 30-second preview restrictions.
+                            Streaming 100% full track directly inside Ihsan OS ERP.
                           </p>
                         </div>
                       </div>
 
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => window.open(currentTrack.url, '_blank')}
-                        className="gap-1.5 text-xs bg-red-600 hover:bg-red-500 text-white"
-                      >
-                        <ExternalLink size={14} /> Open Full Video on YouTube
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={switchToSpotifyMode}
+                          className="gap-1.5 text-xs text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                        >
+                          Spotify Widget
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => window.open(currentTrack.url, '_blank')}
+                          className="gap-1.5 text-xs bg-red-600 hover:bg-red-500 text-white"
+                        >
+                          <ExternalLink size={14} /> Open Full Video
+                        </Button>
+                      </div>
                     </div>
                   </>
                 ) : currentTrack.type === 'spotify' ? (
@@ -240,8 +250,8 @@ export default function MusicPage() {
                           <p className="text-xs font-bold text-[var(--text)]">Full Song Streaming Options</p>
                           <p className="text-[11px] text-[var(--text-3)]">
                             {spotifyConnected
-                              ? 'Connected to Spotify. Click below to stream full track on your Spotify app.'
-                              : 'Spotify standard embed limits single tracks to 30s previews. Click to play full song in Spotify or YouTube.'}
+                              ? 'Connected to Spotify. Click below to stream full track or play Full Song stream.'
+                              : 'Spotify embeds restrict single tracks to 30s. Click "Play Full Song in ERP" to listen to 100% full song!'}
                           </p>
                         </div>
                       </div>
@@ -250,26 +260,19 @@ export default function MusicPage() {
                         <Button
                           variant="primary"
                           size="sm"
-                          onClick={() => window.open(currentTrack.url, '_blank')}
-                          className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white"
+                          onClick={switchToFullSongMode}
+                          className="gap-1.5 text-xs bg-red-600 hover:bg-red-500 text-white"
                         >
-                          <ExternalLink size={14} /> Open Full Song in Spotify
+                          <Play size={14} /> Play Full Song in ERP
                         </Button>
 
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() =>
-                            window.open(
-                              `https://www.youtube.com/results?search_query=${encodeURIComponent(
-                                currentTrack.title + ' ' + (currentTrack.artist || '')
-                              )}`,
-                              '_blank'
-                            )
-                          }
-                          className="gap-1.5 text-xs text-red-400 border-red-500/30 hover:bg-red-500/10"
+                          onClick={() => window.open(currentTrack.url, '_blank')}
+                          className="gap-1.5 text-xs text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
                         >
-                          <ExternalLink size={14} /> Full Song on YouTube
+                          <ExternalLink size={14} /> Open in Spotify
                         </Button>
 
                         {!spotifyConnected && (

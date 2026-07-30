@@ -1,10 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Music, X, Minimize2, Maximize2, ExternalLink, Play } from 'lucide-react'
+import { Music, X, Minimize2, Maximize2, ExternalLink, Play, Sparkles } from 'lucide-react'
 import { useMusic } from '@/contexts/MusicContext'
-import { Button } from '@/components/ui/Button'
 
 export function FloatingMusicPlayer() {
-  const { currentTrack, isMinimized, toggleMinimize, closePlayer } = useMusic()
+  const { currentTrack, isMinimized, toggleMinimize, closePlayer, switchToFullSongMode, switchToSpotifyMode } = useMusic()
 
   if (!currentTrack) return null
 
@@ -20,7 +19,7 @@ export function FloatingMusicPlayer() {
         {/* Header bar */}
         <div className="flex items-center justify-between px-3.5 py-2 bg-[var(--bg-subtle)] border-b border-[var(--border)]">
           <div className="flex items-center gap-2 min-w-0 pr-2">
-            <div className="w-6 h-6 rounded-md bg-[#1DB954]/15 text-[#1DB954] flex items-center justify-center shrink-0">
+            <div className={`w-6 h-6 rounded-md ${currentTrack.type === 'youtube' ? 'bg-red-500/15 text-red-400' : 'bg-[#1DB954]/15 text-[#1DB954]'} flex items-center justify-center shrink-0`}>
               <Music size={13} className="animate-pulse" />
             </div>
             <div className="truncate text-left">
@@ -28,7 +27,7 @@ export function FloatingMusicPlayer() {
                 {currentTrack.title}
               </p>
               <p className="text-[10px] text-[var(--text-3)] truncate">
-                {currentTrack.artist || 'Spotify Music'}
+                {currentTrack.artist || 'Music Stream'}
               </p>
             </div>
           </div>
@@ -39,7 +38,7 @@ export function FloatingMusicPlayer() {
               target="_blank"
               rel="noopener noreferrer"
               className="p-1 rounded-md text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--bg-hover)] transition-colors"
-              title="Open in Spotify"
+              title="Open Original Link"
             >
               <ExternalLink size={13} />
             </a>
@@ -52,7 +51,7 @@ export function FloatingMusicPlayer() {
             </button>
             <button
               onClick={closePlayer}
-              className="p-1 rounded-md text-[var(--text-3)] hover:text-[var(--error)] hover:bg-[var(--bg-hover)] transition-colors"
+              className="p-1 rounded-md text-[var(--text-4)] hover:text-red-400 hover:bg-[var(--bg-hover)] transition-colors"
               title="Close Player"
             >
               <X size={13} />
@@ -96,6 +95,32 @@ export function FloatingMusicPlayer() {
                 />
               </div>
             )}
+
+            {/* Mode Switcher Bar */}
+            <div className="flex items-center justify-between gap-1 px-1 mt-2 text-[10px]">
+              <span className="text-[var(--text-3)] flex items-center gap-1">
+                <Sparkles size={11} className={currentTrack.type === 'youtube' ? 'text-red-400' : 'text-emerald-400'} />
+                {currentTrack.type === 'youtube' ? 'Full Song Stream' : 'Spotify Widget'}
+              </span>
+              <div className="flex items-center gap-1">
+                {currentTrack.type !== 'youtube' && (
+                  <button
+                    onClick={switchToFullSongMode}
+                    className="px-2 py-0.5 rounded bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-colors font-medium"
+                  >
+                    Switch to Full Song
+                  </button>
+                )}
+                {currentTrack.type !== 'spotify' && (
+                  <button
+                    onClick={switchToSpotifyMode}
+                    className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors font-medium"
+                  >
+                    Spotify Widget
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </motion.div>
