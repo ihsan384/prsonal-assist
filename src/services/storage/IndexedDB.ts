@@ -247,25 +247,24 @@ export class IndexedDBService {
    * Batch put multiple records in a single transaction for performance
    */
   async putBatch<T extends { id: string }>(storeName: StoreName, records: T[]): Promise<void> {
-    if (records.length === 0) return
+    if (!records || records.length === 0) return
     const db = await this.getDB()
     return new Promise<void>((resolve, reject) => {
       try {
         const transaction = db.transaction(storeName, 'readwrite')
         const store = transaction.objectStore(storeName)
 
-        let count = 0
         for (const record of records) {
-          const request = store.put(record)
-          request.onerror = () => reject(request.error)
-          count++
-          if (count === records.length) {
-            request.onsuccess = () => resolve()
+          if (!record || typeof record !== 'object') continue
+          if (!record.id) {
+            (record as any).id = `id_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`
           }
+          store.put(record)
         }
 
-        transaction.onerror = () => reject(transaction.error)
         transaction.oncomplete = () => resolve()
+        transaction.onerror = () => reject(transaction.error)
+        transaction.onabort = () => reject(transaction.error || new Error(`Transaction aborted on store ${storeName}`))
       } catch (err) {
         reject(err)
       }

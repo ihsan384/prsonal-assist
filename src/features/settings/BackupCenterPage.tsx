@@ -79,11 +79,15 @@ export default function BackupCenterPage() {
   useEffect(() => { backupService.autoBackup = autoBackup }, [autoBackup])
   useEffect(() => { backupService.backupFrequency = frequency }, [frequency])
 
+  const [isPasteModalOpen, setIsPasteModalOpen] = useState(false)
+  const [pasteText, setPasteText] = useState('')
+  const [isRestoringText, setIsRestoringText] = useState(false)
+
   async function handleCreate() {
     setIsCreating(true)
     try {
       const { json, entry } = await backupService.createAndSaveBackup()
-      downloadFile(json, `ihsanos_backup_${new Date().toISOString().split('T')[0]}.json`, 'application/json')
+      await backupService.downloadFile(json, `ihsanos_backup_${new Date().toISOString().split('T')[0]}.json`, 'application/json')
       await loadHistory()
       toast.success('Backup created and downloaded.', entry.label)
     } catch (err) {
@@ -97,7 +101,7 @@ export default function BackupCenterPage() {
     try {
       // Re-export fresh data (we don't store the full JSON in IDB — only metadata)
       const json = await backupService.exportBackup()
-      downloadFile(json, `ihsanos_backup_${entry.createdAt.split('T')[0]}.json`, 'application/json')
+      await backupService.downloadFile(json, `ihsanos_backup_${entry.createdAt.split('T')[0]}.json`, 'application/json')
       toast.success('Backup downloaded.')
     } catch (err) {
       toast.error('Download failed.', String(err))
@@ -123,12 +127,31 @@ export default function BackupCenterPage() {
         await backupService.importBackup(text)
         toast.success('Backup restored! Reloading...')
         setTimeout(() => window.location.reload(), 1500)
-      } catch (err) {
-        toast.error('Import failed.', String(err))
+      } catch (err: any) {
+        toast.error('Import failed.', err?.message || String(err))
       }
+    }
+    reader.onerror = () => {
+      toast.error('File read error.', 'Unable to read selected backup file.')
     }
     reader.readAsText(file)
     e.target.value = ''
+  }
+
+  async function handleRestorePastedJson(e: React.FormEvent) {
+    e.preventDefault()
+    if (!pasteText.trim()) return
+    setIsRestoringText(true)
+    try {
+      await backupService.importBackup(pasteText)
+      toast.success('Backup restored successfully! Reloading page...')
+      setIsPasteModalOpen(false)
+      setTimeout(() => window.location.reload(), 1500)
+    } catch (err: any) {
+      toast.error('Restore Failed', err?.message || String(err))
+    } finally {
+      setIsRestoringText(false)
+    }
   }
 
   async function handleExportCSV(module: keyof BackupData['data']) {
@@ -139,30 +162,18 @@ export default function BackupCenterPage() {
       return
     }
     const csv = backupService.exportCSV(module, data)
-    downloadFile(csv, `ihsanos_${module}_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv')
+    await backupService.downloadFile(csv, `ihsanos_${module}_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv')
     toast.success(`${module} exported as CSV.`)
   }
 
   async function handleExportFullJSON() {
     try {
       const json = await backupService.exportBackup()
-      downloadFile(json, `ihsanos_full_${new Date().toISOString().split('T')[0]}.json`, 'application/json')
+      await backupService.downloadFile(json, `ihsanos_full_${new Date().toISOString().split('T')[0]}.json`, 'application/json')
       toast.success('Full JSON export downloaded.')
     } catch (err) {
       toast.error('Export failed.', String(err))
     }
-  }
-
-  function downloadFile(content: string, filename: string, mimeType: string) {
-    const blob = new Blob([content], { type: mimeType })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
   }
 
   return (
@@ -193,7 +204,15 @@ export default function BackupCenterPage() {
               icon={<Upload size={14} />}
               onClick={handleImportClick}
             >
-              Import Backup
+              Import File
+            </Button>
+            <Button
+              variant="secondary"
+              fullWidth
+              icon={<FileText size={14} />}
+              onClick={() => setIsPasteModalOpen(true)}
+            >
+              Paste JSON Text
             </Button>
             <Button
               variant="secondary"
@@ -363,6 +382,35 @@ export default function BackupCenterPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Paste JSON Backup Modal */}
+      <Modal
+        isOpen={isPasteModalOpen}
+        onClose={() => setIsPasteModalOpen(false)}
+        title="Paste Backup JSON Content"
+      >
+        <form onSubmit={handleRestorePastedJson} className="flex flex-col gap-4 text-left">
+          <p className="text-xs text-[var(--text-3)]">
+            Paste raw JSON text from a previous backup file to restore your entire database.
+          </p>
+          <textarea
+            rows={8}
+            className="w-full p-3 font-mono text-xs rounded-xl bg-[var(--bg-subtle)] border border-[var(--border)] text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+            placeholder='{"version":"2.0.0", "data": { ... }}'
+            value={pasteText}
+            onChange={e => setPasteText(e.target.value)}
+            required
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setIsPasteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" loading={isRestoringText}>
+              Restore Data
+            </Button>
+          </div>
+        </form>
       </Modal>
     </PageWrapper>
   )

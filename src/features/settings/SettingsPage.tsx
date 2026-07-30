@@ -131,18 +131,14 @@ export default function SettingsPage() {
   const handleExportBackup = async () => {
     try {
       const backupJSON = await backupService.exportBackup()
-      const blob = new Blob([backupJSON], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `ihsanos_backup_${new Date().toISOString().split('T')[0]}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await backupService.downloadFile(
+        backupJSON,
+        `ihsanos_backup_${new Date().toISOString().split('T')[0]}.json`,
+        'application/json'
+      )
       toast.success('Backup file generated and downloaded successfully.')
-    } catch (err) {
-      toast.error('Failed to generate backup file.')
+    } catch (err: any) {
+      toast.error('Failed to generate backup file.', err?.message || String(err))
       console.error(err)
     }
   }
@@ -164,12 +160,16 @@ export default function SettingsPage() {
         setTimeout(() => {
           window.location.reload()
         }, 1500)
-      } catch (err) {
-        toast.error('Failed to import backup. Please verify the JSON file is correct.')
+      } catch (err: any) {
+        toast.error('Import Failed', err?.message || 'Please verify the JSON file is correct.')
         console.error(err)
       }
     }
+    reader.onerror = () => {
+      toast.error('File Read Error', 'Unable to read selected backup file.')
+    }
     reader.readAsText(file)
+    e.target.value = ''
   }
 
   const handleLocalWipe = async (e: React.FormEvent) => {

@@ -1,6 +1,8 @@
 import { idb, STORES } from './IndexedDB'
 import { memoryStore } from './MemoryStore'
+import { musicStorage } from './music.storage'
 import { generateId } from '@/utils/format'
+import { Capacitor } from '@capacitor/core'
 
 export interface BackupData {
   version: string
@@ -33,6 +35,27 @@ export interface BackupData {
     mistakes: any[]
     formulas: any[]
     notes: any[]
+
+    // Reflection & Motivation
+    reflectionEntries?: any[]
+    motivationQuotes?: any[]
+    motivationNotes?: any[]
+    motivationCollections?: any[]
+    customMotivationCategories?: any[]
+
+    // Integrations & Health Connect
+    integrationSettings?: any[]
+    integrationLogs?: any[]
+    notebooks?: any[]
+    healthRecords?: any[]
+
+    // Android Productivity Features
+    attachments?: any[]
+    notificationSchedules?: any[]
+    notificationHistory?: any[]
+
+    // Custom Songs
+    customSongs?: any[]
   }
 }
 
@@ -76,7 +99,7 @@ export const backupService = {
 
   /**
    * Export all data as a backup JSON string.
-   * Reads fresh from IndexedDB to guarantee the export is complete.
+   * Reads fresh from MemoryStore and storage services to guarantee a complete export.
    */
   async exportBackup(): Promise<string> {
     await memoryStore.init()
@@ -86,31 +109,48 @@ export const backupService = {
       appName: 'Ihsan OS',
       timestamp: new Date().toISOString(),
       data: {
-        tasks: memoryStore.tasks,
-        habits: memoryStore.habits,
-        goals: memoryStore.goals,
-        workouts: memoryStore.workouts,
-        meals: memoryStore.meals,
-        sleepLogs: memoryStore.sleepLogs,
-        knowledge: memoryStore.knowledge,
-        transactions: memoryStore.transactions,
-        budgets: memoryStore.budgets,
-        waterLogs: memoryStore.waterLogs,
-        settings: memoryStore.settings,
-        profile: memoryStore.profile,
-        nutritionGoals: memoryStore.nutritionGoals,
-        studySessions: memoryStore.studySessions,
+        tasks: memoryStore.tasks || [],
+        habits: memoryStore.habits || [],
+        goals: memoryStore.goals || [],
+        workouts: memoryStore.workouts || [],
+        meals: memoryStore.meals || [],
+        sleepLogs: memoryStore.sleepLogs || [],
+        knowledge: memoryStore.knowledge || [],
+        transactions: memoryStore.transactions || [],
+        budgets: memoryStore.budgets || [],
+        waterLogs: memoryStore.waterLogs || {},
+        settings: memoryStore.settings || {},
+        profile: memoryStore.profile || {},
+        nutritionGoals: memoryStore.nutritionGoals || {},
+        studySessions: memoryStore.studySessions || [],
 
-        subjects: memoryStore.subjects,
-        chapters: memoryStore.chapters,
-        topics: memoryStore.topics,
-        sessions: memoryStore.sessions,
-        revisions: memoryStore.revisions,
-        questions: memoryStore.questions,
-        tests: memoryStore.tests,
-        mistakes: memoryStore.mistakes,
-        formulas: memoryStore.formulas,
-        notes: memoryStore.notes,
+        subjects: memoryStore.subjects || [],
+        chapters: memoryStore.chapters || [],
+        topics: memoryStore.topics || [],
+        sessions: memoryStore.sessions || [],
+        revisions: memoryStore.revisions || [],
+        questions: memoryStore.questions || [],
+        tests: memoryStore.tests || [],
+        mistakes: memoryStore.mistakes || [],
+        formulas: memoryStore.formulas || [],
+        notes: memoryStore.notes || [],
+
+        reflectionEntries: memoryStore.reflectionEntries || [],
+        motivationQuotes: memoryStore.motivationQuotes || [],
+        motivationNotes: memoryStore.motivationNotes || [],
+        motivationCollections: memoryStore.motivationCollections || [],
+        customMotivationCategories: memoryStore.customMotivationCategories || [],
+
+        integrationSettings: memoryStore.integrationSettings || [],
+        integrationLogs: memoryStore.integrationLogs || [],
+        notebooks: memoryStore.notebooks || [],
+        healthRecords: memoryStore.healthRecords || [],
+
+        attachments: memoryStore.attachments || [],
+        notificationSchedules: memoryStore.notificationSchedules || [],
+        notificationHistory: memoryStore.notificationHistory || [],
+
+        customSongs: musicStorage.getAll() || [],
       },
     }
 
@@ -119,15 +159,10 @@ export const backupService = {
 
   // ── Backup History ──────────────────────────────────────────────────────
 
-  /**
-   * Save a backup and persist its metadata to the BACKUP_HISTORY store.
-   * Returns the JSON string and the history entry.
-   */
   async createAndSaveBackup(label?: string): Promise<{ json: string; entry: BackupHistoryEntry }> {
     const json = await this.exportBackup()
     const sizeBytes = new Blob([json]).size
 
-    // Count total records
     let recordCount = 0
     try {
       const parsed = JSON.parse(json) as BackupData
@@ -151,9 +186,6 @@ export const backupService = {
     return { json, entry }
   },
 
-  /**
-   * Retrieve all backup history entries, newest first.
-   */
   async getBackupHistory(): Promise<BackupHistoryEntry[]> {
     try {
       const all = await idb.getAll<BackupHistoryEntry>(STORES.BACKUP_HISTORY)
@@ -163,25 +195,17 @@ export const backupService = {
     }
   },
 
-  /**
-   * Delete a single backup history entry by ID.
-   */
   async deleteBackupEntry(id: string): Promise<void> {
     await idb.delete(STORES.BACKUP_HISTORY, id)
   },
 
   // ── Auto-backup Check ───────────────────────────────────────────────────
 
-  /**
-   * Run auto-backup if enabled and the frequency interval has elapsed.
-   * Safe to call on app startup.
-   */
   async runAutoBackupIfDue(): Promise<void> {
     if (!this.autoBackup) return
 
     const last = this.lastBackupTime
     if (!last) {
-      // No backup ever taken — take one now
       await this.createAndSaveBackup('Auto Backup (First Run)')
       return
     }
@@ -195,34 +219,43 @@ export const backupService = {
     }
   },
 
-  // ── Import ──────────────────────────────────────────────────────────────
+  // ── Import & Restore ───────────────────────────────────────────────────
 
   /**
    * Import data from JSON backup string and restore into memory/IndexedDB.
-   * All restored records are marked pendingSync = true so they get pushed to
-   * Supabase on next connection.
+   * Flexible parser that accepts full v1/v2 backups, raw data objects, or text.
    */
   async importBackup(jsonString: string): Promise<void> {
-    const raw = JSON.parse(jsonString)
-
-    if (!raw.version || !raw.data) {
-      throw new Error('Invalid backup file format: missing version or data fields.')
+    if (!jsonString || typeof jsonString !== 'string') {
+      throw new Error('Import failed: Empty or invalid file content.')
     }
 
-    if (!SUPPORTED_VERSIONS.includes(raw.version)) {
-      throw new Error(`Unsupported backup version "${raw.version}". Supported: ${SUPPORTED_VERSIONS.join(', ')}`)
+    // Sanitize string (strip UTF-8 BOM, trim whitespace)
+    let cleanString = jsonString.trim().replace(/^\uFEFF/, '')
+
+    let raw: any
+    try {
+      raw = JSON.parse(cleanString)
+    } catch (err: any) {
+      throw new Error(`JSON syntax error: Unable to parse backup file. (${err.message})`)
     }
 
-    const backup = raw as BackupData
-    const { data } = backup
+    // Flexible data extraction
+    const data: BackupData['data'] = raw.data ? raw.data : (raw.tasks || raw.habits || raw.subjects ? raw : null)
+
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid backup structure: No valid ERP collections found in file.')
+    }
+
     const now = new Date().toISOString()
 
-    await idb.clearAll()
-    memoryStore.clearMemory()
-
+    // Helper to format & validate records before storage
     function prepareRecord(record: any): any {
+      if (!record || typeof record !== 'object') return null
+      const id = record.id ?? generateId()
       return {
         ...record,
+        id,
         pendingSync: true,
         lastSyncedAt: null,
         updatedAt: record.updatedAt ?? now,
@@ -232,6 +265,11 @@ export const backupService = {
       }
     }
 
+    // Clear existing database and memory cache
+    await idb.clearAll()
+    memoryStore.clearMemory()
+
+    // Restore Singular Settings / Profile
     if (data.settings) {
       const settings = prepareRecord({ id: 'app_settings', ...data.settings })
       memoryStore.settings = settings
@@ -250,6 +288,7 @@ export const backupService = {
       await idb.put(STORES.NUTRITION_GOALS, nutrGoals)
     }
 
+    // Restore All Collection Arrays
     const arrayRestores: Array<{ memKey: keyof typeof memoryStore; store: typeof STORES[keyof typeof STORES]; list: any[] }> = [
       { memKey: 'tasks', store: STORES.TASKS, list: data.tasks ?? [] },
       { memKey: 'habits', store: STORES.HABITS, list: data.habits ?? [] },
@@ -261,6 +300,7 @@ export const backupService = {
       { memKey: 'transactions', store: STORES.TRANSACTIONS, list: data.transactions ?? [] },
       { memKey: 'budgets', store: STORES.BUDGETS, list: data.budgets ?? [] },
       { memKey: 'studySessions', store: STORES.STUDY_SESSIONS, list: data.studySessions ?? [] },
+
       { memKey: 'subjects', store: STORES.SUBJECTS, list: data.subjects ?? [] },
       { memKey: 'chapters', store: STORES.CHAPTERS, list: data.chapters ?? [] },
       { memKey: 'topics', store: STORES.TOPICS, list: data.topics ?? [] },
@@ -271,15 +311,31 @@ export const backupService = {
       { memKey: 'mistakes', store: STORES.MISTAKES, list: data.mistakes ?? [] },
       { memKey: 'formulas', store: STORES.FORMULAS, list: data.formulas ?? [] },
       { memKey: 'notes', store: STORES.NOTES, list: data.notes ?? [] },
+
+      { memKey: 'reflectionEntries', store: STORES.REFLECTION_ENTRIES, list: data.reflectionEntries ?? [] },
+      { memKey: 'motivationQuotes', store: STORES.MOTIVATION_QUOTES, list: data.motivationQuotes ?? [] },
+      { memKey: 'motivationNotes', store: STORES.MOTIVATION_NOTES, list: data.motivationNotes ?? [] },
+      { memKey: 'motivationCollections', store: STORES.MOTIVATION_COLLECTIONS, list: data.motivationCollections ?? [] },
+      { memKey: 'customMotivationCategories', store: STORES.CUSTOM_MOTIVATION_CATEGORIES, list: data.customMotivationCategories ?? [] },
+
+      { memKey: 'integrationSettings', store: STORES.INTEGRATION_SETTINGS, list: data.integrationSettings ?? [] },
+      { memKey: 'integrationLogs', store: STORES.INTEGRATION_LOGS, list: data.integrationLogs ?? [] },
+      { memKey: 'notebooks', store: STORES.NOTEBOOKS, list: data.notebooks ?? [] },
+      { memKey: 'healthRecords', store: STORES.HEALTH_RECORDS, list: data.healthRecords ?? [] },
+
+      { memKey: 'attachments', store: STORES.ATTACHMENTS, list: data.attachments ?? [] },
+      { memKey: 'notificationSchedules', store: STORES.NOTIFICATION_SCHEDULES, list: data.notificationSchedules ?? [] },
+      { memKey: 'notificationHistory', store: STORES.NOTIFICATION_HISTORY, list: data.notificationHistory ?? [] },
     ]
 
     for (const { memKey, store, list } of arrayRestores) {
-      if (!Array.isArray(list)) continue
-      const preparedList = list.map(prepareRecord)
+      if (!Array.isArray(list) || list.length === 0) continue
+      const preparedList = list.map(prepareRecord).filter(Boolean)
       ;(memoryStore as any)[memKey] = preparedList
       await idb.putBatch(store, preparedList)
     }
 
+    // Restore Water Logs
     if (data.waterLogs && typeof data.waterLogs === 'object') {
       memoryStore.waterLogs = data.waterLogs
       const waterEntries = Object.entries(data.waterLogs).map(([date, ml]) => ({
@@ -294,22 +350,73 @@ export const backupService = {
       }))
       await idb.putBatch(STORES.WATER_LOGS, waterEntries)
     }
+
+    // Restore Custom Songs if present
+    if (Array.isArray(data.customSongs) && data.customSongs.length > 0) {
+      const preparedSongs = data.customSongs.map(prepareRecord).filter(Boolean)
+      try {
+        localStorage.setItem('ihsanos_custom_music_library', JSON.stringify(preparedSongs))
+      } catch { /* ignore */ }
+    }
+
+    // Force re-initialize MemoryStore
+    await memoryStore.init()
+  },
+
+  // ── Universal Cross-Platform File Downloader ───────────────────────────
+
+  /**
+   * Universal downloader for JSON & CSV files. Works on Web & Capacitor Native.
+   */
+  async downloadFile(content: string, filename: string, mimeType: string): Promise<void> {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
+        const { Share } = await import('@capacitor/share')
+
+        // Write file to native cache
+        const result = await Filesystem.writeFile({
+          path: filename,
+          data: content,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        })
+
+        // Prompt native share dialog to save/export file
+        await Share.share({
+          title: `Export ${filename}`,
+          url: result.uri,
+          dialogTitle: 'Save or Share Backup File',
+        })
+        return
+      } catch (err) {
+        console.warn('[BackupService] Native file export fallback to web blob:', err)
+      }
+    }
+
+    // Standard Web Browser Download
+    const blob = new Blob([content], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   },
 
   // ── CSV Export ──────────────────────────────────────────────────────────
 
-  /**
-   * Export a specific data module as CSV.
-   * Returns a CSV string.
-   */
   exportCSV(_module: keyof BackupData['data'], data: any[]): string {
     if (!Array.isArray(data) || data.length === 0) return ''
 
-    // Collect all unique keys across all records (omitting sync metadata)
     const skipKeys = new Set(['pendingSync', 'lastSyncedAt', 'deleted', 'syncVersion'])
     const allKeys = Array.from(
       data.reduce((set, row) => {
-        Object.keys(row).forEach(k => { if (!skipKeys.has(k)) set.add(k) })
+        if (row && typeof row === 'object') {
+          Object.keys(row).forEach(k => { if (!skipKeys.has(k)) set.add(k) })
+        }
         return set
       }, new Set<string>())
     ) as string[]
@@ -327,9 +434,6 @@ export const backupService = {
     return [header, ...rows].join('\n')
   },
 
-  /**
-   * Returns the formatted backup timestamp from a JSON string without parsing the whole file
-   */
   getBackupTimestamp(jsonString: string): string | null {
     try {
       const partial = JSON.parse(jsonString) as Partial<BackupData>
