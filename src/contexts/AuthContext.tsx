@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '@/services/supabase/supabase'
 import { authService } from '@/services/auth/authService'
+import { memoryStore } from '@/services/storage/MemoryStore'
+import { storage } from '@/services/storage/storageService'
 import type { UserProfile, UserRole } from '@/types/auth.types'
 
 interface AuthContextType {
@@ -10,6 +12,8 @@ interface AuthContextType {
   loading: boolean
   isAuthenticated: boolean
   isDisabled: boolean
+  osName: string
+  userFirstName: string
   signInWithGoogle: () => Promise<void>
   signInWithEmail: (email: string, pass: string) => Promise<void>
   signUpWithEmail: (email: string, pass: string, fullName: string) => Promise<void>
@@ -28,12 +32,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!authUser) {
       setUser(null)
       setProfile(null)
+      storage.setUserId('guest')
+      await memoryStore.switchUser('guest')
       setLoading(false)
       return
     }
 
     try {
       setUser(authUser)
+      storage.setUserId(authUser.id)
+      await memoryStore.switchUser(authUser.id)
       const userProfile = await authService.fetchOrCreateProfile(authUser)
       setProfile(userProfile)
     } catch (err) {
@@ -52,7 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           loadUserData(session.user)
         } else {
-          setLoading(false)
+          memoryStore.switchUser('guest').finally(() => {
+            if (isMounted) setLoading(false)
+          })
         }
       }
     })
@@ -67,6 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (event === 'SIGNED_OUT') {
           setUser(null)
           setProfile(null)
+          storage.setUserId('guest')
+          await memoryStore.switchUser('guest')
           setLoading(false)
         }
       }
@@ -127,6 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null)
       setProfile(null)
+      storage.setUserId('guest')
+      await memoryStore.switchUser('guest')
       setLoading(false)
     }
   }
@@ -134,6 +148,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const role: UserRole = profile?.role || 'client'
   const isAuthenticated = !!user
   const isDisabled = profile?.is_disabled ?? false
+
+  const rawName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || (user?.email ? user.email.split('@')[0] : '')
+  const formattedFirstName = rawName ? rawName.trim().split(' ')[0] : 'Ihsan'
+  const userFirstName = formattedFirstName ? formattedFirstName.charAt(0).toUpperCase() + formattedFirstName.slice(1) : 'Ihsan'
+  const osName = rawName ? `${userFirstName} OS` : 'Ihsan OS'
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = osName
+    }
+  }, [osName])
 
   return (
     <AuthContext.Provider
@@ -144,6 +169,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         isAuthenticated,
         isDisabled,
+        osName,
+        userFirstName,
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,

@@ -82,6 +82,50 @@ class MemoryStoreService {
 
 
 
+  async switchUser(userId: string | null): Promise<void> {
+    this.isLoaded = false
+    this.loadPromise = null
+
+    // Reset collections
+    this.tasks = []
+    this.habits = []
+    this.goals = []
+    this.workouts = []
+    this.meals = []
+    this.sleepLogs = []
+    this.knowledge = []
+    this.transactions = []
+    this.budgets = []
+    this.studySessions = []
+    this.waterLogs = {}
+    this.subjects = []
+    this.chapters = []
+    this.topics = []
+    this.sessions = []
+    this.revisions = []
+    this.questions = []
+    this.tests = []
+    this.mistakes = []
+    this.formulas = []
+    this.notes = []
+    this.reflectionEntries = []
+    this.motivationQuotes = []
+    this.motivationNotes = []
+    this.motivationCollections = []
+    this.customMotivationCategories = []
+    this.integrationSettings = []
+    this.integrationLogs = []
+    this.notebooks = []
+    this.healthRecords = []
+    this.attachments = []
+    this.conflicts = []
+    this.notificationSchedules = []
+    this.notificationHistory = []
+
+    await idb.switchUser(userId)
+    await this.init()
+  }
+
   async init(): Promise<void> {
     if (this.isLoaded) return
     if (this.loadPromise) return this.loadPromise

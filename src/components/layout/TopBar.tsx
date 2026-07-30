@@ -21,6 +21,7 @@ const PAGE_TITLES: Record<string, string> = {
 }
 
 import { SyncIndicator } from '../ui/SyncIndicator'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface TopBarProps {
   onMenuClick?: () => void
@@ -31,14 +32,15 @@ interface TopBarProps {
 export function TopBar({ onMenuClick, rightContent, className }: TopBarProps) {
   const location = useLocation()
   const navigate = useNavigate()
+  const { osName } = useAuth()
   
   // Match path prefix, e.g. /study/subjects or /study
-  let title = 'Ihsan OS'
+  let title = osName
   const path = location.pathname
   if (path.startsWith('/study')) {
     title = 'Study ERP'
   } else {
-    title = PAGE_TITLES[path] ?? 'Ihsan OS'
+    title = PAGE_TITLES[path] ?? osName
   }
 
   return (

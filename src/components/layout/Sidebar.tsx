@@ -26,7 +26,7 @@ const navItems = [
 export function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, role, profile } = useAuth()
+  const { isAuthenticated, role, profile, osName } = useAuth()
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
@@ -37,10 +37,10 @@ export function Sidebar() {
       <div className="px-4 py-4 border-b border-[var(--border)]">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-[8px] bg-gradient-to-tr from-primary-600 to-blue-500 flex items-center justify-center">
-            <span className="text-white text-xs font-bold">I</span>
+            <span className="text-white text-xs font-bold">{osName.charAt(0)}</span>
           </div>
           <div>
-            <p className="text-sm font-bold text-[var(--text)] leading-none">Ihsan OS</p>
+            <p className="text-sm font-bold text-[var(--text)] leading-none">{osName}</p>
             <p className="text-[10px] text-[var(--text-4)] mt-0.5">
               {isAuthenticated ? `Role: ${role.toUpperCase()}` : 'Personal ERP'}
             </p>

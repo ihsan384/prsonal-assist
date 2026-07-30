@@ -6,6 +6,7 @@ import {
   Settings, User, X, BookMarked, Flame,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
+import { useAuth } from '@/contexts/AuthContext'
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -36,6 +37,7 @@ interface MobileDrawerProps {
 export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { osName } = useAuth()
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
@@ -48,19 +50,19 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          {/* Backdrop */}
+        <>
+          {/* Overlay */}
           <motion.div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-xs"
           />
 
-          {/* Drawer Panel */}
+          {/* Drawer */}
           <motion.aside
-            className="absolute top-0 left-0 bottom-0 w-72 bg-[var(--bg)] border-r border-[var(--border)] flex flex-col h-full shadow-lg pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+            className="fixed top-0 bottom-0 left-0 z-50 w-64 bg-[var(--bg)] border-r border-[var(--border)] flex flex-col lg:hidden"
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
@@ -70,10 +72,10 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
             <div className="px-4 h-14 flex items-center justify-between border-b border-[var(--border)]">
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-[8px] bg-[var(--accent)] flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">I</span>
+                  <span className="text-white text-xs font-bold">{osName.charAt(0)}</span>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[var(--text)] leading-none">Ihsan OS</p>
+                  <p className="text-sm font-semibold text-[var(--text)] leading-none">{osName}</p>
                   <p className="text-[10px] text-[var(--text-4)] mt-0.5">Personal OS</p>
                 </div>
               </div>
@@ -129,7 +131,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               })}
             </div>
           </motion.aside>
-        </div>
+        </>
       )}
     </AnimatePresence>
   )

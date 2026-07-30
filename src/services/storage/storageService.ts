@@ -9,6 +9,11 @@ export class StorageService {
     this.prefix = prefix
   }
 
+  setUserId(userId: string | null): void {
+    const safeId = (userId || 'guest').replace(/[^a-zA-Z0-9_-]/g, '_')
+    this.prefix = `ihsanos_${safeId}`
+  }
+
   private key(name: string): string {
     return `${this.prefix}_${name}`
   }

@@ -20,6 +20,7 @@ import type { SyncStatusType } from '@/services/sync/SyncService'
 import { backupService } from '@/services/storage/BackupService'
 import { idb } from '@/services/storage/IndexedDB'
 import { isSupabaseConfigured } from '@/services/supabase/supabase'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface ToggleProps {
   enabled: boolean
@@ -39,8 +40,9 @@ function Toggle({ enabled, onToggle }: ToggleProps) {
 }
 
 export default function SettingsPage() {
-  const toast = useToast()
   const navigate = useNavigate()
+  const toast = useToast()
+  const { osName } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Settings from local storage
@@ -243,10 +245,10 @@ export default function SettingsPage() {
         <Card>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[var(--accent)] to-blue-400 flex items-center justify-center text-white font-bold text-lg">
-              I
+              {osName.charAt(0)}
             </div>
             <div>
-              <p className="text-base font-bold text-[var(--text)]">Ihsan OS</p>
+              <p className="text-base font-bold text-[var(--text)]">{osName}</p>
               <p className="text-xs text-[var(--text-3)]">Version 1.3.0 · Offline First</p>
               <Badge variant="violet" size="sm" className="mt-1">Personal Life Operating System</Badge>
             </div>

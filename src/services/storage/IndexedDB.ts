@@ -4,7 +4,6 @@
  * Version 3: adds BACKUP_HISTORY, SYNC_LOG, ACTIVITY_LOG stores
  */
 
-const DB_NAME = 'ihsanos_db'
 const DB_VERSION = 6
 
 export const STORES = {
@@ -73,13 +72,35 @@ type StoreName = typeof STORES[keyof typeof STORES]
 export class IndexedDBService {
   private db: IDBDatabase | null = null
   private initPromise: Promise<IDBDatabase> | null = null
+  private userId: string = 'guest'
+
+  getDatabaseName(): string {
+    const safeId = (this.userId || 'guest').replace(/[^a-zA-Z0-9_-]/g, '_')
+    return `ihsanos_db_${safeId}`
+  }
+
+  async switchUser(userId: string | null): Promise<IDBDatabase> {
+    const newUserId = userId || 'guest'
+    if (this.userId === newUserId && this.db) {
+      return this.db
+    }
+    if (this.db) {
+      this.db.close()
+      this.db = null
+    }
+    this.initPromise = null
+    this.userId = newUserId
+    return this.getDB()
+  }
 
   async getDB(): Promise<IDBDatabase> {
     if (this.db) return this.db
     if (this.initPromise) return this.initPromise
 
+    const dbName = this.getDatabaseName()
+
     this.initPromise = new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION)
+      const request = indexedDB.open(dbName, DB_VERSION)
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result
@@ -291,13 +312,14 @@ export class IndexedDBService {
   }
 
   async deleteDatabase(): Promise<void> {
+    const dbName = this.getDatabaseName()
     if (this.db) {
       this.db.close()
       this.db = null
       this.initPromise = null
     }
     return new Promise<void>((resolve, reject) => {
-      const request = indexedDB.deleteDatabase(DB_NAME)
+      const request = indexedDB.deleteDatabase(dbName)
       request.onblocked = () => {
         console.warn('Database delete blocked by open connections. Falling back to clearing all stores.')
         this.clearAll().then(resolve, reject)

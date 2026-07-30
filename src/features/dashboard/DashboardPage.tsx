@@ -13,10 +13,12 @@ import { taskStorage, habitStorage, healthRecordStorage, notebookStorage } from 
 import { spotifyService } from '@/services/spotify/SpotifyService'
 import { healthConnectService } from '@/services/health/HealthConnectService'
 import { syncEngine } from '@/services/sync/SyncService'
+import { useAuth } from '@/contexts/AuthContext'
 
 
 export default function DashboardPage() {
   const navigate = useNavigate()
+  const { userFirstName } = useAuth()
   const [currentTime, setCurrentTime] = useState(new Date())
 
   // Storage states
@@ -188,7 +190,7 @@ export default function DashboardPage() {
         <div className="text-left">
           <span className="text-xs text-[var(--text-3)] font-medium uppercase tracking-wider">{dateStr}</span>
           <h1 className="text-2xl font-bold text-[var(--text)] mt-1 tracking-tight">
-            {greeting}, Ihsan
+            {greeting}, {userFirstName}
           </h1>
           <p className="text-sm text-[var(--text-3)] mt-0.5">Welcome back to your personal operating system.</p>
         </div>
