@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, BookOpen, CheckSquare, Repeat2, Dumbbell,
   Utensils, Moon, Target, Library, Wallet, BarChart2,
-  Settings, User, X, BookMarked, Flame,
+  Settings, User, X, BookMarked, Flame, Music
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useAuth } from '@/contexts/AuthContext'
@@ -22,6 +22,7 @@ const navItems = [
   { path: '/analytics', icon: BarChart2, label: 'Analytics' },
   { path: '/reflection', icon: BookMarked, label: 'Daily Reflection' },
   { path: '/motivation', icon: Flame, label: 'Motivation Center' },
+  { path: '/music', icon: Music, label: 'Spotify Music' },
 ]
 
 const bottomItems = [

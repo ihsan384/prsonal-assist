@@ -32,6 +32,7 @@ const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'))
 const NotFoundPage = lazy(() => import('@/features/common/NotFoundPage'))
 const ReflectionPage = lazy(() => import('@/features/reflection/ReflectionPage'))
 const MotivationPage = lazy(() => import('@/features/motivation/MotivationPage'))
+const MusicPage = lazy(() => import('@/features/music/MusicPage'))
 
 // Settings sub-pages
 const DatabaseHealthPage = lazy(() => import('@/features/settings/DatabaseHealthPage'))
@@ -167,6 +168,7 @@ const router = createBrowserRouter([
       { path: 'profile', element: withSuspense(ProfilePage) },
       { path: 'reflection', element: withSuspense(ReflectionPage) },
       { path: 'motivation', element: withSuspense(MotivationPage) },
+      { path: 'music', element: withSuspense(MusicPage) },
     ],
     errorElement: withSuspense(NotFoundPage),
   },

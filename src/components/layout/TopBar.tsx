@@ -18,6 +18,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/analytics': 'Analytics',
   '/settings': 'Settings',
   '/profile': 'Profile',
+  '/music': 'Spotify Music Player',
 }
 
 import { SyncIndicator } from '../ui/SyncIndicator'

@@ -7,6 +7,7 @@ import { ToastContainer } from '../ui/Toast'
 import { PWAReloadPrompt } from './PWAReloadPrompt'
 import { PomodoroProvider } from '@/features/study/pomodoro/PomodoroContext'
 import { PomodoroMiniTimer } from '@/features/study/pomodoro/PomodoroMiniTimer'
+import { FloatingMusicPlayer } from '@/components/music/FloatingMusicPlayer'
 import { useNativeBackButton } from '@/hooks/useNativeBackButton'
 
 interface AppLayoutProps {
@@ -52,6 +53,9 @@ export function AppLayout({ children }: AppLayoutProps) {
 
         {/* Floating Pomodoro Mini Timer */}
         <PomodoroMiniTimer />
+
+        {/* Floating Spotify / Music Player */}
+        <FloatingMusicPlayer />
 
         {/* Toast Notifications */}
         <ToastContainer />

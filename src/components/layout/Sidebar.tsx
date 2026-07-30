@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, CheckSquare, Repeat2, Dumbbell,
   Utensils, Moon, Target, Library, Wallet, BarChart2,
-  Settings, User, BookMarked, Flame, Shield, LogIn, Users, Briefcase, FolderKanban
+  Settings, User, BookMarked, Flame, Shield, LogIn, Users, Briefcase, FolderKanban, Music
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useAuth } from '@/contexts/AuthContext'
@@ -21,6 +21,7 @@ const navItems = [
   { path: '/analytics', icon: BarChart2, label: 'Analytics' },
   { path: '/reflection', icon: BookMarked, label: 'Reflection' },
   { path: '/motivation', icon: Flame, label: 'Motivation' },
+  { path: '/music', icon: Music, label: 'Spotify Music' },
 ]
 
 export function Sidebar() {
