@@ -63,7 +63,18 @@ export function FloatingMusicPlayer() {
         {/* Player Content Body */}
         {!isMinimized && (
           <div className="p-2 bg-black/40">
-            {currentTrack.type === 'spotify' ? (
+            {currentTrack.type === 'youtube' ? (
+              <iframe
+                src={currentTrack.embedUrl}
+                width="100%"
+                height="180"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="rounded-xl border-0 shadow-xs"
+                title={currentTrack.title}
+              />
+            ) : currentTrack.type === 'spotify' ? (
               <iframe
                 src={currentTrack.embedUrl}
                 width="100%"

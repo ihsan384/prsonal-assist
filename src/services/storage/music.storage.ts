@@ -5,8 +5,8 @@ export interface CustomSong {
   id: string
   title: string
   artist?: string
-  url: string // Spotify link, URI or direct MP3 audio URL
-  type: 'spotify' | 'audio'
+  url: string // Spotify link, YouTube URL, URI or direct MP3 audio URL
+  type: 'spotify' | 'audio' | 'youtube'
   category: 'focus' | 'workout' | 'chill' | 'custom'
   isFavorite?: boolean
   createdAt: string
@@ -17,7 +17,15 @@ const STORAGE_KEY = 'custom_music_library'
 
 const DEFAULT_PRESETS: Omit<CustomSong, 'id' | 'createdAt' | 'updatedAt'>[] = [
   {
-    title: 'Lofi Focus Beats',
+    title: 'Lofi Girl Live - 24/7 Focus Beats (Full Track)',
+    artist: 'Lofi Girl',
+    url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
+    type: 'youtube',
+    category: 'focus',
+    isFavorite: true,
+  },
+  {
+    title: 'Lofi Focus Playlist (Spotify)',
     artist: 'Spotify Chill',
     url: 'https://open.spotify.com/playlist/37i9dQZF1DWWQRwui0ExPn',
     type: 'spotify',
@@ -25,7 +33,7 @@ const DEFAULT_PRESETS: Omit<CustomSong, 'id' | 'createdAt' | 'updatedAt'>[] = [
     isFavorite: true,
   },
   {
-    title: 'Deep Focus Ambient',
+    title: 'Deep Focus Ambient Playlist',
     artist: 'Spotify Ambient',
     url: 'https://open.spotify.com/playlist/37i9dQZF1DW1s9vYBE5fQE',
     type: 'spotify',
@@ -41,7 +49,7 @@ const DEFAULT_PRESETS: Omit<CustomSong, 'id' | 'createdAt' | 'updatedAt'>[] = [
     isFavorite: false,
   },
   {
-    title: 'Workout Beast Mode',
+    title: 'Workout Beast Mode Playlist',
     artist: 'Spotify Hype',
     url: 'https://open.spotify.com/playlist/37i9dQZF1DX32v12f8pq0M',
     type: 'spotify',

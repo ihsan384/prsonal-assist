@@ -7,7 +7,7 @@ export interface ActiveTrack {
   artist?: string
   url: string
   embedUrl: string
-  type: 'spotify' | 'audio'
+  type: 'spotify' | 'audio' | 'youtube'
   category?: string
 }
 
@@ -15,18 +15,27 @@ interface MusicContextType {
   currentTrack: ActiveTrack | null
   isPlaying: boolean
   isMinimized: boolean
-  playTrack: (track: { title: string; artist?: string; url: string; category?: string; type?: 'spotify' | 'audio' }) => void
+  playTrack: (track: { title: string; artist?: string; url: string; category?: string; type?: 'spotify' | 'audio' | 'youtube' }) => void
   closePlayer: () => void
   toggleMinimize: () => void
-  formatSpotifyEmbedUrl: (urlOrUri: string) => { embedUrl: string; type: 'spotify' | 'audio' }
+  formatSpotifyEmbedUrl: (urlOrUri: string) => { embedUrl: string; type: 'spotify' | 'audio' | 'youtube' }
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined)
 
-export function formatSpotifyEmbedUrl(urlOrUri: string): { embedUrl: string; type: 'spotify' | 'audio' } {
+export function formatSpotifyEmbedUrl(urlOrUri: string): { embedUrl: string; type: 'spotify' | 'audio' | 'youtube' } {
   if (!urlOrUri) return { embedUrl: '', type: 'spotify' }
 
   const trimmed = urlOrUri.trim()
+
+  // YouTube URL format
+  const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)
+  if (ytMatch && ytMatch[1]) {
+    return {
+      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&enablejsapi=1`,
+      type: 'youtube',
+    }
+  }
 
   // Spotify URI format: spotify:track:id or spotify:playlist:id
   if (trimmed.startsWith('spotify:')) {
@@ -93,7 +102,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, [currentTrack])
 
-  const playTrack = (track: { title: string; artist?: string; url: string; category?: string; type?: 'spotify' | 'audio' }) => {
+  const playTrack = (track: { title: string; artist?: string; url: string; category?: string; type?: 'spotify' | 'audio' | 'youtube' }) => {
     const { embedUrl, type } = formatSpotifyEmbedUrl(track.url)
     const activeTrack: ActiveTrack = {
       title: track.title,

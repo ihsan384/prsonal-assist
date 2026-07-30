@@ -185,7 +185,41 @@ export default function MusicPage() {
           <div className="mt-4">
             {currentTrack ? (
               <div className="space-y-3">
-                {currentTrack.type === 'spotify' ? (
+                {currentTrack.type === 'youtube' ? (
+                  <>
+                    <div className="relative w-full aspect-video max-h-[420px] overflow-hidden rounded-2xl shadow-lg bg-black">
+                      <iframe
+                        src={currentTrack.embedUrl}
+                        title={currentTrack.title}
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+
+                    {/* YouTube Full Song Action Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                      <div className="flex items-center gap-2 text-left">
+                        <Sparkles size={16} className="text-red-400 shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-[var(--text)]">Full Song Streaming (YouTube)</p>
+                          <p className="text-[11px] text-[var(--text-3)]">
+                            Playing full song/video stream without 30-second preview restrictions.
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => window.open(currentTrack.url, '_blank')}
+                        className="gap-1.5 text-xs bg-red-600 hover:bg-red-500 text-white"
+                      >
+                        <ExternalLink size={14} /> Open Full Video on YouTube
+                      </Button>
+                    </div>
+                  </>
+                ) : currentTrack.type === 'spotify' ? (
                   <>
                     <iframe
                       src={currentTrack.embedUrl}
@@ -203,16 +237,16 @@ export default function MusicPage() {
                       <div className="flex items-center gap-2 text-left">
                         <Sparkles size={16} className="text-emerald-400 shrink-0" />
                         <div>
-                          <p className="text-xs font-bold text-[var(--text)]">Full Song Streaming</p>
+                          <p className="text-xs font-bold text-[var(--text)]">Full Song Streaming Options</p>
                           <p className="text-[11px] text-[var(--text-3)]">
                             {spotifyConnected
-                              ? 'Connected with Spotify. Launching full song remotely on your Spotify player.'
-                              : 'Embed widget is in preview mode. Click to open full song in Spotify app.'}
+                              ? 'Connected to Spotify. Click below to stream full track on your Spotify app.'
+                              : 'Spotify standard embed limits single tracks to 30s previews. Click to play full song in Spotify or YouTube.'}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Button
                           variant="primary"
                           size="sm"
@@ -222,6 +256,22 @@ export default function MusicPage() {
                           <ExternalLink size={14} /> Open Full Song in Spotify
                         </Button>
 
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() =>
+                            window.open(
+                              `https://www.youtube.com/results?search_query=${encodeURIComponent(
+                                currentTrack.title + ' ' + (currentTrack.artist || '')
+                              )}`,
+                              '_blank'
+                            )
+                          }
+                          className="gap-1.5 text-xs text-red-400 border-red-500/30 hover:bg-red-500/10"
+                        >
+                          <ExternalLink size={14} /> Full Song on YouTube
+                        </Button>
+
                         {!spotifyConnected && (
                           <Button
                             variant="secondary"
@@ -229,7 +279,7 @@ export default function MusicPage() {
                             onClick={() => spotifyService.startLoginFlow()}
                             className="gap-1.5 text-xs"
                           >
-                            <Radio size={14} /> Connect Full Streaming
+                            <Radio size={14} /> Connect Spotify
                           </Button>
                         )}
                       </div>
@@ -485,7 +535,7 @@ export default function MusicPage() {
       )}
 
       {/* Add Custom Song Modal */}
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add Custom Song or Spotify Link">
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add Custom Song, YouTube, or Spotify Link">
         <form onSubmit={handleAddSong} className="space-y-4 text-left">
           <Input
             label="Song or Playlist Title"
@@ -503,14 +553,14 @@ export default function MusicPage() {
           />
 
           <Input
-            label="Spotify URL / URI or Audio Link"
-            placeholder="e.g. https://open.spotify.com/track/... or spotify:playlist:..."
+            label="Music Link (YouTube URL, Spotify URL/URI, or Audio Stream)"
+            placeholder="e.g. https://www.youtube.com/watch?v=... or https://open.spotify.com/playlist/..."
             value={newUrl}
             onChange={e => setNewUrl(e.target.value)}
             required
           />
           <p className="text-[11px] text-[var(--text-3)] -mt-2">
-            Paste any Spotify track, playlist, album URL, or direct MP3 audio stream link.
+            Tip: For 100% full song playback without 30s preview limits, use <strong>YouTube links</strong>, <strong>Spotify playlists</strong>, or direct MP3 audio URLs!
           </p>
 
           <div>
