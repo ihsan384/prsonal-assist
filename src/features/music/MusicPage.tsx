@@ -186,16 +186,55 @@ export default function MusicPage() {
             {currentTrack ? (
               <div className="space-y-3">
                 {currentTrack.type === 'spotify' ? (
-                  <iframe
-                    src={currentTrack.embedUrl}
-                    width="100%"
-                    height="352"
-                    frameBorder="0"
-                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                    loading="lazy"
-                    className="rounded-2xl border-0 shadow-lg"
-                    title={currentTrack.title}
-                  />
+                  <>
+                    <iframe
+                      src={currentTrack.embedUrl}
+                      width="100%"
+                      height="352"
+                      frameBorder="0"
+                      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                      loading="lazy"
+                      className="rounded-2xl border-0 shadow-lg"
+                      title={currentTrack.title}
+                    />
+
+                    {/* Full Song Action Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                      <div className="flex items-center gap-2 text-left">
+                        <Sparkles size={16} className="text-emerald-400 shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-[var(--text)]">Full Song Streaming</p>
+                          <p className="text-[11px] text-[var(--text-3)]">
+                            {spotifyConnected
+                              ? 'Connected with Spotify. Launching full song remotely on your Spotify player.'
+                              : 'Embed widget is in preview mode. Click to open full song in Spotify app.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => window.open(currentTrack.url, '_blank')}
+                          className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white"
+                        >
+                          <ExternalLink size={14} /> Open Full Song in Spotify
+                        </Button>
+
+                        {!spotifyConnected && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => spotifyService.startLoginFlow()}
+                            className="gap-1.5 text-xs"
+                          >
+                            <Radio size={14} /> Connect Full Streaming
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </>
                 ) : (
                   <div className="p-6 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-2xl text-center space-y-4">
                     <div className="w-16 h-16 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] flex items-center justify-center mx-auto">

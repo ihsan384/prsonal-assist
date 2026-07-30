@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { spotifyService } from '@/services/spotify/SpotifyService'
 
 export interface ActiveTrack {
   id?: string
@@ -105,6 +106,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setCurrentTrack(activeTrack)
     setIsPlaying(true)
     setIsMinimized(false)
+
+    // Attempt remote full playback if connected
+    if (activeTrack.type === 'spotify' && spotifyService.isConnected()) {
+      spotifyService.playUriRemote(track.url).catch(err => console.warn(err))
+    }
   }
 
   const closePlayer = () => {

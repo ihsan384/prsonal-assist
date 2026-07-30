@@ -14,6 +14,8 @@ interface AuthContextType {
   isDisabled: boolean
   osName: string
   userFirstName: string
+  rememberDevice: boolean
+  setRememberDevice: (remember: boolean) => void
   signInWithGoogle: () => Promise<void>
   signInWithEmail: (email: string, pass: string) => Promise<void>
   signUpWithEmail: (email: string, pass: string, fullName: string) => Promise<void>
@@ -27,6 +29,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
+  const [rememberDevice, setRememberDeviceState] = useState<boolean>(() => {
+    return localStorage.getItem('ihsanos_remember_device') !== 'false'
+  })
+
+  const setRememberDevice = (remember: boolean) => {
+    setRememberDeviceState(remember)
+    localStorage.setItem('ihsanos_remember_device', String(remember))
+  }
 
   const loadUserData = async (authUser: any) => {
     if (!authUser) {
@@ -171,6 +181,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isDisabled,
         osName,
         userFirstName,
+        rememberDevice,
+        setRememberDevice,
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,

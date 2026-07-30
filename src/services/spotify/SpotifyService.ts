@@ -3,7 +3,7 @@ import { encryptToken, decryptToken } from '@/utils/crypto'
 import { Capacitor } from '@capacitor/core'
 
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '867c1596a947440bb28a66206509a36b'
-const SCOPES = 'user-read-recently-played playlist-read-private playlist-read-collaborative'
+const SCOPES = 'streaming user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-recently-played playlist-read-private playlist-read-collaborative'
 const CACHE_MINUTES = 20
 
 interface SpotifyTokens {
@@ -499,6 +499,58 @@ class SpotifyService {
     } catch (err) {
       console.error('[Spotify] Search failed:', err)
       return []
+    }
+  }
+
+  // Get active access token (auto-refreshing if expired)
+  async getAccessToken(): Promise<string | null> {
+    const tokens = await this.loadTokens()
+    if (!tokens) return null
+    if (Date.now() >= tokens.expiresAt) {
+      const refreshed = await this.refreshToken()
+      if (!refreshed) return null
+    }
+    return this.activeTokens?.accessToken || null
+  }
+
+  // Extracts Spotify ID from URL or URI
+  extractSpotifyId(urlOrUri: string, type: 'track' | 'playlist' | 'album' | 'show' | 'episode' = 'track'): string {
+    if (!urlOrUri) return ''
+    if (urlOrUri.startsWith('spotify:')) {
+      const parts = urlOrUri.split(':')
+      return parts[2] || parts[1] || urlOrUri
+    }
+    const match = urlOrUri.match(new RegExp(`${type}\/([a-zA-Z0-9]+)`))
+    return match ? match[1] : urlOrUri
+  }
+
+  // Triggers full song playback on user's active Spotify device/Web Playback API
+  async playUriRemote(urlOrUri: string): Promise<boolean> {
+    if (!this.isConnected()) return false
+    try {
+      let bodyPayload: any = {}
+      if (urlOrUri.includes('track')) {
+        const trackId = this.extractSpotifyId(urlOrUri, 'track')
+        bodyPayload = { uris: [`spotify:track:${trackId}`] }
+      } else if (urlOrUri.includes('playlist')) {
+        const playlistId = this.extractSpotifyId(urlOrUri, 'playlist')
+        bodyPayload = { context_uri: `spotify:playlist:${playlistId}` }
+      } else if (urlOrUri.includes('album')) {
+        const albumId = this.extractSpotifyId(urlOrUri, 'album')
+        bodyPayload = { context_uri: `spotify:album:${albumId}` }
+      } else if (urlOrUri.startsWith('spotify:')) {
+        bodyPayload = urlOrUri.includes('track') ? { uris: [urlOrUri] } : { context_uri: urlOrUri }
+      }
+
+      await this.fetchSpotify('https://api.spotify.com/v1/me/player/play', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyPayload),
+      })
+      return true
+    } catch (err) {
+      console.warn('[Spotify] Remote play failed:', err)
+      return false
     }
   }
 
