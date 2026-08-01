@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import {
   Bell, Volume2, Vibrate, Clock, Calendar,
   Palette, Trash2, BookOpen, Droplet, Moon, Flame, RefreshCw, Upload, Download, AlertTriangle,
-  RotateCcw, Database, Archive, Activity, ChevronRight
+  RotateCcw, Database, Archive, Activity, ChevronRight, User, LogOut, Shield, Sparkles, CheckCircle2
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { PageWrapper } from '@/components/layout/PageWrapper'
@@ -32,7 +32,7 @@ function Toggle({ enabled, onToggle }: ToggleProps) {
     <button
       type="button"
       onClick={onToggle}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${enabled ? 'bg-[var(--accent)]' : 'bg-[var(--border-strong)]'}`}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${enabled ? 'bg-primary-600' : 'bg-[var(--border-strong)]'}`}
     >
       <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200 ${enabled ? 'left-6' : 'left-1'}`} />
     </button>
@@ -42,7 +42,7 @@ function Toggle({ enabled, onToggle }: ToggleProps) {
 export default function SettingsPage() {
   const navigate = useNavigate()
   const toast = useToast()
-  const { osName } = useAuth()
+  const { user, profile, logout } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Settings from local storage
@@ -122,7 +122,7 @@ export default function SettingsPage() {
     toast.info('Starting synchronization...')
     await syncEngine.sync()
     if (syncEngine.status === 'failed') {
-      toast.error('Sync failed. Check your network or connection key settings.')
+      toast.error('Sync failed. Check your network connection.')
     } else {
       toast.success('Sync complete!')
     }
@@ -133,7 +133,7 @@ export default function SettingsPage() {
       const backupJSON = await backupService.exportBackup()
       await backupService.downloadFile(
         backupJSON,
-        `ihsanos_backup_${new Date().toISOString().split('T')[0]}.json`,
+        `studyerp_backup_${new Date().toISOString().split('T')[0]}.json`,
         'application/json'
       )
       toast.success('Backup file generated and downloaded successfully.')
@@ -180,13 +180,9 @@ export default function SettingsPage() {
     }
 
     try {
-      // Clear all object stores in IndexedDB
       await idb.clearAll()
-      
-      // Clear localStorage and sessionStorage
       localStorage.clear()
       sessionStorage.clear()
-      
       toast.success('All local data wiped. Resetting application...')
       setTimeout(() => {
         window.location.href = '/'
@@ -238,34 +234,254 @@ export default function SettingsPage() {
     }
   }
 
+  const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Student'
+  const userEmail = user?.email || 'student@studyerp.app'
+
   return (
     <PageWrapper>
-      {/* App Info */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+      {/* App Info Header */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <Card>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[var(--accent)] to-blue-400 flex items-center justify-center text-white font-bold text-lg">
-              {osName.charAt(0)}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-primary-600 to-blue-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-500/25">
+                <Sparkles size={24} />
+              </div>
+              <div>
+                <h1 className="text-xl font-black text-[var(--text)] tracking-tight">Study ERP</h1>
+                <p className="text-xs text-[var(--text-3)] font-medium mt-0.5">Study Management Platform · Version 13.0</p>
+              </div>
             </div>
-            <div>
-              <p className="text-base font-bold text-[var(--text)]">{osName}</p>
-              <p className="text-xs text-[var(--text-3)]">Version 1.3.0 · Offline First</p>
-              <Badge variant="violet" size="sm" className="mt-1">Personal Life Operating System</Badge>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                <CheckCircle2 size={12} /> Offline Ready
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 border border-blue-500/20">
+                <CloudSyncIcon /> Cloud Sync
+              </span>
             </div>
           </div>
         </Card>
       </motion.div>
 
-      {/* Management Pages */}
-      <div className="mb-5">
-        <SectionHeader title="Data Management" />
+      {/* ACCOUNT SECTION */}
+      <div className="mb-6">
+        <SectionHeader title="Account" />
+        <Card padding="none">
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="User Avatar" className="w-10 h-10 rounded-xl object-cover" />
+              ) : (
+                <div className="w-10 h-10 rounded-xl bg-primary-500/10 text-primary-600 flex items-center justify-center font-bold text-sm">
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-bold text-[var(--text)]">{displayName}</p>
+                <p className="text-xs text-[var(--text-3)]">{userEmail}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate('/profile')} icon={<User size={14} />}>
+                Profile
+              </Button>
+              <Button variant="ghost" size="sm" onClick={logout} icon={<LogOut size={14} className="text-red-500" />}>
+                Sign Out
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* DATA & CLOUD SYNC SECTION */}
+      <div className="mb-6">
+        <SectionHeader title="Data & Cloud Sync" />
+        <Card className="space-y-5">
+          <div>
+            <h3 className="text-sm font-bold text-[var(--text)]">Cloud Sync</h3>
+            <p className="text-xs text-[var(--text-3)] mt-0.5">
+              Keep your Study ERP data synchronized securely across your devices.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border)] flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-[var(--text-2)] uppercase tracking-wider">Sync Status</p>
+              <p className="text-sm font-bold text-[var(--text)] mt-1">
+                Status: <span className="text-primary-500 capitalize">{syncStatus}</span>
+              </p>
+              <p className="text-xs text-[var(--text-3)] mt-0.5">
+                Last synced: {formatTime(lastSyncTime)} {pendingRecords > 0 && `· ${pendingRecords} pending`}
+              </p>
+            </div>
+            <Button variant="primary" size="sm" onClick={handleManualSync} icon={<RefreshCw size={14} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />}>
+              Sync Now
+            </Button>
+          </div>
+
+          <div className="space-y-4 pt-2 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">Automatic Sync</p>
+                <p className="text-xs text-[var(--text-3)]">Sync data in the background automatically</p>
+              </div>
+              <Toggle enabled={autoSync} onToggle={() => setAutoSync(!autoSync)} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">Wi-Fi Only</p>
+                <p className="text-xs text-[var(--text-3)]">Conserve cellular bandwidth</p>
+              </div>
+              <Toggle enabled={wifiOnly} onToggle={() => setWifiOnly(!wifiOnly)} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">Background Sync</p>
+                <p className="text-xs text-[var(--text-3)]">Sync changes when app is minimized</p>
+              </div>
+              <Toggle enabled={backgroundSync} onToggle={() => setBackgroundSync(!backgroundSync)} />
+            </div>
+          </div>
+        </Card>
+
+        {/* Local Backup & Restore */}
+        <Card className="mt-4">
+          <h3 className="text-sm font-bold text-[var(--text)] mb-1">Backup & Restore</h3>
+          <p className="text-xs text-[var(--text-3)] mb-4">
+            Export a local JSON copy of your study data or restore from a backup file.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button variant="secondary" fullWidth icon={<Download size={14} />} onClick={handleExportBackup}>
+              Export Backup
+            </Button>
+            <Button variant="secondary" fullWidth icon={<Upload size={14} />} onClick={handleImportBackupClick}>
+              Import Backup
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImportBackup}
+              accept=".json"
+              className="hidden"
+            />
+          </div>
+        </Card>
+      </div>
+
+      {/* PREFERENCES SECTION */}
+      <div className="mb-6">
+        <SectionHeader title="Preferences" />
+        <Card padding="none">
+          <div className="divide-y divide-[var(--border)]">
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <div className="w-8 h-8 rounded-xl bg-primary-500/10 text-primary-500 flex items-center justify-center flex-shrink-0">
+                <Palette size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--text)]">Compact Mode</p>
+                <p className="text-xs text-[var(--text-3)]">Reduce padding in layout views</p>
+              </div>
+              <Toggle enabled={appSettings.compactMode} onToggle={() => updateSetting('compactMode', !appSettings.compactMode)} />
+            </div>
+
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <div className="w-8 h-8 rounded-xl bg-primary-500/10 text-primary-500 flex items-center justify-center flex-shrink-0">
+                <Bell size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--text)]">Notifications</p>
+                <p className="text-xs text-[var(--text-3)]">Task and study reminders</p>
+              </div>
+              <Toggle enabled={appSettings.notifications} onToggle={() => updateSetting('notifications', !appSettings.notifications)} />
+            </div>
+
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <div className="w-8 h-8 rounded-xl bg-primary-500/10 text-primary-500 flex items-center justify-center flex-shrink-0">
+                <Volume2 size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--text)]">Sound FX</p>
+                <p className="text-xs text-[var(--text-3)]">Sound effects on task completion</p>
+              </div>
+              <Toggle enabled={appSettings.soundEnabled} onToggle={() => updateSetting('soundEnabled', !appSettings.soundEnabled)} />
+            </div>
+
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <div className="w-8 h-8 rounded-xl bg-primary-500/10 text-primary-500 flex items-center justify-center flex-shrink-0">
+                <Vibrate size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--text)]">Haptic Vibration</p>
+                <p className="text-xs text-[var(--text-3)]">Tactile feedback on completion</p>
+              </div>
+              <Toggle enabled={appSettings.hapticEnabled} onToggle={() => updateSetting('hapticEnabled', !appSettings.hapticEnabled)} />
+            </div>
+
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <div className="w-8 h-8 rounded-xl bg-primary-500/10 text-primary-500 flex items-center justify-center flex-shrink-0">
+                <Calendar size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--text)]">Week Starts Monday</p>
+                <p className="text-xs text-[var(--text-3)]">Start calendar view on Monday</p>
+              </div>
+              <Toggle enabled={appSettings.weekStartsOn === 1} onToggle={() => updateSetting('weekStartsOn', appSettings.weekStartsOn === 1 ? 0 : 1)} />
+            </div>
+
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <div className="w-8 h-8 rounded-xl bg-primary-500/10 text-primary-500 flex items-center justify-center flex-shrink-0">
+                <Clock size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--text)]">24-Hour Format</p>
+                <p className="text-xs text-[var(--text-3)]">Display military time format</p>
+              </div>
+              <Toggle enabled={appSettings.timeFormat === '24h'} onToggle={() => updateSetting('timeFormat', appSettings.timeFormat === '24h' ? '12h' : '24h')} />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* INTEGRATIONS SECTION */}
+      <div className="mb-6">
+        <SectionHeader title="Integrations" />
+        <Card padding="none">
+          <div className="divide-y divide-[var(--border)]">
+            <button
+              onClick={() => navigate('/settings/integrations')}
+              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-[var(--bg-hover)] transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                  <Activity size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-[var(--text)]">External Services</p>
+                  <p className="text-xs text-[var(--text-3)]">Spotify Music, Health Connect, and NotebookLM</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-[var(--text-4)]" />
+            </button>
+          </div>
+        </Card>
+      </div>
+
+      {/* ADVANCED DIAGNOSTICS SECTION */}
+      <div className="mb-6">
+        <SectionHeader title="Advanced" />
+        <p className="text-xs text-[var(--text-3)] mb-3 -mt-2">
+          Diagnostic tools and database health utilities for troubleshooting.
+        </p>
         <Card padding="none">
           <div className="divide-y divide-[var(--border)]">
             {[
-              { label: 'Database Health', description: 'Record counts, storage & sync status', icon: Database, path: '/settings/db-health', color: 'text-[var(--accent)]', bg: 'bg-[var(--accent-bg)]' },
-              { label: 'Backup Center', description: 'Create, restore and export backups', icon: Archive, path: '/settings/backup', color: 'text-emerald-600', bg: 'bg-[var(--success-bg)]' },
-              { label: 'Sync Transaction Center', description: 'Inspect queues and resolve conflicts', icon: RefreshCw, path: '/settings/sync-queue', color: 'text-indigo-500', bg: 'bg-indigo-50' },
-              { label: 'Sync History', description: 'Log of all upload/download operations', icon: Activity, path: '/settings/sync-log', color: 'text-violet-600', bg: 'bg-violet-50' },
+              { label: 'Database Health', description: 'Record counts, storage & engine metrics', icon: Database, path: '/settings/db-health', color: 'text-primary-500', bg: 'bg-primary-500/10' },
+              { label: 'Sync Transaction Center', description: 'Inspect queues and resolve sync conflicts', icon: RefreshCw, path: '/settings/sync-queue', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+              { label: 'Sync History', description: 'Log of upload/download operations', icon: Activity, path: '/settings/sync-log', color: 'text-violet-500', bg: 'bg-violet-500/10' },
+              { label: 'Connection Diagnostics', description: 'Sync stats and token lifecycle log history', icon: Database, path: '/settings/diagnostics', color: 'text-blue-500', bg: 'bg-blue-500/10' },
             ].map(item => {
               const Icon = item.icon
               return (
@@ -289,275 +505,14 @@ export default function SettingsPage() {
         </Card>
       </div>
 
-      {/* Sync Status and Options */}
-      <div className="mb-5">
-        <SectionHeader title="Supabase Sync & Cloud" />
-        <Card>
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3.5">
-              <div>
-                <p className="text-sm font-semibold text-[var(--text)]">Sync Status</p>
-                <p className="text-xs text-[var(--text-3)] mt-0.5">
-                  Last Sync: {formatTime(lastSyncTime)} · {pendingRecords} records pending
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={
-                  syncStatus === 'synced' ? 'success' :
-                  syncStatus === 'syncing' ? 'violet' :
-                  syncStatus === 'offline' ? 'default' : 'warning'
-                }>
-                  {syncStatus.toUpperCase()}
-                </Badge>
-                <Button variant="ghost" size="icon-sm" onClick={handleManualSync} title="Sync Now">
-                  <RefreshCw size={13} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[var(--text)]">Auto Sync</p>
-                <p className="text-xs text-[var(--text-3)]">Sync data in background automatically</p>
-              </div>
-              <Toggle enabled={autoSync} onToggle={() => setAutoSync(!autoSync)} />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[var(--text)]">Sync Only on Wi-Fi</p>
-                <p className="text-xs text-[var(--text-3)]">Conserve cellular bandwidth data</p>
-              </div>
-              <Toggle enabled={wifiOnly} onToggle={() => setWifiOnly(!wifiOnly)} />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[var(--text)]">Background Sync</p>
-                <p className="text-xs text-[var(--text-3)]">Allows syncing when app is minimized</p>
-              </div>
-              <Toggle enabled={backgroundSync} onToggle={() => setBackgroundSync(!backgroundSync)} />
-            </div>
-            
-            <Button variant="primary" fullWidth icon={<RefreshCw size={14} />} onClick={handleManualSync}>
-              Sync Cloud Backup Now
-            </Button>
-          </div>
-        </Card>
-      </div>
-
-      {/* Android Native capabilities preferences */}
-      <div className="mb-5">
-        <SectionHeader title="Android OS Native Features" />
-        <Card>
-          <div className="flex flex-col gap-4 text-left">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[var(--text)]">Enable Notifications</p>
-                <p className="text-xs text-[var(--text-3)]">Receive task, study, and reflection reminders</p>
-              </div>
-              <Toggle enabled={notifEnabled} onToggle={() => setNotifEnabled(!notifEnabled)} />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[var(--text)]">Respect Quiet Hours</p>
-                <p className="text-xs text-[var(--text-3)]">Silence alerts between 10 PM and 7 AM</p>
-              </div>
-              <Toggle enabled={quietHoursEnabled} onToggle={() => setQuietHoursEnabled(!quietHoursEnabled)} />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[var(--text)]">Widget Data Synchronization</p>
-                <p className="text-xs text-[var(--text-3)]">Compile stats for Android home screen widgets</p>
-              </div>
-              <Toggle enabled={widgetsEnabled} onToggle={() => setWidgetsEnabled(!widgetsEnabled)} />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[var(--text)]">Home Screen Shortcuts</p>
-                <p className="text-xs text-[var(--text-3)]">Support Android application shortcuts on press</p>
-              </div>
-              <Toggle enabled={shortcutsEnabled} onToggle={() => setShortcutsEnabled(!shortcutsEnabled)} />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Productivity & Health Integrations */}
-      <div className="mb-5">
-        <SectionHeader title="Productivity & Health Integrations" />
-        <Card padding="none">
-          <div className="divide-y divide-[var(--border)]">
-            <button
-              onClick={() => navigate('/settings/integrations')}
-              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-[var(--bg-subtle)] transition-all cursor-pointer text-left"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0 text-[var(--accent)]">
-                  <Activity size={16} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[var(--text)]">Connections Settings</p>
-                  <p className="text-xs text-[var(--text-3)]">Spotify, Health Connect, and NotebookLM</p>
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-[var(--text-4)]" />
-            </button>
-
-            <button
-              onClick={() => navigate('/settings/diagnostics')}
-              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-[var(--bg-subtle)] transition-all cursor-pointer text-left"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0 text-[var(--accent)]">
-                  <Database size={16} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[var(--text)]">Connection Diagnostics</p>
-                  <p className="text-xs text-[var(--text-3)]">Sync stats, token lifecycle log history</p>
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-[var(--text-4)]" />
-            </button>
-          </div>
-        </Card>
-      </div>
-
-      {/* Toggle Preferences */}
-      <div className="mb-5">
-        <SectionHeader title="Preferences" />
-        <Card padding="none">
-          <div className="divide-y divide-[var(--border)]">
-            <div className="flex items-center gap-3 px-4 py-3.5">
-              <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0">
-                <Palette size={16} className="text-[var(--accent)]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--text)]">Compact Mode</p>
-                <p className="text-xs text-[var(--text-3)]">Reduce spacing layout padding</p>
-              </div>
-              <Toggle enabled={appSettings.compactMode} onToggle={() => updateSetting('compactMode', !appSettings.compactMode)} />
-            </div>
-
-            <div className="flex items-center gap-3 px-4 py-3.5">
-              <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0">
-                <Bell size={16} className="text-[var(--accent)]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--text)]">Notifications</p>
-                <p className="text-xs text-[var(--text-3)]">Habit and tasks alert reminders</p>
-              </div>
-              <Toggle enabled={appSettings.notifications} onToggle={() => updateSetting('notifications', !appSettings.notifications)} />
-            </div>
-
-            <div className="flex items-center gap-3 px-4 py-3.5">
-              <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0">
-                <Volume2 size={16} className="text-[var(--accent)]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--text)]">Sound FX</p>
-                <p className="text-xs text-[var(--text-3)]">Sound effects on checking off entries</p>
-              </div>
-              <Toggle enabled={appSettings.soundEnabled} onToggle={() => updateSetting('soundEnabled', !appSettings.soundEnabled)} />
-            </div>
-
-            <div className="flex items-center gap-3 px-4 py-3.5">
-              <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0">
-                <Vibrate size={16} className="text-[var(--accent)]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--text)]">Haptic Vibration</p>
-                <p className="text-xs text-[var(--text-3)]">Tactile feedback on complete logs</p>
-              </div>
-              <Toggle enabled={appSettings.hapticEnabled} onToggle={() => updateSetting('hapticEnabled', !appSettings.hapticEnabled)} />
-            </div>
-
-            <div className="flex items-center gap-3 px-4 py-3.5">
-              <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0">
-                <Calendar size={16} className="text-[var(--accent)]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--text)]">Week Starts Monday</p>
-                <p className="text-xs text-[var(--text-3)]">Start calendar view on Monday</p>
-              </div>
-              <Toggle enabled={appSettings.weekStartsOn === 1} onToggle={() => updateSetting('weekStartsOn', appSettings.weekStartsOn === 1 ? 0 : 1)} />
-            </div>
-
-            <div className="flex items-center gap-3 px-4 py-3.5">
-              <div className="w-8 h-8 rounded-xl bg-[var(--accent-bg)] flex items-center justify-center flex-shrink-0">
-                <Clock size={16} className="text-[var(--accent)]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--text)]">24-Hour Format</p>
-                <p className="text-xs text-[var(--text-3)]">Display military time format</p>
-              </div>
-              <Toggle enabled={appSettings.timeFormat === '24h'} onToggle={() => updateSetting('timeFormat', appSettings.timeFormat === '24h' ? '12h' : '24h')} />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Daily Goals Info */}
-      <div className="mb-5">
-        <SectionHeader title="Daily Goals Summary" />
-        <Card>
-          <div className="flex flex-col gap-4">
-            {[
-              { label: 'Study Goal', value: `${appSettings.studyTimerDefault} mins pomodoro`, icon: BookOpen },
-              { label: 'Water Goal', value: `${appSettings.waterGoal} ml`, icon: Droplet },
-              { label: 'Sleep Goal', value: `${appSettings.sleepGoal} hours`, icon: Moon },
-              { label: 'Calorie Goal', value: `${appSettings.calorieGoal} kcal`, icon: Flame },
-            ].map(goal => {
-              const GoalIcon = goal.icon
-              return (
-                <div key={goal.label} className="flex items-center gap-3">
-                  <GoalIcon size={18} className="text-[var(--text-3)]" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-[var(--text)]">{goal.label}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-[var(--accent)] font-semibold">{goal.value}</span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </Card>
-      </div>
-
-      {/* Backup & Restore */}
-      <div className="mb-5">
-        <SectionHeader title="Local Backup & Restore" />
-        <Card>
-          <div className="flex flex-col gap-3">
-            <Button variant="secondary" fullWidth icon={<Download size={14} />} onClick={handleExportBackup}>
-              Export Data to JSON File
-            </Button>
-            <Button variant="secondary" fullWidth icon={<Upload size={14} />} onClick={handleImportBackupClick}>
-              Import JSON Backup File
-            </Button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImportBackup}
-              accept=".json"
-              className="hidden"
-            />
-          </div>
-        </Card>
-      </div>
-
-      {/* Danger Zone */}
-      <div className="mb-5">
+      {/* DANGER ZONE */}
+      <div className="mb-6">
         <SectionHeader title="Danger Zone" />
-        <div className="rounded-[var(--radius-card)] border-2 border-[var(--error)] p-4 flex flex-col gap-3">
-          <div className="flex items-start gap-2 mb-1">
-            <AlertTriangle size={15} className="text-[var(--error)] flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-[var(--error)] font-medium leading-relaxed">
-              These actions are permanent and cannot be undone. Create a backup before proceeding.
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 flex flex-col gap-3">
+          <div className="flex items-start gap-2.5 mb-1">
+            <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-red-500 font-medium leading-relaxed">
+              These actions are permanent and cannot be undone. Create a local backup before proceeding.
             </p>
           </div>
           <Button
@@ -665,5 +620,13 @@ export default function SettingsPage() {
         </form>
       </Modal>
     </PageWrapper>
+  )
+}
+
+function CloudSyncIcon() {
+  return (
+    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 00-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z" />
+    </svg>
   )
 }

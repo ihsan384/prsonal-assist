@@ -153,7 +153,7 @@ export default function MusicPage() {
               Spotify Music Section
             </h1>
             <p className="text-sm text-[var(--text-3)] max-w-xl mt-1">
-              Play custom songs, Spotify playlists, lo-fi focus streams, or your personal music links directly inside Ihsan OS ERP.
+              Play custom songs, Spotify playlists, lo-fi focus streams, or your personal music links directly inside Study ERP.
             </p>
           </div>
 
@@ -204,7 +204,7 @@ export default function MusicPage() {
                         <div>
                           <p className="text-xs font-bold text-[var(--text)]">Full Song Mode Active (YouTube Stream)</p>
                           <p className="text-[11px] text-[var(--text-3)]">
-                            Streaming 100% full track directly inside Ihsan OS ERP.
+                            <span>Streaming 100% full track directly inside Study ERP.</span>
                           </p>
                         </div>
                       </div>

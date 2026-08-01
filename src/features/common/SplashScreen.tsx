@@ -45,7 +45,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                 >
-                  Ihsan OS
+                  Study ERP
                 </motion.h1>
                 <motion.p
                   className="text-sm text-[var(--text-3)] mt-1"

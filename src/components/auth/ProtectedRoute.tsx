@@ -49,15 +49,7 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(role)) {
-    // Redirect based on Personal ERP role hierarchy
-    const roleRedirects: Record<UserRole, string> = {
-      owner: '/',
-      admin: '/',
-      employee: '/workspace',
-      client: '/client',
-    }
-    const target = roleRedirects[role] || '/'
-    return <Navigate to={target} replace />
+    return <Navigate to="/" replace />
   }
 
   return children ? <>{children}</> : <Outlet />

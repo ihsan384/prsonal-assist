@@ -192,7 +192,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-[var(--text)] mt-1 tracking-tight">
             {greeting}, {userFirstName}
           </h1>
-          <p className="text-sm text-[var(--text-3)] mt-0.5">Welcome back to your personal operating system.</p>
+          <p className="text-sm text-[var(--text-3)] mt-0.5">Welcome back to your study workspace.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="px-3 py-1.5 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px] text-right">

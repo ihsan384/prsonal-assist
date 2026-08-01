@@ -72,12 +72,12 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
             {/* Header */}
             <div className="px-4 h-14 flex items-center justify-between border-b border-[var(--border)]">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-[8px] bg-[var(--accent)] flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">{osName.charAt(0)}</span>
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary-600 to-blue-500 flex items-center justify-center text-white font-bold">
+                  S
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[var(--text)] leading-none">{osName}</p>
-                  <p className="text-[10px] text-[var(--text-4)] mt-0.5">Personal OS</p>
+                  <p className="text-sm font-semibold text-[var(--text)] leading-none">Study ERP</p>
+                  <p className="text-[10px] text-[var(--text-3)] font-medium mt-0.5">Study Management</p>
                 </div>
               </div>
               <button

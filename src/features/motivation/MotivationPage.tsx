@@ -765,7 +765,7 @@ export default function MotivationPage() {
       {/* Import Modal */}
       <Modal isOpen={showImport} onClose={() => setShowImport(false)} title="Import Quotes (JSON)" size="md">
         <div className="flex flex-col gap-4">
-          <p className="text-xs text-[var(--text-3)]">Paste a JSON array of quotes exported from Ihsan OS.</p>
+          <p className="text-xs text-[var(--text-3)]">Paste a JSON array of quotes exported from Study ERP.</p>
           <textarea
             value={importJson}
             onChange={e => setImportJson(e.target.value)}

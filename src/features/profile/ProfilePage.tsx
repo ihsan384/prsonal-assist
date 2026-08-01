@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
-  const { profile, userFirstName, osName } = useAuth()
+  const { profile, userFirstName, logout } = useAuth()
   const displayName = profile?.full_name || userFirstName
   const [daysActive, setDaysActive] = useState(1)
 
@@ -125,9 +125,9 @@ export default function ProfilePage() {
             </div>
             <div className="text-left">
               <h2 className="text-lg font-bold text-[var(--text)]">{displayName}</h2>
-              <p className="text-sm text-[var(--text-3)]">{osName} · v1.3.0</p>
+              <p className="text-sm text-[var(--text-3)]">Study ERP · v13.0</p>
               <div className="flex items-center gap-1.5 mt-1">
-                <Badge variant="violet" size="sm" dot>Active</Badge>
+                <Badge variant="violet" size="sm" dot>Student</Badge>
                 <Badge variant="default" size="sm">
                   <Calendar size={10} className="mr-0.5" /> {daysActive} days active
                 </Badge>
@@ -138,6 +138,9 @@ export default function ProfilePage() {
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" fullWidth onClick={() => navigate('/settings')}>
               Edit Settings
+            </Button>
+            <Button variant="outline" size="sm" fullWidth onClick={logout}>
+              Sign Out
             </Button>
           </div>
         </Card>

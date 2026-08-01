@@ -8,8 +8,6 @@ import { useAuth } from '@/contexts/AuthContext'
 // Lazy-loaded Auth & Role pages
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
 const UserManagementPage = lazy(() => import('@/features/admin/UserManagementPage'))
-const WorkspacePage = lazy(() => import('@/features/workspace/WorkspacePage'))
-const ClientPortalPage = lazy(() => import('@/features/client/ClientPortalPage'))
 
 // Lazy-loaded top level pages
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'))
@@ -98,28 +96,12 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: withSuspense(DashboardPage) },
 
-      // Role-based Protected Routes
+      // Admin Role Protected Route
       {
         path: 'admin/users',
         element: (
           <ProtectedRoute allowedRoles={['owner', 'admin']}>
             {withSuspense(UserManagementPage)}
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'workspace',
-        element: (
-          <ProtectedRoute allowedRoles={['owner', 'admin', 'employee']}>
-            {withSuspense(WorkspacePage)}
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'client',
-        element: (
-          <ProtectedRoute allowedRoles={['owner', 'admin', 'employee', 'client']}>
-            {withSuspense(ClientPortalPage)}
           </ProtectedRoute>
         ),
       },

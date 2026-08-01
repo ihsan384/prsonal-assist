@@ -26,19 +26,9 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated) {
       const from = (location.state as any)?.from?.pathname
-      if (from) {
-        navigate(from, { replace: true })
-      } else {
-        const roleRedirects: Record<UserRole, string> = {
-          owner: '/',
-          admin: '/',
-          employee: '/workspace',
-          client: '/client',
-        }
-        navigate(roleRedirects[role] || '/', { replace: true })
-      }
+      navigate(from || '/', { replace: true })
     }
-  }, [isAuthenticated, role, navigate, location])
+  }, [isAuthenticated, navigate, location])
 
   const handleGoogleSignIn = async () => {
     setErrorMessage(null)
