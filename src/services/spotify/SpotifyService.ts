@@ -24,7 +24,7 @@ class SpotifyService {
 
   private getRedirectUri(): string {
     if (Capacitor.isNativePlatform()) {
-      return 'com.ihsan.ihsanos://callback'
+      return 'com.studyerp.app://callback'
     }
     return import.meta.env.VITE_SPOTIFY_REDIRECT_URI || 'https://prsonal-assist.vercel.app/callback'
   }

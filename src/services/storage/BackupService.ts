@@ -70,9 +70,9 @@ export interface BackupHistoryEntry {
 
 const CURRENT_BACKUP_VERSION = '2.0.0'
 const SUPPORTED_VERSIONS = ['1.0.0', '2.0.0']
-const LS_LAST_BACKUP = 'ihsanos_last_backup'
-const LS_AUTO_BACKUP = 'ihsanos_auto_backup'
-const LS_BACKUP_FREQ = 'ihsanos_backup_freq'
+const LS_LAST_BACKUP = 'study_erp_last_backup'
+const LS_AUTO_BACKUP = 'study_erp_auto_backup'
+const LS_BACKUP_FREQ = 'study_erp_backup_freq'
 
 export const backupService = {
   // ── Settings ────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ export const backupService = {
 
     const backup: BackupData = {
       version: CURRENT_BACKUP_VERSION,
-      appName: 'Ihsan OS',
+      appName: 'Study ERP',
       timestamp: new Date().toISOString(),
       data: {
         tasks: memoryStore.tasks || [],

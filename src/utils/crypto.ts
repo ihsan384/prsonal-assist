@@ -1,4 +1,4 @@
-const LOCAL_KEY_NAME = 'ihsanos_inst_key'
+const LOCAL_KEY_NAME = 'study_erp_inst_key'
 
 // Get or generate a stable passphrase for this installation
 function getOrCreatePassphrase(): string {
@@ -23,7 +23,7 @@ async function deriveKey(passphrase: string): Promise<CryptoKey> {
     ['deriveBits', 'deriveKey']
   )
   
-  const salt = enc.encode('ihsanos_encryption_salt')
+  const salt = enc.encode('study_erp_encryption_salt')
   
   return window.crypto.subtle.deriveKey(
     {

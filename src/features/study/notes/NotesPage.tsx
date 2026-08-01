@@ -217,7 +217,7 @@ export default function NotesPage() {
               </div>
               
               <div className="border-t border-[var(--border)] pt-3 mt-4 text-[10px] text-[var(--text-4)] text-left flex justify-between items-center">
-                <span>Ihsan OS Markdown Note Viewer</span>
+                <span>Study ERP Markdown Note Viewer</span>
                 <span className="font-semibold text-indigo-500">Secure Isolated Sandbox</span>
               </div>
             </Card>

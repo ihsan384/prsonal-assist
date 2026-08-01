@@ -1,12 +1,12 @@
 -- ============================================================
--- Supabase Migration: Personal ERP (Ihsan OS) Authentication
+-- Supabase Migration: Study ERP Commercial SaaS Authentication & Schema
 -- Run this script in the Supabase SQL Editor (Database > SQL Editor)
 -- ============================================================
 
 -- 1. Enable UUID Extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. Create Public Profiles Table with Personal ERP Roles
+-- 2. Create Public Profiles Table with Study ERP Roles
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT,
@@ -19,18 +19,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Update existing table constraint if it was created with legacy gym roles
+-- Update existing table constraint if needed
 DO $$
 BEGIN
-    -- Drop old role constraint if exists
     ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
-    
-    -- Map legacy gym roles to Personal ERP roles
-    UPDATE public.profiles SET role = 'client' WHERE role = 'member' OR role IS NULL;
-    UPDATE public.profiles SET role = 'employee' WHERE role = 'trainer';
-    UPDATE public.profiles SET role = 'admin' WHERE role = 'receptionist';
-
-    -- Add updated role constraint
     ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check 
         CHECK (role IN ('owner', 'admin', 'employee', 'client'));
 END $$;

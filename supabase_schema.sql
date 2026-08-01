@@ -504,8 +504,8 @@ create table if not exists study_sessions (
 );
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- ROW LEVEL SECURITY (Single-user personal app setup)
--- Allows all operations when using the anon or service key
+-- ROW LEVEL SECURITY (Commercial Multi-User SaaS Setup)
+-- Strictly isolates all user data by auth.uid() = user_id
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 alter table subjects enable row level security;
@@ -533,8 +533,7 @@ alter table settings enable row level security;
 alter table profile enable row level security;
 alter table study_sessions enable row level security;
 
--- Permissive policies for single-user personal app (using anon key)
--- For multi-user: replace "true" with auth.uid() checks
+-- Enforce strict user_id ownership policy across all domain tables
 do $$
 declare
   tbl text;
@@ -546,10 +545,16 @@ declare
   ];
 begin
   foreach tbl in array tables loop
-    -- Drop existing policy if it exists, then recreate
+    -- Ensure user_id column exists
+    execute format('alter table %I add column if not exists user_id uuid references auth.users(id) on delete cascade', tbl);
+    
+    -- Drop old permissive policies if existing
     execute format('drop policy if exists authenticated_access_policy on %I', tbl);
+    execute format('drop policy if exists user_isolation_policy on %I', tbl);
+    
+    -- Create strict per-user ownership policy
     execute format(
-      'create policy authenticated_access_policy on %I for all using (true) with check (true)',
+      'create policy user_isolation_policy on %I for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id)',
       tbl
     );
   end loop;
@@ -753,13 +758,17 @@ declare
   tbl text;
   tables text[] := array[
     'reflection_entries','motivation_quotes','motivation_notes',
-    'motivation_collections','custom_motivation_categories'
+    'motivation_collections','custom_motivation_categories',
+    'integration_settings','notebooks','integration_logs',
+    'health_records','attachments'
   ];
 begin
   foreach tbl in array tables loop
+    execute format('alter table %I add column if not exists user_id uuid references auth.users(id) on delete cascade', tbl);
     execute format('drop policy if exists authenticated_access_policy on %I', tbl);
+    execute format('drop policy if exists user_isolation_policy on %I', tbl);
     execute format(
-      'create policy authenticated_access_policy on %I for all using (true) with check (true)',
+      'create policy user_isolation_policy on %I for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id)',
       tbl
     );
   end loop;

@@ -5,13 +5,13 @@
 export class StorageService {
   private prefix: string
 
-  constructor(prefix = 'ihsanos') {
+  constructor(prefix = 'study_erp') {
     this.prefix = prefix
   }
 
   setUserId(userId: string | null): void {
     const safeId = (userId || 'guest').replace(/[^a-zA-Z0-9_-]/g, '_')
-    this.prefix = `ihsanos_${safeId}`
+    this.prefix = `study_erp_${safeId}`
   }
 
   private key(name: string): string {

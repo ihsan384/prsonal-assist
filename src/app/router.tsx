@@ -1,20 +1,15 @@
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { CardSkeleton } from '@/components/ui/Skeleton'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Lazy-loaded Auth & Role pages
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
 const UserManagementPage = lazy(() => import('@/features/admin/UserManagementPage'))
 const WorkspacePage = lazy(() => import('@/features/workspace/WorkspacePage'))
 const ClientPortalPage = lazy(() => import('@/features/client/ClientPortalPage'))
-
-// Legacy/Module Portal views (preserved for Gym module)
-const AdminDashboardPage = lazy(() => import('@/features/admin/AdminDashboardPage'))
-const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionDashboard'))
-const TrainerDashboard = lazy(() => import('@/features/trainer/TrainerDashboard'))
-const MemberDashboard = lazy(() => import('@/features/member/MemberDashboard'))
 
 // Lazy-loaded top level pages
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'))
@@ -80,18 +75,30 @@ function withSuspense(Component: React.LazyExoticComponent<() => React.ReactElem
   )
 }
 
+function PublicLoginRoute() {
+  const { isAuthenticated } = useAuth()
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />
+  }
+  return withSuspense(LoginPage)
+}
+
 const router = createBrowserRouter([
   {
     path: '/login',
-    element: withSuspense(LoginPage),
+    element: <PublicLoginRoute />,
   },
   {
     path: '/',
-    element: <AppLayout />,
+    element: (
+      <ProtectedRoute>
+        <AppLayout />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: withSuspense(DashboardPage) },
 
-      // Personal ERP Role-based Protected Routes
+      // Role-based Protected Routes
       {
         path: 'admin/users',
         element: (
@@ -116,12 +123,6 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-
-      // Gym Module Sub-routes (Decoupled from Core Auth)
-      { path: 'admin/dashboard', element: withSuspense(AdminDashboardPage) },
-      { path: 'reception', element: withSuspense(ReceptionDashboard) },
-      { path: 'trainer', element: withSuspense(TrainerDashboard) },
-      { path: 'member', element: withSuspense(MemberDashboard) },
 
       // Study ERP Nested Sub-routes
       {
@@ -181,3 +182,4 @@ const router = createBrowserRouter([
 export function AppRouter() {
   return <RouterProvider router={router} />
 }
+

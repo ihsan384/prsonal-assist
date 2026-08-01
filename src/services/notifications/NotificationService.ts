@@ -18,8 +18,8 @@ class NotificationService {
       if (Capacitor.isNativePlatform()) {
         // Create custom Android notification channel
         await LocalNotifications.createChannel({
-          id: 'ihsanos_reminders',
-          name: 'Ihsan OS Reminders',
+          id: 'study_erp_reminders',
+          name: 'Study ERP Reminders',
           description: 'Productivity, health, habits, and task alerts',
           importance: 5, // max priority
           visibility: 1, // public
@@ -170,7 +170,7 @@ class NotificationService {
               body,
               id: stableId,
               schedule: scheduleOptions,
-              channelId: 'ihsanos_reminders',
+              channelId: 'study_erp_reminders',
               actionTypeId: 'REMINDER_ACTIONS',
               extra: { category, parentId }
             }

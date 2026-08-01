@@ -15,9 +15,9 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Ihsan OS',
-        short_name: 'IhsanOS',
-        description: 'Personal Life Operating System',
+        name: 'Study ERP',
+        short_name: 'StudyERP',
+        description: 'Commercial Study Management SaaS',
         theme_color: '#0a0a0f',
         background_color: '#0a0a0f',
         display: 'standalone',

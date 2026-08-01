@@ -76,20 +76,28 @@ export class IndexedDBService {
 
   getDatabaseName(): string {
     const safeId = (this.userId || 'guest').replace(/[^a-zA-Z0-9_-]/g, '_')
-    return `ihsanos_db_${safeId}`
+    return `study_erp_db_${safeId}`
   }
 
-  async switchUser(userId: string | null): Promise<IDBDatabase> {
-    const newUserId = userId || 'guest'
-    if (this.userId === newUserId && this.db) {
-      return this.db
-    }
+  async closeDatabase(): Promise<void> {
     if (this.db) {
       this.db.close()
       this.db = null
     }
     this.initPromise = null
-    this.userId = newUserId
+    this.userId = ''
+  }
+
+  async switchUser(userId: string | null): Promise<IDBDatabase | null> {
+    if (!userId) {
+      await this.closeDatabase()
+      return null
+    }
+    if (this.userId === userId && this.db) {
+      return this.db
+    }
+    await this.closeDatabase()
+    this.userId = userId
     return this.getDB()
   }
 

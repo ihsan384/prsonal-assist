@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.ihsan.ihsanos',
-  appName: 'Ihsan OS',
+  appId: 'com.studyerp.app',
+  appName: 'Study ERP',
   webDir: 'dist',
   server: {
     androidScheme: 'https'

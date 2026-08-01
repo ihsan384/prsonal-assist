@@ -86,41 +86,13 @@ class MemoryStoreService {
     this.isLoaded = false
     this.loadPromise = null
 
-    // Reset collections
-    this.tasks = []
-    this.habits = []
-    this.goals = []
-    this.workouts = []
-    this.meals = []
-    this.sleepLogs = []
-    this.knowledge = []
-    this.transactions = []
-    this.budgets = []
-    this.studySessions = []
-    this.waterLogs = {}
-    this.subjects = []
-    this.chapters = []
-    this.topics = []
-    this.sessions = []
-    this.revisions = []
-    this.questions = []
-    this.tests = []
-    this.mistakes = []
-    this.formulas = []
-    this.notes = []
-    this.reflectionEntries = []
-    this.motivationQuotes = []
-    this.motivationNotes = []
-    this.motivationCollections = []
-    this.customMotivationCategories = []
-    this.integrationSettings = []
-    this.integrationLogs = []
-    this.notebooks = []
-    this.healthRecords = []
-    this.attachments = []
-    this.conflicts = []
-    this.notificationSchedules = []
-    this.notificationHistory = []
+    // Reset all memory collections
+    this.clearMemory()
+
+    if (!userId) {
+      await idb.closeDatabase()
+      return
+    }
 
     await idb.switchUser(userId)
     await this.init()

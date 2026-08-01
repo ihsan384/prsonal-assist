@@ -11,7 +11,7 @@ import type { UserRole } from '@/types/auth.types'
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, role, rememberDevice, setRememberDevice, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth()
+  const { isAuthenticated, role, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth()
   const { toast } = useToastContext()
 
   const [isSignUp, setIsSignUp] = useState(false)
@@ -104,9 +104,9 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary-600 to-blue-500 text-white shadow-lg shadow-primary-500/30 mb-4">
             <Sparkles size={32} />
           </div>
-          <h1 className="text-2xl font-black text-[var(--text)] tracking-tight">Ihsan OS Portal</h1>
+          <h1 className="text-2xl font-black text-[var(--text)] tracking-tight">Study ERP Portal</h1>
           <p className="text-sm text-[var(--text-3)] mt-1">
-            {isSignUp ? 'Create your account to get started' : 'Sign in to access your Personal ERP workspace'}
+            {isSignUp ? 'Create your account to get started' : 'Sign in to access your Commercial Study ERP workspace'}
           </p>
         </div>
 
@@ -213,23 +213,10 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Remember Device Checkbox */}
-          <div className="flex items-center justify-between py-1">
-            <label className="flex items-center gap-2 cursor-pointer text-xs text-[var(--text-2)] hover:text-[var(--text)] transition-colors select-none">
-              <input
-                type="checkbox"
-                checked={rememberDevice}
-                onChange={(e) => setRememberDevice(e.target.checked)}
-                className="w-4 h-4 rounded border-[var(--border)] text-primary-600 focus:ring-primary-500 bg-[var(--bg-subtle)]"
-              />
-              <span>Remember this device (Auto Sign-In)</span>
-            </label>
-          </div>
-
           <Button
             type="submit"
             disabled={loading || googleLoading}
-            className="w-full h-12 justify-center gap-2 text-sm font-semibold bg-gradient-to-r from-primary-600 to-blue-600 hover:from-primary-700 hover:to-blue-700 text-white rounded-xl shadow-lg shadow-primary-500/25 transition-all"
+            className="w-full h-12 justify-center gap-2 text-sm font-semibold bg-gradient-to-r from-primary-600 to-blue-600 hover:from-primary-700 hover:to-blue-700 text-white rounded-xl shadow-lg shadow-primary-500/25 transition-all mt-2"
           >
             {loading ? (
               <Loader2 className="animate-spin" size={20} />
@@ -261,7 +248,7 @@ export default function LoginPage() {
         {/* Footer Security Badge */}
         <div className="mt-8 pt-6 border-t border-[var(--border)] flex items-center justify-center gap-2 text-xs text-[var(--text-3)]">
           <ShieldCheck size={16} className="text-emerald-500" />
-          <span>Secured by Supabase OAuth & RLS</span>
+          <span>Protected by Database-Level RLS & Supabase Auth</span>
         </div>
       </motion.div>
     </div>

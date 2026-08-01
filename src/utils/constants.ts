@@ -2,8 +2,8 @@
  * App-wide constants
  */
 
-export const APP_NAME = 'Ihsan OS'
-export const USER_NAME = 'Ihsan'
+export const APP_NAME = 'Study ERP'
+export const USER_NAME = 'Student'
 
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Home', path: '/', icon: 'LayoutDashboard' },
@@ -51,17 +51,17 @@ export const COLORS = {
 } as const
 
 export const STORAGE_KEYS = {
-  TASKS: 'ihsanos_tasks',
-  HABITS: 'ihsanos_habits',
-  STUDY_SESSIONS: 'ihsanos_study_sessions',
-  GOALS: 'ihsanos_goals',
-  WORKOUTS: 'ihsanos_workouts',
-  MEALS: 'ihsanos_meals',
-  SLEEP_LOGS: 'ihsanos_sleep_logs',
-  KNOWLEDGE: 'ihsanos_knowledge',
-  FINANCE: 'ihsanos_finance',
-  SETTINGS: 'ihsanos_settings',
-  PROFILE: 'ihsanos_profile',
+  TASKS: 'study_erp_tasks',
+  HABITS: 'study_erp_habits',
+  STUDY_SESSIONS: 'study_erp_study_sessions',
+  GOALS: 'study_erp_goals',
+  WORKOUTS: 'study_erp_workouts',
+  MEALS: 'study_erp_meals',
+  SLEEP_LOGS: 'study_erp_sleep_logs',
+  KNOWLEDGE: 'study_erp_knowledge',
+  FINANCE: 'study_erp_finance',
+  SETTINGS: 'study_erp_settings',
+  PROFILE: 'study_erp_profile',
 } as const
 
 export const ANIMATION_VARIANTS = {
