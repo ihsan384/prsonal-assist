@@ -1,4 +1,5 @@
 import { idb, STORES } from './IndexedDB'
+import { supabase, isSupabaseConfigured } from '../supabase/supabase'
 import type { Task, Habit, Goal, Workout, Meal, SleepLog, KnowledgeItem, Transaction, Budget, AppSettings, UserProfile, NutritionGoal, StudySession as GeneralStudySession, ReflectionEntry, MotivationQuote, MotivationNote, MotivationCollection, CustomMotivationCategory } from '@/types'
 import type { Subject, Chapter, Topic, StudySession, RevisionEntry, QuestionLog, MockTest, TestRecord, TestSubjectResult, TestChapterResult, Mistake, Formula, StudyNote } from '@/types/study.types'
 
@@ -6,6 +7,18 @@ class MemoryStoreService {
   // Flag indicating if the database loading is finished
   isLoaded = false
   private loadPromise: Promise<void> | null = null
+
+  private toSnakeCase(obj: any): any {
+    if (Array.isArray(obj)) return obj.map(v => this.toSnakeCase(v))
+    if (obj !== null && obj !== undefined && obj.constructor === Object) {
+      return Object.keys(obj).reduce((acc, key) => {
+        const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase()
+        acc[snakeKey] = this.toSnakeCase(obj[key])
+        return acc
+      }, {} as any)
+    }
+    return obj
+  }
 
   // In-memory collections
   tasks: Task[] = []
@@ -220,13 +233,30 @@ class MemoryStoreService {
     // Start with empty database for production use
   }
 
-  private syncTimer: ReturnType<typeof setTimeout> | null = null
+  private async triggerCloudSave(storeName?: string, record?: any) {
+    if (!storeName || !record || !isSupabaseConfigured()) return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const userId = session?.user?.id
+      if (!userId) return
 
-  private triggerImmediateSync(storeName?: string, record?: any) {
-    if (storeName && record) {
-      import('@/services/sync/SyncService').then(({ syncEngine }) => {
-        syncEngine.pushLocalChange(storeName, record).catch(err => console.error('[MemoryStore] Instant push error:', err))
+      const snakeRecord = this.toSnakeCase({
+        ...record,
+        userId,
+        updatedAt: new Date().toISOString()
       })
+
+      if (record.deleted) {
+        await (supabase.from(storeName as any) as any)
+          .delete()
+          .eq('id', record.id)
+          .eq('user_id', userId)
+      } else {
+        await (supabase.from(storeName as any) as any)
+          .upsert(snakeRecord)
+      }
+    } catch (err) {
+      console.error('[MemoryStore] Direct Supabase Cloud write error:', err)
     }
   }
 
@@ -292,7 +322,7 @@ class MemoryStoreService {
     }
   }
 
-  // Generic in-memory helper with IndexedDB async write and instant Supabase write-through
+  // Generic in-memory helper with direct Supabase Cloud write
   async saveToStore<T extends { id: string; updatedAt?: string; pendingSync?: boolean; syncVersion?: number }>(
     storeName: any,
     localArray: T[],
@@ -309,9 +339,8 @@ class MemoryStoreService {
       localArray.push(record)
     }
 
-    // Write to IDB asynchronously
     await idb.put(storeName, record)
-    this.triggerImmediateSync(storeName, record)
+    this.triggerCloudSave(storeName, record)
   }
 
   // Soft delete helper
@@ -328,10 +357,9 @@ class MemoryStoreService {
       record.pendingSync = false
       record.syncVersion = (record.syncVersion || 0) + 1
       
-      // Update local storage representation
       localArray[index] = record
       await idb.put(storeName, record)
-      this.triggerImmediateSync(storeName, record)
+      this.triggerCloudSave(storeName, record)
     }
   }
 
@@ -346,7 +374,7 @@ class MemoryStoreService {
       const record = { ...localArray[index], deleted: true }
       localArray.splice(index, 1)
       await idb.delete(storeName, id)
-      this.triggerImmediateSync(storeName, record)
+      this.triggerCloudSave(storeName, record)
     }
   }
 

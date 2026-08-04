@@ -21,7 +21,6 @@ const PAGE_TITLES: Record<string, string> = {
   '/music': 'Spotify Music Player',
 }
 
-import { SyncIndicator } from '../ui/SyncIndicator'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface TopBarProps {
@@ -70,7 +69,6 @@ export function TopBar({ onMenuClick, rightContent, className }: TopBarProps) {
 
       <div className="flex items-center gap-1.5">
         {rightContent}
-        <SyncIndicator />
         
         {/* Search Placeholder Button */}
         <Button

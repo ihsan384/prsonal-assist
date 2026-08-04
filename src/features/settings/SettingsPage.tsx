@@ -294,33 +294,8 @@ export default function SettingsPage() {
         </Card>
       </div>
 
-      {/* DATA & CLOUD SYNC SECTION */}
+      {/* DATA & BACKUP SECTION */}
       <div className="mb-6">
-        <SectionHeader title="Data & Cloud Sync" />
-        {/* Realtime Cross-Device Synchronization */}
-        <Card className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-[var(--text)] flex items-center gap-2">
-                Realtime Cross-Device Sync
-                <Badge variant="success" size="sm">● Live</Badge>
-              </h3>
-              <p className="text-xs text-[var(--text-3)] mt-0.5">
-                Automated WebSocket synchronization. Your edits sync instantly across all devices logged into this account.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3 text-xs">
-            <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
-            <div>
-              <span className="font-bold text-[var(--text)] block">Automatic Realtime Engine Active</span>
-              <span className="text-[var(--text-3)] block mt-0.5">
-                Manual sync options are disabled. Any change on mobile, tablet, or desktop instantly broadcasts to all your active devices.
-              </span>
-            </div>
-          </div>
-        </Card>
 
         {/* Local Backup & Restore */}
         <Card className="mt-4">
