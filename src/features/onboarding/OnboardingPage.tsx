@@ -122,6 +122,7 @@ export default function OnboardingPage() {
 
       await curriculumService.applyAcademicSetup({
         userId,
+        fullName,
         boardId: selectedBoardId,
         classLevel,
         streamId: selectedStreamId,

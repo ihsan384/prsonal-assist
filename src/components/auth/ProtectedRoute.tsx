@@ -1,5 +1,6 @@
 import { Navigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { memoryStore } from '@/services/storage/MemoryStore'
 import type { UserRole } from '@/types/auth.types'
 import { CardSkeleton } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
@@ -31,7 +32,17 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
 
   // Redirect to onboarding if not completed
   const isOnboardingPath = location.pathname === '/onboarding'
-  const onboardingCompleted = profile?.onboarding_completed ?? false
+  const userId = profile?.id || (memoryStore.profile as any)?.id
+  const hasSubjects = memoryStore.subjects && memoryStore.subjects.length > 0
+  const isLocalStorageCompleted = 
+    localStorage.getItem('onboarding_completed_global') === 'true' ||
+    (userId && localStorage.getItem(`onboarding_completed_${userId}`) === 'true')
+
+  const onboardingCompleted = 
+    Boolean(profile?.onboarding_completed) ||
+    Boolean((memoryStore.profile as any)?.onboarding_completed) ||
+    Boolean(isLocalStorageCompleted) ||
+    Boolean(hasSubjects)
 
   if (!onboardingCompleted && !isOnboardingPath) {
     return <Navigate to="/onboarding" replace />

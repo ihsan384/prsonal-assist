@@ -277,7 +277,7 @@ export const backupService = {
     }
 
     if (data.profile) {
-      const profile = prepareRecord({ id: 'user_profile', ...data.profile })
+      const profile = prepareRecord({ ...data.profile, id: data.profile?.id || 'user_profile' })
       memoryStore.profile = profile
       await idb.put(STORES.PROFILE, profile)
     }

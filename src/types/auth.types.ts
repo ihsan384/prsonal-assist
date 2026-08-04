@@ -16,6 +16,16 @@ export interface UserProfile {
   onboarding_completed?: boolean
   created_at: string
   updated_at: string
+
+  // Legacy/App Preferences
+  name?: string
+  avatar?: string
+  bio?: string
+  timezone?: string
+  theme?: 'dark' | 'light' | 'system'
+  accentColor?: string
+  dateOfBirth?: string
+  joinedAt?: string
 }
 
 export interface GymMember {

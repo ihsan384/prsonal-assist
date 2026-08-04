@@ -396,13 +396,14 @@ class CurriculumService {
    */
   async applyAcademicSetup(params: {
     userId: string
+    fullName?: string
     boardId: string
     classLevel: string
     streamId: string
     combinationId: string
     academicGoal?: string
   }): Promise<{ addedCount: number; updatedCount: number }> {
-    const { userId, boardId, classLevel, streamId, combinationId, academicGoal } = params
+    const { userId, fullName, boardId, classLevel, streamId, combinationId, academicGoal } = params
 
     // 1. Fetch subjects assigned to the chosen combination
     const combinationMasterSubjects = await this.getCombinationSubjects(combinationId)
@@ -506,6 +507,7 @@ class CurriculumService {
     const currentProfile = (memoryStore.profile || {}) as any
     const updatedProfile = {
       ...currentProfile,
+      ...(fullName ? { full_name: fullName } : {}),
       board_id: boardId,
       class_level: classLevel,
       stream_id: streamId,
@@ -516,13 +518,20 @@ class CurriculumService {
     }
 
     memoryStore.profile = updatedProfile as any
-    await idb.put(STORES.PROFILE, { id: 'user_profile', ...updatedProfile })
+    await idb.put(STORES.PROFILE, { ...updatedProfile, id: updatedProfile.id || 'user_profile' })
+
+    try {
+      localStorage.setItem('onboarding_completed_global', 'true')
+      if (userId) localStorage.setItem(`onboarding_completed_${userId}`, 'true')
+    } catch (e) {}
 
     // Also update Supabase profile if connected
-    import('@/services/supabase/supabase').then(({ supabase, isSupabaseConfigured }) => {
+    try {
+      const { supabase, isSupabaseConfigured } = await import('@/services/supabase/supabase')
       if (isSupabaseConfigured() && userId && userId !== 'guest') {
         const client = supabase as any
-        client.from('profiles').update({
+        const { error } = await client.from('profiles').update({
+          ...(fullName ? { full_name: fullName } : {}),
           board_id: boardId,
           class_level: classLevel,
           stream_id: streamId,
@@ -530,11 +539,12 @@ class CurriculumService {
           academic_goal: academicGoal,
           onboarding_completed: true,
           updated_at: new Date().toISOString()
-        }).eq('id', userId).then(({ error }: any) => {
-          if (error) console.error('[CurriculumService] Supabase profile sync error:', error)
-        })
+        }).eq('id', userId)
+        if (error) console.error('[CurriculumService] Supabase profile sync error:', error)
       }
-    })
+    } catch (err) {
+      console.error('[CurriculumService] Supabase profile sync exception:', err)
+    }
 
     return { addedCount, updatedCount }
   }

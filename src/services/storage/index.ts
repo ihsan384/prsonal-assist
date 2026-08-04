@@ -384,7 +384,7 @@ export const profileStorage = {
     const current = memoryStore.profile
     const updated = { ...current, ...profile }
     memoryStore.profile = updated
-    memoryStore.saveToStore(STORES.PROFILE, [], { id: 'user_profile', ...updated })
+    memoryStore.saveToStore(STORES.PROFILE, [], { ...updated, id: updated.id || 'user_profile' })
   },
 }
 

@@ -34,6 +34,15 @@ class MemoryStoreService {
     calorieGoal: 2200,
   }
   profile: UserProfile = {
+    id: 'user_profile',
+    email: null,
+    full_name: 'Ihsan',
+    avatar_url: null,
+    phone: null,
+    role: 'client',
+    is_disabled: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     name: 'Ihsan',
     timezone: 'Asia/Kolkata',
     theme: 'light',
@@ -79,8 +88,6 @@ class MemoryStoreService {
   conflicts: any[] = []
   notificationSchedules: any[] = []
   notificationHistory: any[] = []
-
-
 
   private listeners: Set<(userId: string | null) => void> = new Set()
 
@@ -140,7 +147,7 @@ class MemoryStoreService {
         if (profileArr.length > 0) {
           this.profile = profileArr[0]
         } else {
-          await idb.put(STORES.PROFILE, { id: 'user_profile', ...this.profile })
+          await idb.put(STORES.PROFILE, { ...this.profile, id: this.profile?.id || 'user_profile' })
         }
 
         const nutrGoalsArr = await idb.getAll<NutritionGoal & { id: string }>(STORES.NUTRITION_GOALS)

@@ -19,16 +19,7 @@ export type Status = 'active' | 'inactive' | 'archived' | 'completed'
 
 // ─── Profile ───────────────────────────────────────────────────────────────
 
-export interface UserProfile {
-  name: string
-  avatar?: string
-  bio?: string
-  timezone: string
-  theme: 'dark' | 'light' | 'system'
-  accentColor: string
-  dateOfBirth?: string
-  joinedAt: string
-}
+export type { UserProfile } from './auth.types'
 
 // ─── Tasks ─────────────────────────────────────────────────────────────────
 
