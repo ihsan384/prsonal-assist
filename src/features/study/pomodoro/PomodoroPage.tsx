@@ -452,7 +452,7 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
               }}
             />
             <Input
-              label="Long break after"
+              label="Long break after (sessions)"
               type="number"
               min="1"
               value={longBreakAfterStr}
@@ -557,7 +557,7 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
           </div>
         </div>
 
-        <Button variant="primary" onClick={onClose} className="w-full">Done</Button>
+        <Button variant="primary" onClick={handleDone} className="w-full">Done</Button>
       </div>
     </Modal>
   )
