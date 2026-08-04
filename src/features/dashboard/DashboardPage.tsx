@@ -14,6 +14,7 @@ import { spotifyService } from '@/services/spotify/SpotifyService'
 import { healthConnectService } from '@/services/health/HealthConnectService'
 import { syncEngine } from '@/services/sync/SyncService'
 import { useAuth } from '@/contexts/AuthContext'
+import { useMemoryStoreUpdate } from '@/hooks/useMemoryStoreUpdate'
 
 
 export default function DashboardPage() {
@@ -39,15 +40,23 @@ export default function DashboardPage() {
   })
 
 
-  useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(new Date()), 1000 * 30)
-    
-    // Load dynamic data
+  useMemoryStoreUpdate()
+
+  const refreshDashboardData = () => {
     setSessions(studyERPStorage.getSessions())
     setSubjects(studyERPStorage.getSubjects())
     setChapters(studyERPStorage.getChapters())
     setTasks(taskStorage.getAll())
     setHabits(habitStorage.getAll())
+  }
+
+  useEffect(() => {
+    refreshDashboardData()
+  })
+
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000 * 30)
+    refreshDashboardData()
 
     // Load integrations details
     const isSpotifyConnected = spotifyService.isConnected()

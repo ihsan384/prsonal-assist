@@ -29,14 +29,25 @@ export const studyERPStorage = {
   // Chapters
   getChapters: (subjectId?: string) => {
     if (!subjectId) return memoryStore.chapters.filter(c => !c.deleted)
-    const sub = memoryStore.subjects.find(s => s.id === subjectId)
-    const subMasterId = sub?.subjectId || (sub?.code ? `sub-${sub.code.toLowerCase()}` : undefined)
+
+    const sub = memoryStore.subjects.find(s =>
+      s.id === subjectId ||
+      s.subjectId === subjectId ||
+      (s.code && `sub-${s.code.toLowerCase()}` === subjectId) ||
+      (s.code && s.code.toLowerCase() === subjectId.toLowerCase())
+    )
+
+    const targetSubjectIds = new Set<string>()
+    if (subjectId) targetSubjectIds.add(subjectId)
+    if (sub?.id) targetSubjectIds.add(sub.id)
+    if (sub?.subjectId) targetSubjectIds.add(sub.subjectId)
+    if (sub?.code) {
+      targetSubjectIds.add(`sub-${sub.code.toLowerCase()}`)
+      targetSubjectIds.add(sub.code)
+    }
+
     return memoryStore.chapters.filter(c => 
-      !c.deleted && (
-        c.subjectId === subjectId || 
-        (subMasterId && c.subjectId === subMasterId) ||
-        (sub?.id && c.subjectId === sub.id)
-      )
+      !c.deleted && targetSubjectIds.has(c.subjectId)
     )
   },
   saveChapters: (chapters: Chapter[]) => {

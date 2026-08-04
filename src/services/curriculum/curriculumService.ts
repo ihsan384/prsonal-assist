@@ -588,6 +588,64 @@ class CurriculumService {
 
     return { addedCount, updatedCount }
   }
+
+  /**
+   * Auto-heals / seeds default subjects & chapters if memoryStore has no subjects or missing chapters.
+   */
+  async ensureDefaultSubjectsAndChapters(): Promise<void> {
+    const existingSubs = studyERPStorage.getSubjects()
+
+    if (existingSubs.length === 0) {
+      const userProf = memoryStore.profile as any
+      const boardId = userProf?.board_id || 'board-plus-one'
+      const classLevel = userProf?.class_level || 'Plus One'
+      const streamId = userProf?.stream_id || 'str-p1-sci'
+      const combinationId = userProf?.subject_combination_id || 'comb-p1-pcmb'
+
+      await this.applyAcademicSetup({
+        userId: userProf?.id || 'guest',
+        boardId,
+        classLevel,
+        streamId,
+        combinationId,
+        academicGoal: userProf?.academic_goal || 'Boards'
+      })
+      return
+    }
+
+    // Auto-heal: If any subject has 0 chapters, populate master chapters for that subject
+    for (const sub of existingSubs) {
+      const chs = studyERPStorage.getChapters(sub.id)
+      if (chs.length === 0) {
+        const masterSubId = sub.subjectId || (sub.code ? `sub-${sub.code.toLowerCase()}` : sub.id)
+        const targetBoard = sub.boardId || 'board-plus-one'
+        const targetClass = sub.classLevel || 'Plus One'
+
+        const mChs = await this.getMasterChapters(masterSubId, targetBoard, targetClass)
+        if (mChs.length > 0) {
+          const newChs: Chapter[] = mChs.map(mCh => ({
+            id: `ch-${sub.id}-${mCh.chapterNumber}-${generateId().slice(0, 6)}`,
+            subjectId: sub.id,
+            name: `${mCh.chapterNumber}. ${mCh.chapterName}`,
+            chapterNumber: mCh.chapterNumber,
+            sectionName: mCh.sectionName,
+            bookPart: mCh.bookPart,
+            sortOrder: mCh.sortOrder || mCh.chapterNumber,
+            priority: 'medium',
+            difficulty: 'medium',
+            status: 'not_started',
+            estimatedHours: mCh.estimatedHours || 6,
+            completedHours: 0,
+            notes: '',
+            revisionCount: 0,
+            confidencePercentage: 0,
+          }))
+          studyERPStorage.saveChapters(newChs)
+        }
+      }
+    }
+  }
 }
 
 export const curriculumService = new CurriculumService()
+

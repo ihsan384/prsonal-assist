@@ -136,61 +136,105 @@ class MemoryStoreService {
 
     this.loadPromise = new Promise<void>(async (resolve) => {
       try {
+        let activeUserId: string | null = null
         if (isSupabaseConfigured()) {
           const { data: { session } } = await supabase.auth.getSession()
-          const userId = session?.user?.id
+          activeUserId = session?.user?.id || null
+        }
 
-          if (userId) {
-            // Load all collections directly from Supabase Cloud
-            await Promise.allSettled([
-              this.loadFromCloud(STORES.TASKS, userId, (d) => { this.tasks = d }),
-              this.loadFromCloud(STORES.HABITS, userId, (d) => { this.habits = d }),
-              this.loadFromCloud(STORES.GOALS, userId, (d) => { this.goals = d }),
-              this.loadFromCloud(STORES.WORKOUTS, userId, (d) => { this.workouts = d }),
-              this.loadFromCloud(STORES.MEALS, userId, (d) => { this.meals = d }),
-              this.loadFromCloud(STORES.SLEEP_LOGS, userId, (d) => { this.sleepLogs = d }),
-              this.loadFromCloud(STORES.KNOWLEDGE, userId, (d) => { this.knowledge = d }),
-              this.loadFromCloud(STORES.TRANSACTIONS, userId, (d) => { this.transactions = d }),
-              this.loadFromCloud(STORES.BUDGETS, userId, (d) => { this.budgets = d }),
-              this.loadFromCloud(STORES.STUDY_SESSIONS, userId, (d) => { this.studySessions = d }),
-              this.loadFromCloud(STORES.SUBJECTS, userId, (d) => { this.subjects = d }),
-              this.loadFromCloud(STORES.CHAPTERS, userId, (d) => { this.chapters = d }),
-              this.loadFromCloud(STORES.TOPICS, userId, (d) => { this.topics = d }),
-              this.loadFromCloud(STORES.SESSIONS, userId, (d) => { this.sessions = d }),
-              this.loadFromCloud(STORES.REVISIONS, userId, (d) => { this.revisions = d }),
-              this.loadFromCloud(STORES.QUESTIONS, userId, (d) => { this.questions = d }),
-              this.loadFromCloud(STORES.TESTS, userId, (d) => { this.tests = d }),
-              this.loadFromCloud(STORES.TEST_SUBJECT_RESULTS, userId, (d) => { this.testSubjectResults = d }),
-              this.loadFromCloud(STORES.TEST_CHAPTER_RESULTS, userId, (d) => { this.testChapterResults = d }),
-              this.loadFromCloud(STORES.MISTAKES, userId, (d) => { this.mistakes = d }),
-              this.loadFromCloud(STORES.FORMULAS, userId, (d) => { this.formulas = d }),
-              this.loadFromCloud(STORES.NOTES, userId, (d) => { this.notes = d }),
-              this.loadFromCloud(STORES.REFLECTION_ENTRIES, userId, (d) => { this.reflectionEntries = d }),
-              this.loadFromCloud(STORES.MOTIVATION_QUOTES, userId, (d) => { this.motivationQuotes = d }),
-              this.loadFromCloud(STORES.MOTIVATION_NOTES, userId, (d) => { this.motivationNotes = d }),
-              this.loadFromCloud(STORES.MOTIVATION_COLLECTIONS, userId, (d) => { this.motivationCollections = d }),
-              this.loadFromCloud(STORES.CUSTOM_MOTIVATION_CATEGORIES, userId, (d) => { this.customMotivationCategories = d }),
-              this.loadFromCloud(STORES.INTEGRATION_SETTINGS, userId, (d) => { this.integrationSettings = d }),
-              this.loadFromCloud(STORES.NOTEBOOKS, userId, (d) => { this.notebooks = d }),
-              this.loadFromCloud(STORES.HEALTH_RECORDS, userId, (d) => { this.healthRecords = d }),
-              this.loadFromCloud(STORES.ATTACHMENTS, userId, (d) => { this.attachments = d }),
-            ])
+        if (activeUserId) {
+          // Load all collections directly from Supabase Cloud
+          await Promise.allSettled([
+            this.loadFromCloud(STORES.TASKS, activeUserId, (d) => { this.tasks = d }),
+            this.loadFromCloud(STORES.HABITS, activeUserId, (d) => { this.habits = d }),
+            this.loadFromCloud(STORES.GOALS, activeUserId, (d) => { this.goals = d }),
+            this.loadFromCloud(STORES.WORKOUTS, activeUserId, (d) => { this.workouts = d }),
+            this.loadFromCloud(STORES.MEALS, activeUserId, (d) => { this.meals = d }),
+            this.loadFromCloud(STORES.SLEEP_LOGS, activeUserId, (d) => { this.sleepLogs = d }),
+            this.loadFromCloud(STORES.KNOWLEDGE, activeUserId, (d) => { this.knowledge = d }),
+            this.loadFromCloud(STORES.TRANSACTIONS, activeUserId, (d) => { this.transactions = d }),
+            this.loadFromCloud(STORES.BUDGETS, activeUserId, (d) => { this.budgets = d }),
+            this.loadFromCloud(STORES.STUDY_SESSIONS, activeUserId, (d) => { this.studySessions = d }),
+            this.loadFromCloud(STORES.SUBJECTS, activeUserId, (d) => { this.subjects = d }),
+            this.loadFromCloud(STORES.CHAPTERS, activeUserId, (d) => { this.chapters = d }),
+            this.loadFromCloud(STORES.TOPICS, activeUserId, (d) => { this.topics = d }),
+            this.loadFromCloud(STORES.SESSIONS, activeUserId, (d) => { this.sessions = d }),
+            this.loadFromCloud(STORES.REVISIONS, activeUserId, (d) => { this.revisions = d }),
+            this.loadFromCloud(STORES.QUESTIONS, activeUserId, (d) => { this.questions = d }),
+            this.loadFromCloud(STORES.TESTS, activeUserId, (d) => { this.tests = d }),
+            this.loadFromCloud(STORES.TEST_SUBJECT_RESULTS, activeUserId, (d) => { this.testSubjectResults = d }),
+            this.loadFromCloud(STORES.TEST_CHAPTER_RESULTS, activeUserId, (d) => { this.testChapterResults = d }),
+            this.loadFromCloud(STORES.MISTAKES, activeUserId, (d) => { this.mistakes = d }),
+            this.loadFromCloud(STORES.FORMULAS, activeUserId, (d) => { this.formulas = d }),
+            this.loadFromCloud(STORES.NOTES, activeUserId, (d) => { this.notes = d }),
+            this.loadFromCloud(STORES.REFLECTION_ENTRIES, activeUserId, (d) => { this.reflectionEntries = d }),
+            this.loadFromCloud(STORES.MOTIVATION_QUOTES, activeUserId, (d) => { this.motivationQuotes = d }),
+            this.loadFromCloud(STORES.MOTIVATION_NOTES, activeUserId, (d) => { this.motivationNotes = d }),
+            this.loadFromCloud(STORES.MOTIVATION_COLLECTIONS, activeUserId, (d) => { this.motivationCollections = d }),
+            this.loadFromCloud(STORES.CUSTOM_MOTIVATION_CATEGORIES, activeUserId, (d) => { this.customMotivationCategories = d }),
+            this.loadFromCloud(STORES.INTEGRATION_SETTINGS, activeUserId, (d) => { this.integrationSettings = d }),
+            this.loadFromCloud(STORES.NOTEBOOKS, activeUserId, (d) => { this.notebooks = d }),
+            this.loadFromCloud(STORES.HEALTH_RECORDS, activeUserId, (d) => { this.healthRecords = d }),
+            this.loadFromCloud(STORES.ATTACHMENTS, activeUserId, (d) => { this.attachments = d }),
+          ])
 
-            // Set up Realtime subscription for cross-device live updates
-            this.setupRealtimeSubscription(userId)
-          }
+          // Set up Realtime subscription for cross-device live updates
+          this.setupRealtimeSubscription(activeUserId)
+        } else {
+          // Fallback: Load all stores from local IndexedDB
+          await this.loadAllFromLocalIDB()
+        }
+
+        // Auto-seed default curriculum subjects & chapters if subjects list is empty or missing chapters
+        try {
+          const { curriculumService } = await import('../curriculum/curriculumService')
+          await curriculumService.ensureDefaultSubjectsAndChapters()
+        } catch (e) {
+          console.warn('[MemoryStore] ensureDefaultSubjectsAndChapters error:', e)
         }
 
         this.isLoaded = true
+        this.notifyListeners(activeUserId || 'guest')
         resolve()
       } catch (err) {
-        console.error('[MemoryStore] Failed to initialize from cloud:', err)
+        console.error('[MemoryStore] Failed to initialize store:', err)
         this.isLoaded = true
+        this.notifyListeners('guest')
         resolve()
       }
     })
 
     return this.loadPromise
+  }
+
+  private async loadAllFromLocalIDB() {
+    try {
+      const getLocal = async (store: any): Promise<any[]> => (await idb.getAll<any>(store).catch(() => [])).filter((r: any) => !r.deleted)
+      this.tasks = await getLocal(STORES.TASKS)
+      this.habits = await getLocal(STORES.HABITS)
+      this.goals = await getLocal(STORES.GOALS)
+      this.workouts = await getLocal(STORES.WORKOUTS)
+      this.meals = await getLocal(STORES.MEALS)
+      this.sleepLogs = await getLocal(STORES.SLEEP_LOGS)
+      this.knowledge = await getLocal(STORES.KNOWLEDGE)
+      this.transactions = await getLocal(STORES.TRANSACTIONS)
+      this.budgets = await getLocal(STORES.BUDGETS)
+      this.studySessions = await getLocal(STORES.STUDY_SESSIONS)
+      this.subjects = await getLocal(STORES.SUBJECTS)
+      this.chapters = await getLocal(STORES.CHAPTERS)
+      this.topics = await getLocal(STORES.TOPICS)
+      this.sessions = await getLocal(STORES.SESSIONS)
+      this.revisions = await getLocal(STORES.REVISIONS)
+      this.questions = await getLocal(STORES.QUESTIONS)
+      this.tests = await getLocal(STORES.TESTS)
+      this.testSubjectResults = await getLocal(STORES.TEST_SUBJECT_RESULTS)
+      this.testChapterResults = await getLocal(STORES.TEST_CHAPTER_RESULTS)
+      this.mistakes = await getLocal(STORES.MISTAKES)
+      this.formulas = await getLocal(STORES.FORMULAS)
+      this.notes = await getLocal(STORES.NOTES)
+    } catch (err) {
+      console.warn('[MemoryStore] Error loading local IDB collections:', err)
+    }
   }
 
   private realtimeChannel: any = null
@@ -236,13 +280,23 @@ class MemoryStoreService {
 
       if (error) {
         console.warn(`[MemoryStore] loadFromCloud error on "${storeName}":`, error.message)
-        return
       }
-      if (data) {
+      if (data && data.length > 0) {
         setter(data.map((r: any) => this.toCamelCase(r)))
+        return
       }
     } catch (e) {
       console.warn(`[MemoryStore] loadFromCloud exception on "${storeName}":`, e)
+    }
+
+    // Fallback to IndexedDB if cloud returned 0 rows or errored out
+    try {
+      const localData = await idb.getAll(storeName as any)
+      if (localData && localData.length > 0) {
+        setter(localData.filter((r: any) => !r.deleted).map((r: any) => this.toCamelCase(r)))
+      }
+    } catch (err) {
+      console.warn(`[MemoryStore] IDB fallback read failed on "${storeName}":`, err)
     }
   }
 
@@ -385,8 +439,18 @@ class MemoryStoreService {
       localArray.push(record)
     }
 
-    // Write directly to Supabase Cloud — no local IndexedDB
+    // Save to local IndexedDB for reliable offline storage
+    try {
+      await idb.put(storeName as any, record)
+    } catch (e) {
+      console.warn(`[MemoryStore] IndexedDB put failed for "${storeName}":`, e)
+    }
+
+    // Write to Supabase Cloud if configured
     await this.triggerCloudSave(storeName, record)
+
+    // Notify listeners so UI updates reactively
+    this.notifyListeners(null)
   }
 
   // Soft delete helper
@@ -403,7 +467,15 @@ class MemoryStoreService {
       record.pendingSync = false
       record.syncVersion = (record.syncVersion || 0) + 1
       localArray[index] = record
+
+      try {
+        await idb.put(storeName as any, record)
+      } catch (e) {
+        console.warn(`[MemoryStore] IndexedDB softDelete failed for "${storeName}":`, e)
+      }
+
       await this.triggerCloudSave(storeName, record)
+      this.notifyListeners(null)
     }
   }
 
@@ -417,7 +489,15 @@ class MemoryStoreService {
     if (index >= 0) {
       const record = { ...localArray[index], deleted: true }
       localArray.splice(index, 1)
+
+      try {
+        await idb.delete(storeName as any, id)
+      } catch (e) {
+        console.warn(`[MemoryStore] IndexedDB delete failed for "${storeName}":`, e)
+      }
+
       await this.triggerCloudSave(storeName, record)
+      this.notifyListeners(null)
     }
   }
 

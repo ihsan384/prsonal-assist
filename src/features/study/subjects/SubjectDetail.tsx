@@ -15,6 +15,7 @@ import { testAnalyticsService } from '@/services/study/testAnalytics.service'
 import { curriculumService } from '@/services/curriculum/curriculumService'
 import type { Subject, Chapter, StudySession } from '@/types/study.types'
 import { useToast } from '@/hooks/useToast'
+import { useMemoryStoreUpdate } from '@/hooks/useMemoryStoreUpdate'
 
 export default function SubjectDetail() {
   const { id } = useParams()
@@ -79,6 +80,8 @@ export default function SubjectDetail() {
       setSessions(sess)
     }
   }
+
+  useMemoryStoreUpdate()
 
   useEffect(() => {
     loadData()

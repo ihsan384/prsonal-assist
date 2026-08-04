@@ -19,6 +19,7 @@ import { curriculumService } from '@/services/curriculum/curriculumService'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Subject, Board, AcademicStream, SubjectCombination, MasterSubject } from '@/types/study.types'
 import { useToast } from '@/hooks/useToast'
+import { useMemoryStoreUpdate } from '@/hooks/useMemoryStoreUpdate'
 import { LogStudyModal } from '@/components/study/LogStudyModal'
 
 export default function SubjectsPage() {
@@ -95,9 +96,11 @@ export default function SubjectsPage() {
     setSubjects(computed)
   }
 
+  useMemoryStoreUpdate()
+
   useEffect(() => {
     loadData()
-  }, [])
+  })
 
   // Populate Change Stream modal selectors
   useEffect(() => {

@@ -11,6 +11,7 @@ import { LogStudyModal } from '@/components/study/LogStudyModal'
 import { studyERPStorage } from '@/services/storage/studyERP.storage'
 import { testAnalyticsService } from '@/services/study/testAnalytics.service'
 import type { Subject, Chapter, Topic, StudySession } from '@/types/study.types'
+import { useMemoryStoreUpdate } from '@/hooks/useMemoryStoreUpdate'
 
 export default function StudyOverview() {
   const navigate = useNavigate()
@@ -58,9 +59,11 @@ export default function StudyOverview() {
     }
   }
 
+  useMemoryStoreUpdate()
+
   useEffect(() => {
     loadData()
-  }, [])
+  })
 
   // Multi-dimensional metrics calculation
   const allSessions = studyERPStorage.getSessions()

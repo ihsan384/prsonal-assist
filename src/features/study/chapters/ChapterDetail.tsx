@@ -13,6 +13,7 @@ import { studyERPStorage } from '@/services/storage/studyERP.storage'
 import { testAnalyticsService } from '@/services/study/testAnalytics.service'
 import type { Chapter, Topic, Subject, StudySession, TopicStatus } from '@/types/study.types'
 import { useToast } from '@/hooks/useToast'
+import { useMemoryStoreUpdate } from '@/hooks/useMemoryStoreUpdate'
 
 export default function ChapterDetail() {
   const { id } = useParams()
@@ -57,6 +58,8 @@ export default function ChapterDetail() {
       setRecentSessions(sess)
     }
   }
+
+  useMemoryStoreUpdate()
 
   useEffect(() => {
     loadData()
