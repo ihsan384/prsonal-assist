@@ -82,6 +82,17 @@ class MemoryStoreService {
 
 
 
+  private listeners: Set<(userId: string | null) => void> = new Set()
+
+  subscribe(callback: (userId: string | null) => void): () => void {
+    this.listeners.add(callback)
+    return () => { this.listeners.delete(callback) }
+  }
+
+  private notifyListeners(userId: string | null) {
+    this.listeners.forEach(cb => cb(userId))
+  }
+
   async switchUser(userId: string | null): Promise<void> {
     this.isLoaded = false
     this.loadPromise = null
@@ -89,13 +100,9 @@ class MemoryStoreService {
     // Reset all memory collections
     this.clearMemory()
 
-    if (!userId) {
-      await idb.closeDatabase()
-      return
-    }
-
     await idb.switchUser(userId)
     await this.init()
+    this.notifyListeners(userId)
   }
 
   async init(): Promise<void> {

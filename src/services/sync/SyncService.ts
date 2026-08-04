@@ -265,6 +265,15 @@ class SyncEngine {
     let hadError = false
 
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const currentUserId = session?.user?.id
+      if (!currentUserId) {
+        console.log('[SyncEngine] Skipping cloud sync: No authenticated user session.')
+        this.status = 'online'
+        this.notify()
+        return
+      }
+
       // Skip local management tables from cloud sync
       const skipStores = new Set([
         STORES.SYNC_QUEUE, 
@@ -281,10 +290,10 @@ class SyncEngine {
       for (const [, storeName] of storeEntries) {
         try {
           // 1. Download server modifications
-          await this.downloadStore(storeName as any)
+          await this.downloadStore(storeName as any, currentUserId)
 
           // 2. Upload pending modifications
-          await this.syncStore(storeName as any)
+          await this.syncStore(storeName as any, currentUserId)
         } catch (err) {
           console.error(`[SyncEngine] Failed to sync store "${storeName}":`, err)
           hadError = true
@@ -314,13 +323,14 @@ class SyncEngine {
   /**
    * Two-way Download Sync: Fetch server modifications and detect conflicts
    */
-  private async downloadStore(storeName: typeof STORES[keyof typeof STORES]): Promise<void> {
+  private async downloadStore(storeName: typeof STORES[keyof typeof STORES], currentUserId: string): Promise<void> {
     const tableName = storeName
     const lastSync = this.lastSyncTime || '1970-01-01T00:00:00.000Z'
 
     const { data: serverRecords, error } = await supabase
       .from(tableName as any)
       .select('*')
+      .eq('user_id', currentUserId)
       .gt('updated_at', lastSync)
 
     if (error) {
@@ -379,7 +389,7 @@ class SyncEngine {
   /**
    * Sync a single store: batch upsert new/modified, delete soft-deleted records
    */
-  private async syncStore(storeName: typeof STORES[keyof typeof STORES]): Promise<void> {
+  private async syncStore(storeName: typeof STORES[keyof typeof STORES], currentUserId: string): Promise<void> {
     const startMs = Date.now()
 
     let pending: any[]
@@ -404,7 +414,7 @@ class SyncEngine {
       const retryEntry = this.retryQueue.get(retryKey)
       const attempts = (retryEntry?.attempts ?? 0) + 1
 
-      const { error } = await supabase.from(tableName as any).delete().eq('id', record.id)
+      const { error } = await supabase.from(tableName as any).delete().eq('id', record.id).eq('user_id', currentUserId)
       if (!error) {
         await idb.delete(storeName, record.id)
         this.retryQueue.delete(retryKey)
@@ -436,6 +446,7 @@ class SyncEngine {
 
       const payloads = batch.map(record => {
         const snake = this.toSnakeCase({ ...record })
+        snake.user_id = record.user_id || record.userId || currentUserId
         delete snake.pending_sync
         delete snake.last_synced_at
         if (storeName === STORES.HABITS) {

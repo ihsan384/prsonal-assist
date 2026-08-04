@@ -85,19 +85,15 @@ export class IndexedDBService {
       this.db = null
     }
     this.initPromise = null
-    this.userId = ''
   }
 
   async switchUser(userId: string | null): Promise<IDBDatabase | null> {
-    if (!userId) {
-      await this.closeDatabase()
-      return null
-    }
-    if (this.userId === userId && this.db) {
+    const targetUserId = userId || 'guest'
+    if (this.userId === targetUserId && this.db) {
       return this.db
     }
     await this.closeDatabase()
-    this.userId = userId
+    this.userId = targetUserId
     return this.getDB()
   }
 

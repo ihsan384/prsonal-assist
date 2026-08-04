@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       setProfile(null)
       storage.setUserId(null)
-      await memoryStore.switchUser(null)
+      await memoryStore.switchUser('guest')
       setAuthStatus('UNAUTHENTICATED')
       return
     }
@@ -53,6 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userProfile = await authService.fetchOrCreateProfile(authUser)
       setProfile(userProfile)
       setAuthStatus('AUTHENTICATED')
+
+      // Trigger user sync after switching user DB
+      import('@/services/sync/SyncService').then(({ syncEngine }) => {
+        syncEngine.sync().catch(err => console.error('Sync failed on auth switch:', err))
+      })
     } catch (err) {
       console.error('Error loading user data in AuthContext:', err)
       setAuthStatus('UNAUTHENTICATED')
@@ -68,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           loadUserData(session.user)
         } else {
-          memoryStore.switchUser(null).finally(() => {
+          memoryStore.switchUser('guest').finally(() => {
             if (isMounted) setAuthStatus('UNAUTHENTICATED')
           })
         }
@@ -86,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null)
           setProfile(null)
           storage.setUserId(null)
-          await memoryStore.switchUser(null)
+          await memoryStore.switchUser('guest')
           setAuthStatus('UNAUTHENTICATED')
         }
       }
