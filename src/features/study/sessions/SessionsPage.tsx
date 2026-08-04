@@ -10,10 +10,13 @@ import { studyERPStorage } from '@/services/storage/studyERP.storage'
 import type { StudySession, Subject } from '@/types/study.types'
 import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
 
+import { LogStudyModal } from '@/components/study/LogStudyModal'
+
 export default function SessionsPage() {
   const navigate = useNavigate()
   const [sessions, setSessions] = useState<StudySession[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false)
 
   // Delete states
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
@@ -53,15 +56,30 @@ export default function SessionsPage() {
     <PageWrapper>
       <div className="flex justify-between items-center">
         <SectionHeader title="Study Session Logs" subtitle="Verify historical focus periods and logged sessions" compact />
-        <Button 
-          variant="primary" 
-          size="sm" 
-          icon={<Plus size={12} />} 
-          onClick={() => navigate('/study/sessions/new')}
-        >
-          New Session
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsLogModalOpen(true)}
+          >
+            + Log Study
+          </Button>
+          <Button 
+            variant="primary" 
+            size="sm" 
+            icon={<Plus size={12} />} 
+            onClick={() => navigate('/study/sessions/new')}
+          >
+            New Session
+          </Button>
+        </div>
       </div>
+
+      <LogStudyModal
+        isOpen={isLogModalOpen}
+        onClose={() => setIsLogModalOpen(false)}
+        onSaved={reloadSessions}
+      />
 
       {/* Overview widget cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

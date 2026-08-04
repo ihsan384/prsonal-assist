@@ -30,6 +30,8 @@ export const STORES = {
   REVISIONS: 'revisions',
   QUESTIONS: 'questions',
   TESTS: 'tests',
+  TEST_SUBJECT_RESULTS: 'test_subject_results',
+  TEST_CHAPTER_RESULTS: 'test_chapter_results',
   MISTAKES: 'mistakes',
   FORMULAS: 'formulas',
   NOTES: 'notes',

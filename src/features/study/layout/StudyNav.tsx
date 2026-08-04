@@ -8,7 +8,7 @@ const LINKS = [
   { path: '/study/sessions', label: 'Sessions' },
   { path: '/study/revision', label: 'Revision' },
   { path: '/study/questions', label: 'Practice' },
-  { path: '/study/tests', label: 'Mock Tests' },
+  { path: '/study/tests', label: 'Tests' },
   { path: '/study/mistakes', label: 'Mistakes' },
   { path: '/study/formulas', label: 'Formulas' },
   { path: '/study/notes', label: 'Notes' },

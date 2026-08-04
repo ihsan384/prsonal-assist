@@ -19,15 +19,17 @@ import { curriculumService } from '@/services/curriculum/curriculumService'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Subject, Board, AcademicStream, SubjectCombination, MasterSubject } from '@/types/study.types'
 import { useToast } from '@/hooks/useToast'
+import { LogStudyModal } from '@/components/study/LogStudyModal'
 
 export default function SubjectsPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const { user, profile, refreshProfile } = useAuth()
 
-  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [subjects, setSubjects] = useState<any[]>([])
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isStreamModalOpen, setIsStreamModalOpen] = useState(false)
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false)
 
   // Custom Subject state
   const [newSubName, setNewSubName] = useState('')
@@ -47,18 +49,47 @@ export default function SubjectsPage() {
 
   const loadData = () => {
     const all = studyERPStorage.getSubjects()
-    // Compute total/completed chapters for each subject
     const computed = all.map(sub => {
-      const chapters = studyERPStorage.getChapters().filter(c => c.subjectId === sub.id)
-      const total = chapters.length
-      const done = chapters.filter(c => c.status === 'completed').length
-      const pending = total - done
-      const pct = total > 0 ? Math.round((done / total) * 100) : sub.completionPercentage || 0
+      const chapters = studyERPStorage.getChapters(sub.id)
+      const totalChapters = chapters.length
+
+      const coveredChapters = chapters.filter(c => {
+        const topics = studyERPStorage.getTopics(c.id)
+        if (topics.length > 0) {
+          const coveredCount = topics.filter(t => t.status === 'practicing' || t.status === 'mastered').length
+          return (coveredCount / topics.length) >= 0.8
+        }
+        return c.status === 'completed'
+      }).length
+
+      const masteredChapters = chapters.filter(c => {
+        const topics = studyERPStorage.getTopics(c.id)
+        if (topics.length > 0) {
+          return topics.every(t => t.status === 'mastered')
+        }
+        return c.status === 'completed'
+      }).length
+
+      const sessions = studyERPStorage.getSessions().filter(s => s.subjectId === sub.id)
+      const totalMins = sessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0)
+      const studyTimeFmt = totalMins >= 60 ? `${Math.floor(totalMins / 60)}h ${totalMins % 60}m` : `${totalMins}m`
+
+      const totalAttempted = sessions.reduce((acc, s) => acc + (s.questionsSolved || 0), 0)
+      const totalCorrect = sessions.reduce((acc, s) => acc + (s.correctAnswers || 0), 0)
+      const accuracy = totalAttempted > 0 ? Math.round((totalCorrect / totalAttempted) * 100) : 0
+
+      const coveragePct = totalChapters > 0 ? Math.round((coveredChapters / totalChapters) * 100) : 0
+
       return {
         ...sub,
-        completedChapters: done,
-        pendingChapters: pending,
-        completionPercentage: pct
+        completedChapters: coveredChapters,
+        pendingChapters: totalChapters - coveredChapters,
+        masteredChapters,
+        totalChapters,
+        studyTimeFmt,
+        totalAttempted,
+        accuracy,
+        completionPercentage: coveragePct
       }
     })
     setSubjects(computed)
@@ -205,6 +236,13 @@ export default function SubjectsPage() {
             <Button
               variant="secondary"
               size="sm"
+              onClick={() => setIsLogModalOpen(true)}
+            >
+              + Log Study
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               icon={<Settings size={13} />}
               onClick={() => setIsStreamModalOpen(true)}
             >
@@ -250,7 +288,6 @@ export default function SubjectsPage() {
           <Card
             key={sub.id}
             hover
-            onClick={() => navigate(`/study/subjects/${sub.id}`)}
             className="flex flex-col justify-between cursor-pointer"
           >
             <div>
@@ -269,7 +306,10 @@ export default function SubjectsPage() {
                     </p>
                   </div>
                 </div>
-                <span className="text-xs font-bold text-[var(--accent)]">{sub.completionPercentage}%</span>
+                <div className="text-right">
+                  <span className="text-xs font-bold text-[var(--accent)] block">{sub.completionPercentage}%</span>
+                  <span className="text-[9px] text-[var(--text-4)] block font-medium">Coverage</span>
+                </div>
               </div>
 
               {/* Progress Bar */}
@@ -277,30 +317,57 @@ export default function SubjectsPage() {
                 <ProgressBar value={sub.completionPercentage} max={100} height={6} />
               </div>
 
-              {/* Detail Metrics */}
-              <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-[var(--border)] text-center text-xs">
+              {/* Multi-Dimensional Metrics Grid */}
+              <div className="grid grid-cols-4 gap-2 mt-4 pt-3 border-t border-[var(--border)] text-center text-xs">
                 <div>
-                  <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Study Hours</span>
-                  <span className="font-semibold text-[var(--text)] block mt-0.5">{sub.studyHours}h / {sub.targetHours}h</span>
+                  <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Study Time</span>
+                  <span className="font-semibold text-[var(--accent)] block mt-0.5">{sub.studyTimeFmt}</span>
                 </div>
                 <div>
-                  <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Done Chapters</span>
-                  <span className="font-semibold text-[var(--success)] block mt-0.5">{sub.completedChapters}</span>
+                  <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Chapters</span>
+                  <span className="font-semibold text-[var(--text)] block mt-0.5">{sub.completedChapters}/{sub.totalChapters}</span>
                 </div>
                 <div>
-                  <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Pending</span>
-                  <span className="font-semibold text-[var(--warning)] block mt-0.5">{sub.pendingChapters}</span>
+                  <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Mastered</span>
+                  <span className="font-semibold text-[var(--success)] block mt-0.5">{sub.masteredChapters}</span>
+                </div>
+                <div>
+                  <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Accuracy</span>
+                  <span className="font-semibold text-emerald-400 block mt-0.5">{sub.totalAttempted > 0 ? `${sub.accuracy}%` : 'N/A'}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end text-xs font-semibold text-[var(--accent)] mt-4">
-              <span>View Syllabus Detail</span>
-              <ChevronRight size={13} />
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--border)]">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/study/pomodoro?subjectId=${sub.id}`)
+                }}
+              >
+                Continue Studying
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate(`/study/subjects/${sub.id}`)}
+              >
+                <span>View Subject</span>
+                <ChevronRight size={13} className="ml-1" />
+              </Button>
             </div>
           </Card>
         ))}
       </div>
+
+      {/* Log Study Modal */}
+      <LogStudyModal
+        isOpen={isLogModalOpen}
+        onClose={() => setIsLogModalOpen(false)}
+        onSaved={loadData}
+      />
 
       {/* Archived / Inactive Subjects (if stream changed previously) */}
       {archivedSubjects.length > 0 && (

@@ -5,19 +5,23 @@ import { ProgressBar } from '@/components/ui/ProgressRing'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { studyERPStorage } from '@/services/storage/studyERP.storage'
-import type { Subject, StudySession, QuestionLog, RevisionEntry } from '@/types/study.types'
+import { testAnalyticsService } from '@/services/study/testAnalytics.service'
+import type { Subject, StudySession, QuestionLog, RevisionEntry, TestRecord } from '@/types/study.types'
+import { Badge } from '@/components/ui/Badge'
 
 export default function StatsPage() {
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [sessions, setSessions] = useState<StudySession[]>([])
   const [questions, setQuestions] = useState<QuestionLog[]>([])
   const [revisions, setRevisions] = useState<RevisionEntry[]>([])
+  const [tests, setTests] = useState<TestRecord[]>([])
 
   useEffect(() => {
     setSubjects(studyERPStorage.getSubjects())
     setSessions(studyERPStorage.getSessions())
     setQuestions(studyERPStorage.getQuestions())
     setRevisions(studyERPStorage.getRevisions())
+    setTests(studyERPStorage.getTests())
   }, [])
 
   // Aggregate stats
@@ -176,23 +180,52 @@ export default function StatsPage() {
             </div>
           </Card>
 
-          {/* Chapter Syllabus Progress */}
-          {subjects.length > 0 && (
-            <Card className="md:col-span-2 text-left">
-              <SectionHeader title="Syllabus Subject Breakdown" subtitle="Detailed hours and completion percentage per topic category" compact />
-              <div className="flex flex-col gap-3.5 mt-2">
-                {subjects.map(sub => (
-                  <div key={sub.id}>
-                    <div className="flex justify-between items-center text-xs mb-1">
-                      <span className="font-semibold text-[var(--text-2)]">{sub.name}</span>
-                      <span className="text-[var(--text-3)]">{sub.completionPercentage}% Complete · {sub.studyHours}h logged</span>
-                    </div>
-                    <ProgressBar value={sub.completionPercentage} max={100} height={5} />
+          {/* Test Performance Analytics Section */}
+          {tests.length > 0 && (() => {
+            const testStats = testAnalyticsService.getOverallStats(tests)
+            return (
+              <Card className="md:col-span-2 text-left">
+                <SectionHeader title="Test Performance Analytics" subtitle="Overall scores, subject performance, and exam accuracy trends" compact />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-3">
+                  <div className="p-2.5 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-xl">
+                    <span className="text-[10px] text-[var(--text-3)] font-semibold uppercase block">Tests Taken</span>
+                    <span className="text-base font-bold text-[var(--text)] mt-0.5 block">{testStats.totalTests}</span>
                   </div>
-                ))}
-              </div>
-            </Card>
-          )}
+                  <div className="p-2.5 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-xl">
+                    <span className="text-[10px] text-[var(--text-3)] font-semibold uppercase block">Average Score</span>
+                    <span className="text-base font-bold text-[var(--accent)] mt-0.5 block">{testStats.avgScore}%</span>
+                  </div>
+                  <div className="p-2.5 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-xl">
+                    <span className="text-[10px] text-[var(--text-3)] font-semibold uppercase block">Best Score</span>
+                    <span className="text-base font-bold text-[var(--success)] mt-0.5 block">{testStats.bestScore}%</span>
+                  </div>
+                  <div className="p-2.5 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-xl">
+                    <span className="text-[10px] text-[var(--text-3)] font-semibold uppercase block">Accuracy Rate</span>
+                    <span className="text-base font-bold text-indigo-400 mt-0.5 block">{testStats.avgAccuracy}%</span>
+                  </div>
+                </div>
+
+                {subjects.length > 0 && (
+                  <div className="border-t border-[var(--border)] pt-3 mt-3 flex flex-col gap-2">
+                    <span className="text-[10px] font-bold text-[var(--text-3)] uppercase">Subject Test Performance Summary:</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {subjects.map(sub => {
+                        const subAnalytics = testAnalyticsService.getSubjectAnalytics(tests, sub.id)
+                        return (
+                          <div key={sub.id} className="p-2 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px] flex justify-between items-center text-xs">
+                            <span className="font-semibold text-[var(--text)]">{sub.name}</span>
+                            <Badge variant={subAnalytics.avgScore >= 75 ? 'success' : subAnalytics.avgScore >= 60 ? 'warning' : 'error'}>
+                              {subAnalytics.avgScore}% Avg ({subAnalytics.testsCount} Tests)
+                            </Badge>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )
+          })()}
 
         </div>
       )}

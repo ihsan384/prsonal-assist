@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, CheckSquare, Calendar } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -13,6 +14,7 @@ import { useToast } from '@/hooks/useToast'
 
 export default function RevisionPage() {
   const toast = useToast()
+  const [searchParams] = useSearchParams()
   const [revisions, setRevisions] = useState<RevisionEntry[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
 
@@ -23,8 +25,20 @@ export default function RevisionPage() {
 
   useEffect(() => {
     setRevisions(studyERPStorage.getRevisions())
-    setTopics(studyERPStorage.getTopics())
-  }, [])
+    const allTopics = studyERPStorage.getTopics()
+    setTopics(allTopics)
+
+    const subjectId = searchParams.get('subjectId')
+    const chapterId = searchParams.get('chapterId')
+
+    if (chapterId || subjectId) {
+      const matchTopic = allTopics.find(t => t.chapterId === chapterId) || (subjectId ? allTopics[0] : null)
+      if (matchTopic) {
+        setSelectedTopic(matchTopic.id)
+      }
+      setIsModalOpen(true)
+    }
+  }, [searchParams])
 
   const handleCreateRevision = (e: React.FormEvent) => {
     e.preventDefault()

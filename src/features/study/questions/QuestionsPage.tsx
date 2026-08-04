@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, BarChart } from 'lucide-react'
 import { Card, MetricCard } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -13,6 +14,7 @@ import { useToast } from '@/hooks/useToast'
 
 export default function QuestionsPage() {
   const toast = useToast()
+  const [searchParams] = useSearchParams()
   const [logs, setLogs] = useState<QuestionLog[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
 
@@ -28,8 +30,17 @@ export default function QuestionsPage() {
 
   useEffect(() => {
     setLogs(studyERPStorage.getQuestions().reverse())
-    setSubjects(studyERPStorage.getSubjects())
-  }, [])
+    const subs = studyERPStorage.getSubjects()
+    setSubjects(subs)
+
+    const subjectId = searchParams.get('subjectId')
+    if (subjectId) {
+      setSelectedSub(subjectId)
+      setIsModalOpen(true)
+    } else if (subs.length > 0) {
+      setSelectedSub(subs[0].id)
+    }
+  }, [searchParams])
 
   const handleAddLog = (e: React.FormEvent) => {
     e.preventDefault()

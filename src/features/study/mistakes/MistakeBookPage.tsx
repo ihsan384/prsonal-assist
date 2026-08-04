@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, AlertOctagon, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -15,6 +16,7 @@ import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
 
 export default function MistakeBookPage() {
   const toast = useToast()
+  const [searchParams] = useSearchParams()
   const [mistakes, setMistakes] = useState<Mistake[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [chapters, setChapters] = useState<Chapter[]>([])
@@ -39,9 +41,20 @@ export default function MistakeBookPage() {
 
   useEffect(() => {
     reloadMistakes()
-    setSubjects(studyERPStorage.getSubjects())
+    const subs = studyERPStorage.getSubjects()
+    setSubjects(subs)
     setChapters(studyERPStorage.getChapters())
-  }, [])
+
+    const subjectId = searchParams.get('subjectId')
+    const chapterId = searchParams.get('chapterId')
+    if (subjectId) {
+      setSelectedSub(subjectId)
+      if (chapterId) setSelectedCh(chapterId)
+      setIsModalOpen(true)
+    } else if (subs.length > 0) {
+      setSelectedSub(subs[0].id)
+    }
+  }, [searchParams])
 
   // Sync chapters
   const filteredChapters = chapters.filter(c => c.subjectId === selectedSub)

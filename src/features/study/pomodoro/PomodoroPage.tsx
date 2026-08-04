@@ -705,11 +705,29 @@ function PomodoroCalendar() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+import { useSearchParams } from 'react-router-dom'
+
 export default function PomodoroPage() {
-  const { mode, phase, settings, completedToday, preset, fullReset } = usePomodoro()
+  const { mode, phase, settings, completedToday, preset, fullReset, updateSessionSetup } = usePomodoro()
   const [showSettings, setShowSettings] = useState(false)
+  const [searchParams] = useSearchParams()
   const cfg = MODE_CONFIG[mode]
   const isBreak = mode !== 'focus'
+
+  useEffect(() => {
+    const subId = searchParams.get('subjectId')
+    const chId = searchParams.get('chapterId') || ''
+    const tpId = searchParams.get('topicId') || ''
+    const studyTypeParam = searchParams.get('studyType')
+    if (subId) {
+      updateSessionSetup({
+        subjectId: subId,
+        chapterId: chId,
+        topicId: tpId,
+        ...(studyTypeParam ? { studyMethod: studyTypeParam } : {})
+      })
+    }
+  }, [searchParams])
 
   return (
     <PageWrapper>

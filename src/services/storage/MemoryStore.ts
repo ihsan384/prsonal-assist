@@ -1,6 +1,6 @@
 import { idb, STORES } from './IndexedDB'
 import type { Task, Habit, Goal, Workout, Meal, SleepLog, KnowledgeItem, Transaction, Budget, AppSettings, UserProfile, NutritionGoal, StudySession as GeneralStudySession, ReflectionEntry, MotivationQuote, MotivationNote, MotivationCollection, CustomMotivationCategory } from '@/types'
-import type { Subject, Chapter, Topic, StudySession, RevisionEntry, QuestionLog, MockTest, Mistake, Formula, StudyNote } from '@/types/study.types'
+import type { Subject, Chapter, Topic, StudySession, RevisionEntry, QuestionLog, MockTest, TestRecord, TestSubjectResult, TestChapterResult, Mistake, Formula, StudyNote } from '@/types/study.types'
 
 class MemoryStoreService {
   // Flag indicating if the database loading is finished
@@ -66,6 +66,8 @@ class MemoryStoreService {
   revisions: RevisionEntry[] = []
   questions: QuestionLog[] = []
   tests: MockTest[] = []
+  testSubjectResults: TestSubjectResult[] = []
+  testChapterResults: TestChapterResult[] = []
   mistakes: Mistake[] = []
   formulas: Formula[] = []
   notes: StudyNote[] = []
@@ -171,6 +173,8 @@ class MemoryStoreService {
         this.revisions = await idb.getAll<RevisionEntry>(STORES.REVISIONS)
         this.questions = await idb.getAll<QuestionLog>(STORES.QUESTIONS)
         this.tests = await idb.getAll<MockTest>(STORES.TESTS)
+        this.testSubjectResults = await idb.getAll<TestSubjectResult>(STORES.TEST_SUBJECT_RESULTS)
+        this.testChapterResults = await idb.getAll<TestChapterResult>(STORES.TEST_CHAPTER_RESULTS)
         this.mistakes = await idb.getAll<Mistake>(STORES.MISTAKES)
         this.formulas = await idb.getAll<Formula>(STORES.FORMULAS)
         this.notes = await idb.getAll<StudyNote>(STORES.NOTES)
@@ -304,6 +308,8 @@ class MemoryStoreService {
     this.revisions = []
     this.questions = []
     this.tests = []
+    this.testSubjectResults = []
+    this.testChapterResults = []
     this.mistakes = []
     this.formulas = []
     this.notes = []

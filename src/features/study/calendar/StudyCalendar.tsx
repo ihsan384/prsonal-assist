@@ -213,19 +213,25 @@ export default function StudyCalendar() {
               </div>
             ))}
 
-            {/* Mock Tests */}
-            {selectedItems.dayTests.map(test => (
-              <div 
-                key={test.id} 
-                className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px] text-xs"
-              >
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-[var(--text)]">{test.examName}</span>
-                  <Badge variant="error" size="sm">Exam</Badge>
+            {/* Tests & Exams */}
+            {selectedItems.dayTests.map(test => {
+              const name = test.testName || (test as any).examName || 'Test'
+              const score = test.score !== undefined ? test.score : ((test as any).marksObtained || 0)
+              const maxScore = test.maxScore || (test as any).totalMarks || 100
+              const percentage = test.percentage !== undefined ? test.percentage : Math.round((score / maxScore) * 100)
+              return (
+                <div 
+                  key={test.id} 
+                  className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px] text-xs"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-[var(--text)]">{name}</span>
+                    <Badge variant="error" size="sm">{test.testType || 'Exam'}</Badge>
+                  </div>
+                  <p className="text-[10px] text-[var(--text-3)] mt-1">Score: {score}/{maxScore} ({percentage}%)</p>
                 </div>
-                <p className="text-[10px] text-[var(--text-3)] mt-1">Score: {test.marksObtained}/{test.totalMarks} ({test.percentage}%)</p>
-              </div>
-            ))}
+              )
+            })}
 
             {selectedItems.daySess.length === 0 && 
              selectedItems.dayRevs.length === 0 && 

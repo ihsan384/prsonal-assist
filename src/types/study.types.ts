@@ -106,16 +106,33 @@ export interface Chapter extends SyncMetadata {
   confidencePercentage: number
 }
 
+export type TopicStatus = 'not_started' | 'learning' | 'practicing' | 'mastered'
+export type ChapterStatus = 'not_started' | 'in_progress' | 'covered' | 'mastered'
+export type StudyType = 'CONCEPT_LEARNING' | 'PROBLEM_SOLVING' | 'REVISION' | 'PYQ_PRACTICE' | 'MOCK_ANALYSIS' | 'LECTURE' | 'SELF_STUDY' | 'OTHER'
+export type SessionSource = 'POMODORO' | 'MANUAL' | 'STOPWATCH' | 'REVISION' | 'PRACTICE' | 'IMPORTED'
+
+export interface CurriculumTopic {
+  id: string
+  chapterId: string
+  topicNumber: number
+  topicName: string
+  description?: string
+  sortOrder?: number
+  active?: boolean
+}
+
 export interface Topic extends SyncMetadata {
   id: string
   chapterId: string
   name: string
-  status: 'not_started' | 'in_progress' | 'mastered'
+  status: TopicStatus
   understandingPercentage: number
   questionsSolved: number
   mistakes: number
   revisionNeeded: boolean
   notes: string
+  sortOrder?: number
+  isCustom?: boolean
 }
 
 export interface StudySession extends SyncMetadata {
@@ -123,11 +140,14 @@ export interface StudySession extends SyncMetadata {
   subjectId: string
   chapterId?: string
   topicId?: string
+  topicIds?: string[]
   date: string // YYYY-MM-DD
   startTime: string // HH:MM
   endTime: string // HH:MM
   durationMinutes: number
   studyMethod: 'Pomodoro' | 'Active Recall' | 'Feynman' | 'Practice' | 'Reading' | 'Other'
+  studyType?: StudyType
+  source?: SessionSource
   focusRating: number // 1-5
   understandingPercentage: number // 0-100
   questionsSolved?: number
@@ -163,19 +183,92 @@ export interface QuestionLog extends SyncMetadata {
   notes?: string
 }
 
-export interface MockTest extends SyncMetadata {
-  id: string
-  examName: string
-  date: string // YYYY-MM-DD
-  marksObtained: number
-  totalMarks: number
-  percentage: number
-  timeTakenMinutes: number
-  rank?: string
-  mistakesCount: number
-  weakAreas: string[]
-  notes?: string
+export type TestType = 
+  | 'CHAPTER_TEST' 
+  | 'MULTI_CHAPTER_TEST' 
+  | 'SUBJECT_TEST' 
+  | 'COMBINED_TEST' 
+  | 'MOCK_EXAM' 
+  | 'MODEL_EXAM' 
+  | 'SCHOOL_EXAM' 
+  | 'CUSTOM_TEST'
+
+export const TEST_TYPE_LABELS: Record<TestType, string> = {
+  CHAPTER_TEST: 'Chapter Test',
+  MULTI_CHAPTER_TEST: 'Multi-Chapter Test',
+  SUBJECT_TEST: 'Subject Test',
+  COMBINED_TEST: 'Combined Test',
+  MOCK_EXAM: 'Mock Exam',
+  MODEL_EXAM: 'Model Exam',
+  SCHOOL_EXAM: 'School Exam',
+  CUSTOM_TEST: 'Custom Test'
 }
+
+export interface TestSubjectResult extends SyncMetadata {
+  id: string
+  testId: string
+  subjectId: string
+  score: number
+  maxScore: number
+  totalQuestions?: number
+  correct?: number
+  wrong?: number
+  unattempted?: number
+}
+
+export interface TestChapterResult extends SyncMetadata {
+  id: string
+  testId: string
+  subjectId: string
+  chapterId: string
+  score?: number
+  maxScore?: number
+  totalQuestions?: number
+  attempted?: number
+  correct?: number
+  wrong?: number
+  unattempted?: number
+}
+
+export interface TestRecord extends SyncMetadata {
+  id: string
+  userId?: string
+  academicProfileId?: string
+  testType: TestType
+  testName: string
+  testDate: string // YYYY-MM-DD
+  date?: string // Alias for testDate
+  durationMinutes: number
+  examSource?: string
+  examName?: string
+  score: number
+  maxScore: number
+  percentage: number
+  totalQuestions?: number
+  attempted?: number
+  correct?: number
+  wrong?: number
+  unattempted?: number
+  positiveMarksPerCorrect?: number
+  negativeMarksPerWrong?: number
+  rank?: string
+  totalCandidates?: number
+  percentile?: number
+  notes?: string
+
+  // Associated subject and chapter results
+  subjectResults?: TestSubjectResult[]
+  chapterResults?: TestChapterResult[]
+
+  // Legacy fields for backward compatibility
+  marksObtained?: number
+  totalMarks?: number
+  timeTakenMinutes?: number
+  mistakesCount?: number
+  weakAreas?: string[]
+}
+
+export type MockTest = TestRecord
 
 export interface Mistake extends SyncMetadata {
   id: string

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, BookOpen, ArrowLeft } from 'lucide-react'
+import { Plus, BookOpen, ArrowLeft, Play, Clock, Target, CheckCircle2, ChevronRight } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { ProgressBar } from '@/components/ui/ProgressRing'
 import { Button } from '@/components/ui/Button'
@@ -9,9 +9,11 @@ import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { PageWrapper } from '@/components/layout/PageWrapper'
+import { LogStudyModal } from '@/components/study/LogStudyModal'
 import { studyERPStorage } from '@/services/storage/studyERP.storage'
+import { testAnalyticsService } from '@/services/study/testAnalytics.service'
 import { curriculumService } from '@/services/curriculum/curriculumService'
-import type { Subject, Chapter } from '@/types/study.types'
+import type { Subject, Chapter, StudySession } from '@/types/study.types'
 import { useToast } from '@/hooks/useToast'
 
 export default function SubjectDetail() {
@@ -21,8 +23,10 @@ export default function SubjectDetail() {
 
   const [subject, setSubject] = useState<Subject | null>(null)
   const [chapters, setChapters] = useState<Chapter[]>([])
-  
-  // Chapter creation modal
+  const [sessions, setSessions] = useState<StudySession[]>([])
+
+  // Modals
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newChName, setNewChName] = useState('')
   const [newChPriority, setNewChPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium')
@@ -30,7 +34,7 @@ export default function SubjectDetail() {
   const [newChEstHours, setNewChEstHours] = useState('10')
   const [newChNotes, setNewChNotes] = useState('')
 
-  useEffect(() => {
+  const loadData = () => {
     const subs = studyERPStorage.getSubjects()
     const match = subs.find(s => s.id === id)
     if (match) {
@@ -63,11 +67,6 @@ export default function SubjectDetail() {
             }))
             studyERPStorage.saveChapters(newChapters)
             setChapters(newChapters)
-
-            match.pendingChapters = newChapters.length
-            match.completedChapters = 0
-            studyERPStorage.updateSubject(match.id, { pendingChapters: newChapters.length, completedChapters: 0 })
-            setSubject({ ...match })
           } else {
             setChapters([])
           }
@@ -75,7 +74,14 @@ export default function SubjectDetail() {
       } else {
         setChapters(chs)
       }
+
+      const sess = studyERPStorage.getSessions().filter(s => s.subjectId === match.id)
+      setSessions(sess)
     }
+  }
+
+  useEffect(() => {
+    loadData()
   }, [id])
 
   if (!subject) {
@@ -88,6 +94,43 @@ export default function SubjectDetail() {
     )
   }
 
+  // Multi-dimensional metrics calculation
+  const totalChapters = chapters.length
+
+  const chapterMetrics = chapters.map(ch => {
+    const topics = studyERPStorage.getTopics(ch.id)
+    const totalT = topics.length
+    const coveredT = topics.filter(t => t.status === 'practicing' || t.status === 'mastered').length
+    const masteredT = topics.filter(t => t.status === 'mastered').length
+    const isMastered = totalT > 0 ? masteredT === totalT : ch.status === 'completed'
+    const isCovered = totalT > 0 ? (coveredT / totalT) >= 0.8 : ch.status === 'completed'
+    const covPct = totalT > 0 ? Math.round((coveredT / totalT) * 100) : ch.status === 'completed' ? 100 : ch.status === 'in_progress' ? 50 : 0
+
+    return {
+      chapter: ch,
+      totalTopics: totalT,
+      coveredTopics: coveredT,
+      masteredTopics: masteredT,
+      isCovered,
+      isMastered,
+      coveragePct: covPct
+    }
+  })
+
+  const coveredChaptersCount = chapterMetrics.filter(m => m.isCovered).length
+  const masteredChaptersCount = chapterMetrics.filter(m => m.isMastered).length
+
+  const totalSessionMins = sessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0)
+  const studyHoursFmt = totalSessionMins >= 60 ? `${Math.floor(totalSessionMins / 60)}h ${totalSessionMins % 60}m` : `${totalSessionMins}m`
+
+  const totalAttempted = sessions.reduce((acc, s) => acc + (s.questionsSolved || 0), 0)
+  const totalCorrect = sessions.reduce((acc, s) => acc + (s.correctAnswers || 0), 0)
+  const accuracyPct = totalAttempted > 0 ? Math.round((totalCorrect / totalAttempted) * 100) : 0
+
+  const overallCoveragePct = totalChapters > 0
+    ? Math.round(chapterMetrics.reduce((acc, m) => acc + m.coveragePct, 0) / totalChapters)
+    : 0
+
   const handleAddChapter = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newChName.trim()) {
@@ -96,7 +139,7 @@ export default function SubjectDetail() {
     }
 
     const ch: Chapter = {
-      id: `ch-${Date.now()}`,
+      id: `ch-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       subjectId: subject.id,
       name: newChName.trim(),
       priority: newChPriority,
@@ -110,21 +153,7 @@ export default function SubjectDetail() {
     }
 
     studyERPStorage.addChapter(ch)
-    
-    // Update local state
-    const allCh = studyERPStorage.getChapters().filter(c => c.subjectId === subject.id)
-    setChapters(allCh)
-    
-    // Update subject chapters counts in storage
-    const allSubs = studyERPStorage.getSubjects()
-    const subMatch = allSubs.find(s => s.id === subject.id)
-    if (subMatch) {
-      subMatch.pendingChapters = allCh.filter(c => c.status !== 'completed').length
-      subMatch.completedChapters = allCh.filter(c => c.status === 'completed').length
-      studyERPStorage.saveSubjects(allSubs)
-      setSubject(subMatch)
-    }
-
+    loadData()
     setNewChName('')
     setNewChNotes('')
     setIsModalOpen(false)
@@ -151,7 +180,7 @@ export default function SubjectDetail() {
   return (
     <PageWrapper>
       {/* Back to Subjects */}
-      <div>
+      <div className="flex items-center justify-between">
         <Button 
           variant="ghost" 
           size="sm" 
@@ -161,6 +190,24 @@ export default function SubjectDetail() {
         >
           Syllabus Subjects
         </Button>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsLogModalOpen(true)}
+          >
+            + Log Study
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Play size={12} fill="white" />}
+            onClick={() => navigate(`/study/pomodoro?subjectId=${subject.id}`)}
+          >
+            Start Study
+          </Button>
+        </div>
       </div>
 
       {/* Header Info */}
@@ -168,10 +215,10 @@ export default function SubjectDetail() {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-xl font-bold text-[var(--text)]">{subject.name}</h1>
-            <p className="text-xs text-[var(--text-3)] mt-0.5">Syllabus details, chapters and milestones</p>
+            <p className="text-xs text-[var(--text-3)] mt-0.5">Syllabus breakdown, topic progress & practice accuracy</p>
           </div>
           <Button 
-            variant="primary" 
+            variant="secondary" 
             size="sm" 
             icon={<Plus size={12} />} 
             onClick={() => setIsModalOpen(true)}
@@ -180,24 +227,85 @@ export default function SubjectDetail() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px]">
-            <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Logged Study</span>
-            <span className="font-bold text-[var(--text)] text-sm block mt-0.5">{subject.studyHours}h / {subject.targetHours}h</span>
+        {/* Multi-Dimensional Subject Metrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+          <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-xl">
+            <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Coverage %</span>
+            <span className="font-bold text-[var(--accent)] text-sm block mt-0.5">{overallCoveragePct}%</span>
           </div>
-          <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px]">
-            <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Completion %</span>
-            <span className="font-bold text-[var(--text)] text-sm block mt-0.5">{subject.completionPercentage}%</span>
+          <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-xl">
+            <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Study Time</span>
+            <span className="font-bold text-[var(--text)] text-sm block mt-0.5">{studyHoursFmt}</span>
           </div>
-          <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px]">
-            <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Completed Chapters</span>
-            <span className="font-bold text-[var(--success)] text-sm block mt-0.5">{subject.completedChapters} Done</span>
+          <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-xl">
+            <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Covered Chapters</span>
+            <span className="font-bold text-[var(--text)] text-sm block mt-0.5">{coveredChaptersCount}/{totalChapters}</span>
           </div>
-          <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-[8px]">
-            <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Remaining</span>
-            <span className="font-bold text-[var(--warning)] text-sm block mt-0.5">{subject.pendingChapters} Pending</span>
+          <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-xl">
+            <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Mastered Chapters</span>
+            <span className="font-bold text-[var(--success)] text-sm block mt-0.5">{masteredChaptersCount} Done</span>
+          </div>
+          <div className="p-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-xl col-span-2 sm:col-span-1">
+            <span className="text-[var(--text-3)] block text-[10px] uppercase font-semibold">Practice Accuracy</span>
+            <span className="font-bold text-emerald-400 text-sm block mt-0.5">{totalAttempted > 0 ? `${accuracyPct}%` : 'N/A'}</span>
           </div>
         </div>
+
+        {/* Test Performance Section */}
+        {(() => {
+          const allTests = studyERPStorage.getTests()
+          const subAnalytics = testAnalyticsService.getSubjectAnalytics(allTests, subject.id)
+          return (
+            <div className="mt-4 text-left">
+              <div className="flex justify-between items-center mb-2">
+                <SectionHeader title="Test Performance" compact />
+                <Button variant="ghost" size="sm" onClick={() => navigate('/study/tests')}>
+                  View All Tests
+                </Button>
+              </div>
+
+              <Card className="p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div>
+                    <span className="text-[10px] text-[var(--text-3)] font-semibold uppercase block">Tests Taken</span>
+                    <span className="text-sm font-bold text-[var(--text)] mt-0.5 block">{subAnalytics.testsCount}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--text-3)] font-semibold uppercase block">Average Score</span>
+                    <span className="text-sm font-bold text-[var(--accent)] mt-0.5 block">{subAnalytics.avgScore}%</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--text-3)] font-semibold uppercase block">Best Score</span>
+                    <span className="text-sm font-bold text-[var(--success)] mt-0.5 block">{subAnalytics.bestScore}%</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[var(--text-3)] font-semibold uppercase block">Recent Score</span>
+                    <span className="text-sm font-bold text-[var(--text-2)] mt-0.5 block">{subAnalytics.recentScore}%</span>
+                  </div>
+                </div>
+
+                {subAnalytics.recentTests.length > 0 && (
+                  <div className="border-t border-[var(--border)] pt-3 mt-3 flex flex-col gap-2">
+                    <span className="text-[10px] font-bold text-[var(--text-3)] uppercase">Recent Subject Tests:</span>
+                    <div className="flex flex-col gap-1.5">
+                      {subAnalytics.recentTests.map(rt => (
+                        <div key={rt.id} className="flex justify-between items-center text-xs p-2 rounded bg-[var(--bg-subtle)] border border-[var(--border)]">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-[var(--text)]">{rt.testName}</span>
+                            <span className="text-[10px] text-[var(--text-3)]">{rt.testDate}</span>
+                          </div>
+                          <Badge variant={rt.percentage >= 75 ? 'success' : rt.percentage >= 60 ? 'warning' : 'error'}>
+                            {rt.percentage}% ({rt.score}/{rt.maxScore})
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Chapters list grouped by section / book part */}
@@ -215,64 +323,71 @@ export default function SubjectDetail() {
           </Card>
         ) : (
           (() => {
-            // Group chapters by sectionName or bookPart
-            const groups: { [key: string]: Chapter[] } = {}
-            chapters.forEach(ch => {
-              const sec = ch.sectionName || ch.bookPart || 'General Syllabus'
+            const groups: { [key: string]: typeof chapterMetrics } = {}
+            chapterMetrics.forEach(m => {
+              const sec = m.chapter.sectionName || m.chapter.bookPart || 'General Syllabus'
               if (!groups[sec]) groups[sec] = []
-              groups[sec].push(ch)
+              groups[sec].push(m)
             })
 
             const groupEntries = Object.entries(groups)
 
             return (
               <div className="flex flex-col gap-6">
-                {groupEntries.map(([sectionTitle, groupChs]) => (
+                {groupEntries.map(([sectionTitle, groupMetrics]) => (
                   <div key={sectionTitle} className="space-y-3">
                     {groupEntries.length > 1 && (
                       <div className="flex items-center gap-2 pb-1 border-b border-[var(--border)]">
                         <Badge variant="violet" size="sm">{sectionTitle}</Badge>
                         <span className="text-[11px] text-[var(--text-3)] font-medium">
-                          ({groupChs.filter(c => c.status === 'completed').length}/{groupChs.length} Completed)
+                          ({groupMetrics.filter(m => m.isCovered).length}/{groupMetrics.length} Covered)
                         </span>
                       </div>
                     )}
 
                     <div className="flex flex-col gap-3">
-                      {groupChs.map(ch => (
+                      {groupMetrics.map(({ chapter: ch, totalTopics, coveredTopics, masteredTopics, coveragePct, isCovered, isMastered }) => (
                         <Card 
                           key={ch.id} 
                           hover 
                           onClick={() => navigate(`/study/chapters/${ch.id}`)}
-                          className="p-4"
+                          className="p-4 cursor-pointer"
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div>
-                              <h3 className="text-sm font-bold text-[var(--text)]">{ch.name}</h3>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-bold text-[var(--text)]">{ch.name}</h3>
+                                {isMastered && <Badge variant="success" size="sm">✓ MASTERED</Badge>}
+                              </div>
                               <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
                                 {priorityBadge(ch.priority)}
                                 {difficultyBadge(ch.difficulty)}
-                                <Badge variant={ch.status === 'completed' ? 'success' : ch.status === 'in_progress' ? 'info' : 'default'} size="sm">
-                                  {ch.status === 'completed' ? 'Completed' : ch.status === 'in_progress' ? 'In Progress' : 'Not Started'}
+                                <Badge variant={isCovered ? 'info' : 'default'} size="sm">
+                                  {totalTopics > 0 ? `${coveredTopics}/${totalTopics} Topics` : ch.status.replace('_', ' ')}
                                 </Badge>
-                                <span className="text-[10px] text-[var(--text-3)] font-medium">
-                                  {ch.completedHours}/{ch.estimatedHours} hrs logged
-                                </span>
                               </div>
                             </div>
 
-                            <div className="flex sm:flex-col items-end gap-2 sm:gap-1 shrink-0 text-right">
-                              <span className="text-xs font-semibold text-[var(--text)]">Confidence: {ch.confidencePercentage}%</span>
-                              <div className="w-24 mt-0.5">
-                                <ProgressBar value={ch.confidencePercentage} max={100} height={4} />
+                            <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+                              <div className="text-right">
+                                <span className="text-xs font-bold text-[var(--accent)] block">{coveragePct}% Coverage</span>
+                                <div className="w-20 mt-1">
+                                  <ProgressBar value={coveragePct} max={100} height={4} />
+                                </div>
                               </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                icon={<Play size={11} />}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  navigate(`/study/pomodoro?subjectId=${subject.id}&chapterId=${ch.id}`)
+                                }}
+                              >
+                                Study
+                              </Button>
                             </div>
                           </div>
-                          {ch.notes && (
-                            <p className="text-xs text-[var(--text-3)] border-t border-[var(--border)] pt-2.5 mt-3 leading-relaxed">
-                              {ch.notes}
-                            </p>
-                          )}
                         </Card>
                       ))}
                     </div>
@@ -283,6 +398,14 @@ export default function SubjectDetail() {
           })()
         )}
       </div>
+
+      {/* Log Study Modal */}
+      <LogStudyModal
+        isOpen={isLogModalOpen}
+        onClose={() => setIsLogModalOpen(false)}
+        initialSubjectId={subject.id}
+        onSaved={loadData}
+      />
 
       {/* Add Chapter Modal */}
       <Modal

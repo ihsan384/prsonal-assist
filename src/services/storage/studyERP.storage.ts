@@ -2,7 +2,7 @@ import { memoryStore } from './MemoryStore'
 import { STORES } from './IndexedDB'
 import type { 
   Subject, Chapter, Topic, StudySession, RevisionEntry, 
-  QuestionLog, MockTest, Mistake, Formula, StudyNote 
+  QuestionLog, MockTest, TestRecord, TestSubjectResult, TestChapterResult, Mistake, Formula, StudyNote 
 } from '@/types/study.types'
 
 export const studyERPStorage = {
@@ -51,7 +51,10 @@ export const studyERPStorage = {
   },
 
   // Topics
-  getTopics: () => memoryStore.topics.filter(t => !t.deleted),
+  getTopics: (chapterId?: string) => {
+    if (!chapterId) return memoryStore.topics.filter(t => !t.deleted)
+    return memoryStore.topics.filter(t => !t.deleted && t.chapterId === chapterId)
+  },
   saveTopics: (topics: Topic[]) => {
     topics.forEach(t => {
       const record = { ...t, deleted: false, updatedAt: new Date().toISOString() }
@@ -61,6 +64,18 @@ export const studyERPStorage = {
   addTopic: (topic: Topic) => {
     const record = { ...topic, deleted: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
     memoryStore.saveToStore(STORES.TOPICS, memoryStore.topics, record)
+  },
+  updateTopicStatus: (topicId: string, status: Topic['status'], confidence?: number) => {
+    const match = memoryStore.topics.find(t => t.id === topicId)
+    if (match) {
+      const updated = { 
+        ...match, 
+        status, 
+        ...(confidence !== undefined ? { understandingPercentage: confidence } : {}),
+        updatedAt: new Date().toISOString() 
+      }
+      memoryStore.saveToStore(STORES.TOPICS, memoryStore.topics, updated)
+    }
   },
 
   // Sessions
@@ -102,17 +117,98 @@ export const studyERPStorage = {
     memoryStore.saveToStore(STORES.QUESTIONS, memoryStore.questions, record)
   },
 
-  // Tests
-  getTests: () => memoryStore.tests.filter(t => !t.deleted),
-  saveTests: (tests: MockTest[]) => {
+  // Tests & Exams
+  getTests: (): TestRecord[] => {
+    const rawTests = memoryStore.tests.filter(t => !t.deleted)
+    return rawTests.map(t => {
+      // Attach subject & chapter results if present
+      const subjectResults = memoryStore.testSubjectResults.filter(sr => !sr.deleted && sr.testId === t.id)
+      const chapterResults = memoryStore.testChapterResults.filter(cr => !cr.deleted && cr.testId === t.id)
+      return {
+        ...t,
+        testType: t.testType || 'MOCK_EXAM',
+        testName: t.testName || (t as any).examName || 'Test',
+        testDate: t.testDate || (t as any).date || new Date().toISOString().split('T')[0],
+        durationMinutes: t.durationMinutes || (t as any).timeTakenMinutes || 0,
+        score: t.score !== undefined ? t.score : ((t as any).marksObtained || 0),
+        maxScore: t.maxScore || (t as any).totalMarks || 100,
+        percentage: t.percentage !== undefined ? t.percentage : Math.round((((t as any).marksObtained || 0) / ((t as any).totalMarks || 100)) * 100),
+        subjectResults,
+        chapterResults
+      } as TestRecord
+    })
+  },
+  saveTests: (tests: TestRecord[]) => {
     tests.forEach(t => {
       const record = { ...t, deleted: false, updatedAt: new Date().toISOString() }
       memoryStore.saveToStore(STORES.TESTS, memoryStore.tests, record)
     })
   },
-  addTest: (test: MockTest) => {
-    const record = { ...test, deleted: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+  addTest: (test: TestRecord, subjectResults?: TestSubjectResult[], chapterResults?: TestChapterResult[]) => {
+    const record = { 
+      ...test, 
+      testType: test.testType || 'MOCK_EXAM',
+      testName: test.testName || (test as any).examName || 'Test',
+      testDate: test.testDate || (test as any).date || new Date().toISOString().split('T')[0],
+      durationMinutes: test.durationMinutes || (test as any).timeTakenMinutes || 0,
+      deleted: false, 
+      createdAt: new Date().toISOString(), 
+      updatedAt: new Date().toISOString() 
+    }
     memoryStore.saveToStore(STORES.TESTS, memoryStore.tests, record)
+
+    if (subjectResults && subjectResults.length > 0) {
+      subjectResults.forEach(sr => {
+        const srRecord = { ...sr, testId: test.id, deleted: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        memoryStore.saveToStore(STORES.TEST_SUBJECT_RESULTS, memoryStore.testSubjectResults, srRecord)
+      })
+    }
+
+    if (chapterResults && chapterResults.length > 0) {
+      chapterResults.forEach(cr => {
+        const crRecord = { ...cr, testId: test.id, deleted: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        memoryStore.saveToStore(STORES.TEST_CHAPTER_RESULTS, memoryStore.testChapterResults, crRecord)
+      })
+    }
+  },
+  updateTest: (id: string, testUpdates: Partial<TestRecord>, subjectResults?: TestSubjectResult[], chapterResults?: TestChapterResult[]) => {
+    const match = memoryStore.tests.find(t => t.id === id)
+    if (match) {
+      const updated = { ...match, ...testUpdates, updatedAt: new Date().toISOString() }
+      memoryStore.saveToStore(STORES.TESTS, memoryStore.tests, updated)
+    }
+
+    if (subjectResults !== undefined) {
+      // Remove old subject results for this test
+      const existingSr = memoryStore.testSubjectResults.filter(sr => sr.testId === id)
+      existingSr.forEach(sr => memoryStore.removeFromStore(STORES.TEST_SUBJECT_RESULTS, memoryStore.testSubjectResults, sr.id))
+      // Save new
+      subjectResults.forEach(sr => {
+        const srRecord = { ...sr, testId: id, deleted: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        memoryStore.saveToStore(STORES.TEST_SUBJECT_RESULTS, memoryStore.testSubjectResults, srRecord)
+      })
+    }
+
+    if (chapterResults !== undefined) {
+      // Remove old chapter results for this test
+      const existingCr = memoryStore.testChapterResults.filter(cr => cr.testId === id)
+      existingCr.forEach(cr => memoryStore.removeFromStore(STORES.TEST_CHAPTER_RESULTS, memoryStore.testChapterResults, cr.id))
+      // Save new
+      chapterResults.forEach(cr => {
+        const crRecord = { ...cr, testId: id, deleted: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        memoryStore.saveToStore(STORES.TEST_CHAPTER_RESULTS, memoryStore.testChapterResults, crRecord)
+      })
+    }
+  },
+  removeTest: (id: string) => {
+    memoryStore.softDeleteFromStore(STORES.TESTS, memoryStore.tests, id)
+    // Also soft delete associated subject and chapter results
+    memoryStore.testSubjectResults.filter(sr => sr.testId === id).forEach(sr => {
+      memoryStore.softDeleteFromStore(STORES.TEST_SUBJECT_RESULTS, memoryStore.testSubjectResults, sr.id)
+    })
+    memoryStore.testChapterResults.filter(cr => cr.testId === id).forEach(cr => {
+      memoryStore.softDeleteFromStore(STORES.TEST_CHAPTER_RESULTS, memoryStore.testChapterResults, cr.id)
+    })
   },
 
   // Mistakes
@@ -166,8 +262,5 @@ export const studyERPStorage = {
   },
   removeMistake: (id: string) => {
     memoryStore.softDeleteFromStore(STORES.MISTAKES, memoryStore.mistakes, id)
-  },
-  removeTest: (id: string) => {
-    memoryStore.softDeleteFromStore(STORES.TESTS, memoryStore.tests, id)
   }
 }
