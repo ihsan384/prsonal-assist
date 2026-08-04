@@ -206,6 +206,17 @@ class MemoryStoreService {
     // Start with empty database for production use
   }
 
+  private syncTimer: ReturnType<typeof setTimeout> | null = null
+
+  private triggerImmediateSync() {
+    if (this.syncTimer) clearTimeout(this.syncTimer)
+    this.syncTimer = setTimeout(() => {
+      import('@/services/sync/SyncService').then(({ syncEngine }) => {
+        syncEngine.sync().catch(err => console.error('[MemoryStore] Auto-sync error:', err))
+      })
+    }, 300)
+  }
+
   // Generic in-memory helper with IndexedDB async write
   async saveToStore<T extends { id: string; updatedAt?: string; pendingSync?: boolean; syncVersion?: number }>(
     storeName: any,
@@ -225,6 +236,7 @@ class MemoryStoreService {
 
     // Write to IDB asynchronously
     await idb.put(storeName, record)
+    this.triggerImmediateSync()
   }
 
   // Soft delete helper
@@ -244,6 +256,7 @@ class MemoryStoreService {
       // Update local storage representation
       localArray[index] = record
       await idb.put(storeName, record)
+      this.triggerImmediateSync()
     }
   }
 
@@ -257,6 +270,7 @@ class MemoryStoreService {
     if (index >= 0) {
       localArray.splice(index, 1)
       await idb.delete(storeName, id)
+      this.triggerImmediateSync()
     }
   }
 
