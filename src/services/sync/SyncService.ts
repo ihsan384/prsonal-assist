@@ -262,9 +262,9 @@ class RealtimeSyncEngine {
   async updatePendingCount(): Promise<number> { return 0 }
   async getUploadQueue(): Promise<any[]> { return [] }
   async getConflictQueue(): Promise<any[]> { return [] }
-  async getRetryQueue(): Promise<any[]> { return [] }
+  getRetryQueue(): any[] { return [] }
   async getFailedQueue(): Promise<any[]> { return [] }
-  async getSyncLog(): Promise<SyncLogEntry[]> { return [] }
+  async getSyncLog(_limit?: number | string): Promise<SyncLogEntry[]> { return [] }
   async clearSyncLog(): Promise<void> {}
   async retryFailed(): Promise<void> {}
   async wipeCloudData(): Promise<void> {
