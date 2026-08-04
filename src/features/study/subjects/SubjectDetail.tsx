@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { studyERPStorage } from '@/services/storage/studyERP.storage'
+import { curriculumService } from '@/services/curriculum/curriculumService'
 import type { Subject, Chapter } from '@/types/study.types'
 import { useToast } from '@/hooks/useToast'
 
@@ -34,8 +35,46 @@ export default function SubjectDetail() {
     const match = subs.find(s => s.id === id)
     if (match) {
       setSubject(match)
-      const chs = studyERPStorage.getChapters().filter(c => c.subjectId === id)
-      setChapters(chs)
+      const chs = studyERPStorage.getChapters(match.id)
+      
+      if (chs.length === 0) {
+        const masterSubId = match.subjectId || match.code?.toLowerCase() || match.id
+        const targetClass = match.classLevel || 'Plus One'
+        const targetBoard = match.boardId || 'board-plus-one'
+
+        curriculumService.getMasterChapters(masterSubId, targetBoard, targetClass).then(mChs => {
+          if (mChs.length > 0) {
+            const newChapters: Chapter[] = mChs.map(mCh => ({
+              id: `ch-${match.id}-${mCh.chapterNumber}-${Math.random().toString(36).substring(2, 8)}`,
+              subjectId: match.id,
+              name: `${mCh.chapterNumber}. ${mCh.chapterName}`,
+              chapterNumber: mCh.chapterNumber,
+              sectionName: mCh.sectionName,
+              bookPart: mCh.bookPart,
+              sortOrder: mCh.sortOrder || mCh.chapterNumber,
+              priority: 'medium',
+              difficulty: 'medium',
+              status: 'not_started',
+              estimatedHours: mCh.estimatedHours || 6,
+              completedHours: 0,
+              notes: '',
+              revisionCount: 0,
+              confidencePercentage: 0,
+            }))
+            studyERPStorage.saveChapters(newChapters)
+            setChapters(newChapters)
+
+            match.pendingChapters = newChapters.length
+            match.completedChapters = 0
+            studyERPStorage.updateSubject(match.id, { pendingChapters: newChapters.length, completedChapters: 0 })
+            setSubject({ ...match })
+          } else {
+            setChapters([])
+          }
+        })
+      } else {
+        setChapters(chs)
+      }
     }
   }, [id])
 

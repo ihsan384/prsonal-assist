@@ -378,11 +378,31 @@ class CurriculumService {
       chapters = DEFAULT_MASTER_CHAPTERS
     }
 
-    const filtered = chapters.filter(c => {
-      if (c.subjectId !== subjectId) return false
-      if (classLevel && c.classLevel !== classLevel) return false
+    // Resolve subject identifier (e.g. sub-user-sub-chem-plusone -> sub-chem)
+    const cleanSubId = subjectId.replace(/^sub-user-/, '').split('-')[0]
+    const targetSubId = cleanSubId.startsWith('sub-') ? cleanSubId : `sub-${cleanSubId}`
+
+    const isClass11 = classLevel === 'Plus One' || classLevel === 'Class 11'
+    const isClass12 = classLevel === 'Plus Two' || classLevel === 'Class 12'
+
+    let filtered = chapters.filter(c => {
+      const subMatch = c.subjectId === subjectId || c.subjectId === targetSubId
+      if (!subMatch) return false
+
+      if (classLevel) {
+        if (c.classLevel === classLevel) return true
+        if (isClass11 && (c.classLevel === 'Plus One' || c.classLevel === 'Class 11')) return true
+        if (isClass12 && (c.classLevel === 'Plus Two' || c.classLevel === 'Class 12')) return true
+        return false
+      }
       return true
     })
+
+    // If filtered is empty, fallback to all chapters for targetSubId regardless of classLevel
+    if (filtered.length === 0) {
+      filtered = chapters.filter(c => c.subjectId === subjectId || c.subjectId === targetSubId)
+    }
+
     return filtered.sort((a, b) => (a.sortOrder || a.chapterNumber || 0) - (b.sortOrder || b.chapterNumber || 0))
   }
 
@@ -429,7 +449,7 @@ class CurriculumService {
     for (const masterSub of combinationMasterSubjects) {
       const existingSub = existingStudySubjects.find(s =>
         (s.subjectId === masterSub.id || s.id === masterSub.id || s.code === masterSub.code) &&
-        (s.classLevel === classLevel || (!s.classLevel && classLevel === 'Plus One'))
+        (s.classLevel === classLevel || (!s.classLevel && (classLevel === 'Plus One' || classLevel === 'Class 11')))
       )
 
       if (!existingSub) {
@@ -500,6 +520,32 @@ class CurriculumService {
           subjectId: masterSub.id,
           code: masterSub.code
         })
+
+        // Auto-heal: If existing subject has 0 chapters, populate them now
+        const existingChs = studyERPStorage.getChapters(existingSub.id)
+        if (existingChs.length === 0) {
+          const masterChapters = await this.getMasterChapters(masterSub.id, boardId, classLevel)
+          for (const mCh of masterChapters) {
+            const chRecord: Chapter = {
+              id: `ch-${existingSub.id}-${mCh.chapterNumber}-${generateId().slice(0, 6)}`,
+              subjectId: existingSub.id,
+              name: `${mCh.chapterNumber}. ${mCh.chapterName}`,
+              chapterNumber: mCh.chapterNumber,
+              sectionName: mCh.sectionName,
+              bookPart: mCh.bookPart,
+              sortOrder: mCh.sortOrder || mCh.chapterNumber,
+              priority: 'medium',
+              difficulty: 'medium',
+              status: 'not_started',
+              estimatedHours: mCh.estimatedHours || 6,
+              completedHours: 0,
+              notes: '',
+              revisionCount: 0,
+              confidencePercentage: 0,
+            }
+            studyERPStorage.addChapter(chRecord)
+          }
+        }
       }
     }
 
