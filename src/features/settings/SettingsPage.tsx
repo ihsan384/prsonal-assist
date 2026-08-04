@@ -297,52 +297,27 @@ export default function SettingsPage() {
       {/* DATA & CLOUD SYNC SECTION */}
       <div className="mb-6">
         <SectionHeader title="Data & Cloud Sync" />
-        <Card className="space-y-5">
-          <div>
-            <h3 className="text-sm font-bold text-[var(--text)]">Cloud Sync</h3>
-            <p className="text-xs text-[var(--text-3)] mt-0.5">
-              Keep your Study ERP data synchronized securely across your devices.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border)] flex items-center justify-between">
+        {/* Realtime Cross-Device Synchronization */}
+        <Card className="space-y-4">
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-[var(--text-2)] uppercase tracking-wider">Sync Status</p>
-              <p className="text-sm font-bold text-[var(--text)] mt-1">
-                Status: <span className="text-primary-500 capitalize">{syncStatus}</span>
-              </p>
+              <h3 className="text-sm font-bold text-[var(--text)] flex items-center gap-2">
+                Realtime Cross-Device Sync
+                <Badge variant="success" size="sm">● Live</Badge>
+              </h3>
               <p className="text-xs text-[var(--text-3)] mt-0.5">
-                Last synced: {formatTime(lastSyncTime)} {pendingRecords > 0 && `· ${pendingRecords} pending`}
+                Automated WebSocket synchronization. Your edits sync instantly across all devices logged into this account.
               </p>
             </div>
-            <Button variant="primary" size="sm" onClick={handleManualSync} icon={<RefreshCw size={14} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />}>
-              Sync Now
-            </Button>
           </div>
 
-          <div className="space-y-4 pt-2 border-t border-[var(--border)]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[var(--text)]">Automatic Sync</p>
-                <p className="text-xs text-[var(--text-3)]">Sync data in the background automatically</p>
-              </div>
-              <Toggle enabled={autoSync} onToggle={() => setAutoSync(!autoSync)} />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[var(--text)]">Wi-Fi Only</p>
-                <p className="text-xs text-[var(--text-3)]">Conserve cellular bandwidth</p>
-              </div>
-              <Toggle enabled={wifiOnly} onToggle={() => setWifiOnly(!wifiOnly)} />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[var(--text)]">Background Sync</p>
-                <p className="text-xs text-[var(--text-3)]">Sync changes when app is minimized</p>
-              </div>
-              <Toggle enabled={backgroundSync} onToggle={() => setBackgroundSync(!backgroundSync)} />
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3 text-xs">
+            <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+            <div>
+              <span className="font-bold text-[var(--text)] block">Automatic Realtime Engine Active</span>
+              <span className="text-[var(--text-3)] block mt-0.5">
+                Manual sync options are disabled. Any change on mobile, tablet, or desktop instantly broadcasts to all your active devices.
+              </span>
             </div>
           </div>
         </Card>

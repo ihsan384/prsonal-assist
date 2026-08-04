@@ -222,23 +222,84 @@ class MemoryStoreService {
 
   private syncTimer: ReturnType<typeof setTimeout> | null = null
 
-  private triggerImmediateSync() {
-    if (this.syncTimer) clearTimeout(this.syncTimer)
-    this.syncTimer = setTimeout(() => {
+  private triggerImmediateSync(storeName?: string, record?: any) {
+    if (storeName && record) {
       import('@/services/sync/SyncService').then(({ syncEngine }) => {
-        syncEngine.sync().catch(err => console.error('[MemoryStore] Auto-sync error:', err))
+        syncEngine.pushLocalChange(storeName, record).catch(err => console.error('[MemoryStore] Instant push error:', err))
       })
-    }, 300)
+    }
   }
 
-  // Generic in-memory helper with IndexedDB async write
+  // Store name to memory array mapping for Realtime updates
+  private storeToCollectionMap: Record<string, string> = {
+    tasks: 'tasks',
+    habits: 'habits',
+    goals: 'goals',
+    workouts: 'workouts',
+    meals: 'meals',
+    sleep_logs: 'sleepLogs',
+    knowledge: 'knowledge',
+    transactions: 'transactions',
+    budgets: 'budgets',
+    study_sessions: 'studySessions',
+    subjects: 'subjects',
+    chapters: 'chapters',
+    topics: 'topics',
+    sessions: 'sessions',
+    revisions: 'revisions',
+    questions: 'questions',
+    tests: 'tests',
+    test_subject_results: 'testSubjectResults',
+    test_chapter_results: 'testChapterResults',
+    mistakes: 'mistakes',
+    formulas: 'formulas',
+    notes: 'notes',
+    reflection_entries: 'reflectionEntries',
+    motivation_quotes: 'motivationQuotes',
+    motivation_notes: 'motivationNotes',
+    motivation_collections: 'motivationCollections',
+    custom_motivation_categories: 'customMotivationCategories',
+    integration_settings: 'integrationSettings',
+    notebooks: 'notebooks',
+    health_records: 'healthRecords',
+    attachments: 'attachments',
+  }
+
+  /** Apply incoming Realtime Postgres change from Supabase */
+  applyRemoteRealtimeChange(storeName: string, record: any, isDelete: boolean) {
+    if (!record || !record.id) return
+
+    const key = this.storeToCollectionMap[storeName]
+    if (key && Array.isArray((this as any)[key])) {
+      const arr = (this as any)[key] as any[]
+      const idx = arr.findIndex(item => item.id === record.id)
+
+      if (isDelete || record.deleted) {
+        if (idx >= 0) {
+          arr.splice(idx, 1)
+        }
+        idb.delete(storeName as any, record.id).catch(() => {})
+      } else {
+        if (idx >= 0) {
+          arr[idx] = { ...arr[idx], ...record }
+        } else {
+          arr.push(record)
+        }
+        idb.put(storeName as any, record).catch(() => {})
+      }
+
+      this.notifyListeners(null)
+    }
+  }
+
+  // Generic in-memory helper with IndexedDB async write and instant Supabase write-through
   async saveToStore<T extends { id: string; updatedAt?: string; pendingSync?: boolean; syncVersion?: number }>(
     storeName: any,
     localArray: T[],
     record: T
   ): Promise<void> {
     record.updatedAt = new Date().toISOString()
-    record.pendingSync = true
+    record.pendingSync = false
     record.syncVersion = (record.syncVersion || 0) + 1
 
     const index = localArray.findIndex(item => item.id === record.id)
@@ -250,7 +311,7 @@ class MemoryStoreService {
 
     // Write to IDB asynchronously
     await idb.put(storeName, record)
-    this.triggerImmediateSync()
+    this.triggerImmediateSync(storeName, record)
   }
 
   // Soft delete helper
@@ -264,27 +325,28 @@ class MemoryStoreService {
       const record = localArray[index]
       record.deleted = true
       record.updatedAt = new Date().toISOString()
-      record.pendingSync = true
+      record.pendingSync = false
       record.syncVersion = (record.syncVersion || 0) + 1
       
       // Update local storage representation
       localArray[index] = record
       await idb.put(storeName, record)
-      this.triggerImmediateSync()
+      this.triggerImmediateSync(storeName, record)
     }
   }
 
   // Hard delete helper
-  async removeFromStore<T extends { id: string }>(
+  async removeFromStore<T extends { id: string; deleted?: boolean }>(
     storeName: any,
     localArray: T[],
     id: string
   ): Promise<void> {
     const index = localArray.findIndex(item => item.id === id)
     if (index >= 0) {
+      const record = { ...localArray[index], deleted: true }
       localArray.splice(index, 1)
       await idb.delete(storeName, id)
-      this.triggerImmediateSync()
+      this.triggerImmediateSync(storeName, record)
     }
   }
 
