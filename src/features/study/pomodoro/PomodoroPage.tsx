@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Timer, Play, Pause, RotateCcw, SkipForward, Settings2,
@@ -228,6 +228,7 @@ function PresetSelector() {
 function SessionSetupPanel() {
   const { sessionSetup, updateSessionSetup, phase } = usePomodoro()
   const [open, setOpen] = useState(false)
+  const [targetPomoStr, setTargetPomoStr] = useState(String(sessionSetup.targetPomodoros))
 
   const subjects = studyERPStorage.getSubjects()
   const chapters = studyERPStorage.getChapters().filter(c => c.subjectId === sessionSetup.subjectId)
@@ -307,9 +308,21 @@ function SessionSetupPanel() {
                   label="Target Pomodoros"
                   type="number"
                   min="1"
-                  max="20"
-                  value={String(sessionSetup.targetPomodoros)}
-                  onChange={e => updateSessionSetup({ targetPomodoros: Number(e.target.value) || 4 })}
+                  value={targetPomoStr}
+                  onChange={e => {
+                    const val = e.target.value
+                    setTargetPomoStr(val)
+                    if (val !== '' && !isNaN(Number(val))) {
+                      const num = Number(val)
+                      if (num > 0) updateSessionSetup({ targetPomodoros: num })
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!targetPomoStr || isNaN(Number(targetPomoStr)) || Number(targetPomoStr) < 1) {
+                      setTargetPomoStr(String(sessionSetup.targetPomodoros || 4))
+                      updateSessionSetup({ targetPomodoros: sessionSetup.targetPomodoros || 4 })
+                    }
+                  }}
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -335,6 +348,20 @@ function SessionSetupPanel() {
 function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { settings, updateSettings, requestNotificationPermission } = usePomodoro()
 
+  const [focusStr, setFocusStr] = useState(String(settings.focusMinutes))
+  const [shortBreakStr, setShortBreakStr] = useState(String(settings.shortBreakMinutes))
+  const [longBreakStr, setLongBreakStr] = useState(String(settings.longBreakMinutes))
+  const [longBreakAfterStr, setLongBreakAfterStr] = useState(String(settings.longBreakAfter))
+
+  useEffect(() => {
+    if (open) {
+      setFocusStr(String(settings.focusMinutes))
+      setShortBreakStr(String(settings.shortBreakMinutes))
+      setLongBreakStr(String(settings.longBreakMinutes))
+      setLongBreakAfterStr(String(settings.longBreakAfter))
+    }
+  }, [open, settings.focusMinutes, settings.shortBreakMinutes, settings.longBreakMinutes, settings.longBreakAfter])
+
   const SOUND_OPTIONS: { value: SoundType; label: string }[] = [
     { value: 'bell',    label: '🔔 Bell' },
     { value: 'chime',   label: '🎵 Soft Chime' },
@@ -342,25 +369,108 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
     { value: 'none',    label: '🔇 Silent' },
   ]
 
+  const handleDone = () => {
+    const f = Number(focusStr) > 0 ? Number(focusStr) : (settings.focusMinutes || 25)
+    const sb = Number(shortBreakStr) > 0 ? Number(shortBreakStr) : (settings.shortBreakMinutes || 5)
+    const lb = Number(longBreakStr) > 0 ? Number(longBreakStr) : (settings.longBreakMinutes || 15)
+    const lba = Number(longBreakAfterStr) > 0 ? Number(longBreakAfterStr) : (settings.longBreakAfter || 4)
+
+    updateSettings({
+      focusMinutes: f,
+      shortBreakMinutes: sb,
+      longBreakMinutes: lb,
+      longBreakAfter: lba,
+    })
+    onClose()
+  }
+
   return (
-    <Modal isOpen={open} onClose={onClose} title="Timer Settings" size="sm">
+    <Modal isOpen={open} onClose={handleDone} title="Timer Settings" size="sm">
       <div className="flex flex-col gap-5">
         {/* Durations */}
         <div>
           <p className="text-xs font-semibold text-[var(--text-2)] mb-3 uppercase tracking-wide">Durations</p>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Focus (min)" type="number" min="1" max="120"
-              value={String(settings.focusMinutes)}
-              onChange={e => updateSettings({ focusMinutes: Math.max(1, Number(e.target.value)) })} />
-            <Input label="Short Break (min)" type="number" min="1" max="60"
-              value={String(settings.shortBreakMinutes)}
-              onChange={e => updateSettings({ shortBreakMinutes: Math.max(1, Number(e.target.value)) })} />
-            <Input label="Long Break (min)" type="number" min="1" max="60"
-              value={String(settings.longBreakMinutes)}
-              onChange={e => updateSettings({ longBreakMinutes: Math.max(1, Number(e.target.value)) })} />
-            <Input label="Long break after" type="number" min="1" max="10"
-              value={String(settings.longBreakAfter)}
-              onChange={e => updateSettings({ longBreakAfter: Math.max(1, Number(e.target.value)) })} />
+            <Input
+              label="Focus (min)"
+              type="number"
+              min="1"
+              value={focusStr}
+              onChange={e => {
+                const val = e.target.value
+                setFocusStr(val)
+                if (val !== '' && !isNaN(Number(val))) {
+                  const num = Number(val)
+                  if (num > 0) updateSettings({ focusMinutes: num })
+                }
+              }}
+              onBlur={() => {
+                if (!focusStr || isNaN(Number(focusStr)) || Number(focusStr) < 1) {
+                  setFocusStr(String(settings.focusMinutes || 25))
+                  updateSettings({ focusMinutes: settings.focusMinutes || 25 })
+                }
+              }}
+            />
+            <Input
+              label="Short Break (min)"
+              type="number"
+              min="1"
+              value={shortBreakStr}
+              onChange={e => {
+                const val = e.target.value
+                setShortBreakStr(val)
+                if (val !== '' && !isNaN(Number(val))) {
+                  const num = Number(val)
+                  if (num > 0) updateSettings({ shortBreakMinutes: num })
+                }
+              }}
+              onBlur={() => {
+                if (!shortBreakStr || isNaN(Number(shortBreakStr)) || Number(shortBreakStr) < 1) {
+                  setShortBreakStr(String(settings.shortBreakMinutes || 5))
+                  updateSettings({ shortBreakMinutes: settings.shortBreakMinutes || 5 })
+                }
+              }}
+            />
+            <Input
+              label="Long Break (min)"
+              type="number"
+              min="1"
+              value={longBreakStr}
+              onChange={e => {
+                const val = e.target.value
+                setLongBreakStr(val)
+                if (val !== '' && !isNaN(Number(val))) {
+                  const num = Number(val)
+                  if (num > 0) updateSettings({ longBreakMinutes: num })
+                }
+              }}
+              onBlur={() => {
+                if (!longBreakStr || isNaN(Number(longBreakStr)) || Number(longBreakStr) < 1) {
+                  setLongBreakStr(String(settings.longBreakMinutes || 15))
+                  updateSettings({ longBreakMinutes: settings.longBreakMinutes || 15 })
+                }
+              }}
+            />
+            <Input
+              label="Long break after"
+              type="number"
+              min="1"
+              value={longBreakAfterStr}
+              onChange={e => {
+                const val = e.target.value
+                setLongBreakAfterStr(val)
+                if (val !== '' && !isNaN(Number(val))) {
+                  const num = Number(val)
+                  if (num > 0) updateSettings({ longBreakAfter: num })
+                }
+              }}
+              onBlur={() => {
+                if (!longBreakAfterStr || isNaN(Number(longBreakAfterStr)) || Number(longBreakAfterStr) < 1) {
+                  setLongBreakAfterStr(String(settings.longBreakAfter || 4))
+                  updateSettings({ longBreakAfter: settings.longBreakAfter || 4 })
+                }
+              }}
+            />
           </div>
         </div>
 
@@ -452,6 +562,7 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
     </Modal>
   )
 }
+
 
 // ─── Stats Grid ───────────────────────────────────────────────────────────────
 
