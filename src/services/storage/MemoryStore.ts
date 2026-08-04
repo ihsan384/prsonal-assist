@@ -281,6 +281,12 @@ class MemoryStoreService {
         updatedAt: new Date().toISOString()
       })
 
+      // Remove client-side-only fields that don't exist as DB columns.
+      // PostgREST rejects the entire upsert if any unknown column is present.
+      delete snakeRecord.pending_sync
+      delete snakeRecord.last_synced_at
+      delete snakeRecord.sync_version
+
       console.log(`[MemoryStore] Saving to Supabase table "${storeName}", id=${record.id}`)
 
       if (record.deleted) {
@@ -292,7 +298,7 @@ class MemoryStoreService {
       } else {
         const { error } = await (supabase.from(storeName as any) as any)
           .upsert(snakeRecord, { onConflict: 'id' })
-        if (error) console.error(`[MemoryStore] UPSERT error on "${storeName}": `, error.message, '| record:', snakeRecord)
+        if (error) console.error(`[MemoryStore] UPSERT error on "${storeName}": `, error.message, '| record keys:', Object.keys(snakeRecord))
         else console.log(`[MemoryStore] ✅ Saved to "${storeName}" successfully`)
       }
     } catch (err) {
