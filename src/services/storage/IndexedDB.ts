@@ -34,6 +34,15 @@ export const STORES = {
   FORMULAS: 'formulas',
   NOTES: 'notes',
 
+  // Master Curriculum stores
+  BOARDS: 'boards',
+  STREAMS: 'streams',
+  SUBJECT_COMBINATIONS: 'subject_combinations',
+  CURRICULUM_SUBJECTS: 'curriculum_subjects',
+  COMBINATION_SUBJECTS: 'combination_subjects',
+  MASTER_CHAPTERS: 'master_chapters',
+  USER_SUBJECTS: 'user_subjects',
+
   // Reflection & Motivation stores
   REFLECTION_ENTRIES: 'reflection_entries',
   MOTIVATION_QUOTES: 'motivation_quotes',

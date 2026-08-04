@@ -18,9 +18,16 @@ export const studyERPStorage = {
     const record = { ...subject, deleted: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
     memoryStore.saveToStore(STORES.SUBJECTS, memoryStore.subjects, record)
   },
+  updateSubject: (id: string, updates: Partial<Subject>) => {
+    const match = memoryStore.subjects.find(s => s.id === id)
+    if (match) {
+      const updated = { ...match, ...updates, updatedAt: new Date().toISOString() }
+      memoryStore.saveToStore(STORES.SUBJECTS, memoryStore.subjects, updated)
+    }
+  },
 
   // Chapters
-  getChapters: () => memoryStore.chapters.filter(c => !c.deleted),
+  getChapters: (subjectId?: string) => memoryStore.chapters.filter(c => !c.deleted && (!subjectId || c.subjectId === subjectId)),
   saveChapters: (chapters: Chapter[]) => {
     chapters.forEach(c => {
       const record = { ...c, deleted: false, updatedAt: new Date().toISOString() }

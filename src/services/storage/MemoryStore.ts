@@ -97,8 +97,11 @@ class MemoryStoreService {
     this.isLoaded = false
     this.loadPromise = null
 
-    // Reset all memory collections
+    // Reset all memory collections & sync engine retry queues
     this.clearMemory()
+    import('../sync/SyncService').then(({ syncEngine }) => {
+      syncEngine.resetOnUserSwitch()
+    }).catch(() => {})
 
     await idb.switchUser(userId)
     await this.init()

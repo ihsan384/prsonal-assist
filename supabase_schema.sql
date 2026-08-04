@@ -839,6 +839,7 @@ create table if not exists notebooks (
   is_favourite boolean default false,
   is_pinned boolean default false,
   tags text[] default '{}',
+  category text,
   categories text[] default '{}',
   resources jsonb default '[]'::jsonb,
   created_at timestamptz default timezone('utc', now()),
@@ -982,5 +983,166 @@ on conflict (id) do nothing;
 drop policy if exists "Allow all operations for anyone on attachments bucket" on storage.objects;
 create policy "Allow all operations for anyone on attachments bucket" on storage.objects
   for all using (bucket_id = 'attachments') with check (bucket_id = 'attachments');
+
+-- ─── 34. ACADEMIC CURRICULUM & ONBOARDING TABLES ─────────────────────────────
+
+-- Profile Academic Columns
+alter table profile add column if not exists board_id text;
+alter table profile add column if not exists class_level text;
+alter table profile add column if not exists stream_id text;
+alter table profile add column if not exists subject_combination_id text;
+alter table profile add column if not exists academic_goal text;
+alter table profile add column if not exists onboarding_completed boolean default false;
+
+-- Boards (Global Master Data)
+create table if not exists boards (
+  id text primary key,
+  name text not null,
+  code text not null unique,
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now())
+);
+alter table boards enable row level security;
+drop policy if exists authenticated_read_boards on boards;
+create policy authenticated_read_boards on boards for select to authenticated using (true);
+
+-- Streams (Global Master Data)
+create table if not exists streams (
+  id text primary key,
+  board_id text references boards(id) on delete cascade,
+  class_level text not null,
+  name text not null,
+  code text not null,
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now())
+);
+alter table streams enable row level security;
+drop policy if exists authenticated_read_streams on streams;
+create policy authenticated_read_streams on streams for select to authenticated using (true);
+
+-- Subject Combinations (Global Master Data)
+create table if not exists subject_combinations (
+  id text primary key,
+  stream_id text references streams(id) on delete cascade,
+  name text not null,
+  code text not null,
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now())
+);
+alter table subject_combinations enable row level security;
+drop policy if exists authenticated_read_combinations on subject_combinations;
+create policy authenticated_read_combinations on subject_combinations for select to authenticated using (true);
+
+-- Curriculum Subjects (Global Master Data)
+create table if not exists curriculum_subjects (
+  id text primary key,
+  name text not null,
+  code text not null,
+  icon text,
+  color text,
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now())
+);
+alter table curriculum_subjects enable row level security;
+drop policy if exists authenticated_read_curriculum_subjects on curriculum_subjects;
+create policy authenticated_read_curriculum_subjects on curriculum_subjects for select to authenticated using (true);
+
+-- Combination Subjects (Global Master Data)
+create table if not exists combination_subjects (
+  combination_id text references subject_combinations(id) on delete cascade,
+  subject_id text references curriculum_subjects(id) on delete cascade,
+  is_optional boolean default false,
+  primary key (combination_id, subject_id)
+);
+alter table combination_subjects enable row level security;
+drop policy if exists authenticated_read_comb_subjects on combination_subjects;
+create policy authenticated_read_comb_subjects on combination_subjects for select to authenticated using (true);
+
+-- Master Chapters (Global Master Data)
+create table if not exists master_chapters (
+  id text primary key,
+  subject_id text references curriculum_subjects(id) on delete cascade,
+  board_id text references boards(id) on delete cascade,
+  class_level text not null,
+  chapter_number integer not null,
+  chapter_name text not null,
+  section_name text,
+  book_part text,
+  sort_order integer default 0,
+  estimated_hours numeric default 5,
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now())
+);
+alter table master_chapters enable row level security;
+drop policy if exists authenticated_read_master_chapters on master_chapters;
+create policy authenticated_read_master_chapters on master_chapters for select to authenticated using (true);
+
+-- User Subjects (User-specific Progress Binding)
+create table if not exists user_subjects (
+  id text primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  subject_id text references curriculum_subjects(id) on delete cascade,
+  class_level text,
+  enabled boolean default true,
+  created_at timestamptz default timezone('utc', now()),
+  updated_at timestamptz default timezone('utc', now()),
+  last_synced_at timestamptz,
+  deleted boolean default false,
+  sync_version integer default 1
+);
+alter table user_subjects enable row level security;
+drop policy if exists user_isolation_user_subjects on user_subjects;
+create policy user_isolation_user_subjects on user_subjects for all to authenticated 
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists idx_user_subjects_user on user_subjects(user_id, enabled);
+alter table user_subjects add column if not exists class_level text;
+
+-- ─── Idempotent Curriculum Seed Statements ──────────────────────────────────
+
+-- 1. Seed Boards
+insert into boards (id, name, code) values
+  ('board-plus-one', 'Kerala HSE / State Board', 'KERALA_HSE'),
+  ('board-cbse', 'CBSE (Central Board)', 'CBSE'),
+  ('board-isc', 'ISC / ICSE Board', 'ISC')
+on conflict (id) do nothing;
+
+-- 2. Seed Master Curriculum Subjects
+insert into curriculum_subjects (id, name, code, icon, color) values
+  ('sub-phy', 'Physics', 'PHY', 'Atom', '#3b82f6'),
+  ('sub-chem', 'Chemistry', 'CHEM', 'FlaskConical', '#ec4899'),
+  ('sub-math', 'Mathematics', 'MATH', 'Calculator', '#8b5cf6'),
+  ('sub-bio', 'Biology', 'BIO', 'Dna', '#84cc16'),
+  ('sub-acc', 'Accountancy', 'ACC', 'Receipt', '#06b6d4'),
+  ('sub-bst', 'Business Studies', 'BST', 'Briefcase', '#6366f1'),
+  ('sub-eco', 'Economics', 'ECO', 'TrendingUp', '#14b8a6')
+on conflict (id) do nothing;
+
+-- 3. Seed Plus One & Plus Two Streams
+insert into streams (id, board_id, class_level, name, code) values
+  ('str-p1-sci', 'board-plus-one', 'Plus One', 'Science', 'SCIENCE_P1'),
+  ('str-p1-com', 'board-plus-one', 'Plus One', 'Commerce', 'COMMERCE_P1'),
+  ('str-p2-sci', 'board-plus-one', 'Plus Two', 'Science', 'SCIENCE_P2'),
+  ('str-p2-com', 'board-plus-one', 'Plus Two', 'Commerce', 'COMMERCE_P2')
+on conflict (id) do nothing;
+
+-- 4. Seed Subject Combinations
+insert into subject_combinations (id, stream_id, name, code) values
+  ('comb-p1-pcm', 'str-p1-sci', 'PCM (Physics, Chemistry, Mathematics)', 'PCM'),
+  ('comb-p1-pcmb', 'str-p1-sci', 'PCMB (Physics, Chemistry, Mathematics, Biology)', 'PCMB'),
+  ('comb-p1-commerce-core', 'str-p1-com', 'Commerce Core (Accountancy, Business Studies, Economics)', 'COMMERCE_CORE'),
+  ('comb-p2-pcm', 'str-p2-sci', 'PCM (Physics, Chemistry, Mathematics)', 'PCM_P2'),
+  ('comb-p2-pcmb', 'str-p2-sci', 'PCMB (Physics, Chemistry, Mathematics, Biology)', 'PCMB_P2'),
+  ('comb-p2-commerce-core', 'str-p2-com', 'Commerce Core (Accountancy, Business Studies, Economics)', 'COMMERCE_CORE_P2')
+on conflict (id) do nothing;
+
+-- 5. Seed Combination Subject Mappings
+insert into combination_subjects (combination_id, subject_id) values
+  ('comb-p1-pcm', 'sub-phy'), ('comb-p1-pcm', 'sub-chem'), ('comb-p1-pcm', 'sub-math'),
+  ('comb-p1-pcmb', 'sub-phy'), ('comb-p1-pcmb', 'sub-chem'), ('comb-p1-pcmb', 'sub-math'), ('comb-p1-pcmb', 'sub-bio'),
+  ('comb-p1-commerce-core', 'sub-acc'), ('comb-p1-commerce-core', 'sub-bst'), ('comb-p1-commerce-core', 'sub-eco'),
+  ('comb-p2-pcm', 'sub-phy'), ('comb-p2-pcm', 'sub-chem'), ('comb-p2-pcm', 'sub-math'),
+  ('comb-p2-pcmb', 'sub-phy'), ('comb-p2-pcmb', 'sub-chem'), ('comb-p2-pcmb', 'sub-math'), ('comb-p2-pcmb', 'sub-bio'),
+  ('comb-p2-commerce-core', 'sub-acc'), ('comb-p2-commerce-core', 'sub-bst'), ('comb-p2-commerce-core', 'sub-eco')
+on conflict (combination_id, subject_id) do nothing;
 
 

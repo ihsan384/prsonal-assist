@@ -161,7 +161,7 @@ export default function SubjectDetail() {
         </div>
       </div>
 
-      {/* Chapters list */}
+      {/* Chapters list grouped by section / book part */}
       <div>
         <SectionHeader title="Syllabus Chapters" subtitle={`${chapters.length} chapters mapped`} />
         
@@ -175,44 +175,73 @@ export default function SubjectDetail() {
             </Button>
           </Card>
         ) : (
-          <div className="flex flex-col gap-3">
-            {chapters.map(ch => (
-              <Card 
-                key={ch.id} 
-                hover 
-                onClick={() => navigate(`/study/chapters/${ch.id}`)}
-                className="p-4"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-[var(--text)]">{ch.name}</h3>
-                    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                      {priorityBadge(ch.priority)}
-                      {difficultyBadge(ch.difficulty)}
-                      <Badge variant={ch.status === 'completed' ? 'success' : ch.status === 'in_progress' ? 'info' : 'default'} size="sm">
-                        {ch.status === 'completed' ? 'Completed' : ch.status === 'in_progress' ? 'In Progress' : 'Not Started'}
-                      </Badge>
-                      <span className="text-[10px] text-[var(--text-3)] font-medium">
-                        {ch.completedHours}/{ch.estimatedHours} hrs logged
-                      </span>
-                    </div>
-                  </div>
+          (() => {
+            // Group chapters by sectionName or bookPart
+            const groups: { [key: string]: Chapter[] } = {}
+            chapters.forEach(ch => {
+              const sec = ch.sectionName || ch.bookPart || 'General Syllabus'
+              if (!groups[sec]) groups[sec] = []
+              groups[sec].push(ch)
+            })
 
-                  <div className="flex sm:flex-col items-end gap-2 sm:gap-1 shrink-0 text-right">
-                    <span className="text-xs font-semibold text-[var(--text)]">Confidence: {ch.confidencePercentage}%</span>
-                    <div className="w-24 mt-0.5">
-                      <ProgressBar value={ch.confidencePercentage} max={100} height={4} />
+            const groupEntries = Object.entries(groups)
+
+            return (
+              <div className="flex flex-col gap-6">
+                {groupEntries.map(([sectionTitle, groupChs]) => (
+                  <div key={sectionTitle} className="space-y-3">
+                    {groupEntries.length > 1 && (
+                      <div className="flex items-center gap-2 pb-1 border-b border-[var(--border)]">
+                        <Badge variant="violet" size="sm">{sectionTitle}</Badge>
+                        <span className="text-[11px] text-[var(--text-3)] font-medium">
+                          ({groupChs.filter(c => c.status === 'completed').length}/{groupChs.length} Completed)
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-3">
+                      {groupChs.map(ch => (
+                        <Card 
+                          key={ch.id} 
+                          hover 
+                          onClick={() => navigate(`/study/chapters/${ch.id}`)}
+                          className="p-4"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div>
+                              <h3 className="text-sm font-bold text-[var(--text)]">{ch.name}</h3>
+                              <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                                {priorityBadge(ch.priority)}
+                                {difficultyBadge(ch.difficulty)}
+                                <Badge variant={ch.status === 'completed' ? 'success' : ch.status === 'in_progress' ? 'info' : 'default'} size="sm">
+                                  {ch.status === 'completed' ? 'Completed' : ch.status === 'in_progress' ? 'In Progress' : 'Not Started'}
+                                </Badge>
+                                <span className="text-[10px] text-[var(--text-3)] font-medium">
+                                  {ch.completedHours}/{ch.estimatedHours} hrs logged
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex sm:flex-col items-end gap-2 sm:gap-1 shrink-0 text-right">
+                              <span className="text-xs font-semibold text-[var(--text)]">Confidence: {ch.confidencePercentage}%</span>
+                              <div className="w-24 mt-0.5">
+                                <ProgressBar value={ch.confidencePercentage} max={100} height={4} />
+                              </div>
+                            </div>
+                          </div>
+                          {ch.notes && (
+                            <p className="text-xs text-[var(--text-3)] border-t border-[var(--border)] pt-2.5 mt-3 leading-relaxed">
+                              {ch.notes}
+                            </p>
+                          )}
+                        </Card>
+                      ))}
                     </div>
                   </div>
-                </div>
-                {ch.notes && (
-                  <p className="text-xs text-[var(--text-3)] border-t border-[var(--border)] pt-2.5 mt-3 leading-relaxed">
-                    {ch.notes}
-                  </p>
-                )}
-              </Card>
-            ))}
-          </div>
+                ))}
+              </div>
+            )
+          })()
         )}
       </div>
 

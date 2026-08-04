@@ -229,6 +229,14 @@ class SyncEngine {
     await this.sync()
   }
 
+  resetOnUserSwitch() {
+    this.retryQueue.clear()
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer)
+      this.retryTimer = null
+    }
+  }
+
   // ─── Main Sync ─────────────────────────────────────────────────────────
 
   async sync(): Promise<void> {
@@ -446,7 +454,8 @@ class SyncEngine {
 
       const payloads = batch.map(record => {
         const snake = this.toSnakeCase({ ...record })
-        snake.user_id = record.user_id || record.userId || currentUserId
+        // ALWAYS use currentUserId for cloud sync to guarantee RLS policy compliance (auth.uid() == user_id)
+        snake.user_id = currentUserId
         delete snake.pending_sync
         delete snake.last_synced_at
         delete snake.sync_status
@@ -456,6 +465,16 @@ class SyncEngine {
         if (storeName === STORES.HABITS) {
           if (snake.completed_today === undefined) snake.completed_today = false
           if (snake.week_days === undefined) snake.week_days = [true, true, true, true, true, true, true]
+        }
+        if (storeName === STORES.NOTEBOOKS) {
+          if (snake.category) {
+            if (!snake.categories || !Array.isArray(snake.categories)) {
+              snake.categories = [snake.category]
+            } else if (!snake.categories.includes(snake.category)) {
+              snake.categories.push(snake.category)
+            }
+            delete snake.category
+          }
         }
         return snake
       })

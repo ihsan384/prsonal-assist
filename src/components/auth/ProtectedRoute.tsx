@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
-  const { isAuthenticated, loading, role, isDisabled, logout } = useAuth()
+  const { isAuthenticated, loading, role, isDisabled, profile, logout } = useAuth()
   const location = useLocation()
 
   if (loading) {
@@ -27,6 +27,18 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  // Redirect to onboarding if not completed
+  const isOnboardingPath = location.pathname === '/onboarding'
+  const onboardingCompleted = profile?.onboarding_completed ?? false
+
+  if (!onboardingCompleted && !isOnboardingPath) {
+    return <Navigate to="/onboarding" replace />
+  }
+
+  if (onboardingCompleted && isOnboardingPath) {
+    return <Navigate to="/" replace />
   }
 
   if (isDisabled) {

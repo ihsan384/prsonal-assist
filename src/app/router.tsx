@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 
 // Lazy-loaded Auth & Role pages
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
+const OnboardingPage = lazy(() => import('@/features/onboarding/OnboardingPage'))
 const UserManagementPage = lazy(() => import('@/features/admin/UserManagementPage'))
 
 // Lazy-loaded top level pages
@@ -85,6 +86,14 @@ const router = createBrowserRouter([
   {
     path: '/login',
     element: <PublicLoginRoute />,
+  },
+  {
+    path: '/onboarding',
+    element: (
+      <ProtectedRoute>
+        {withSuspense(OnboardingPage)}
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/',

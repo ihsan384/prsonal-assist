@@ -8,6 +8,12 @@ export interface UserProfile {
   phone: string | null
   role: UserRole
   is_disabled: boolean
+  board_id?: string | null
+  class_level?: string | null
+  stream_id?: string | null
+  subject_combination_id?: string | null
+  academic_goal?: string | null
+  onboarding_completed?: boolean
   created_at: string
   updated_at: string
 }
