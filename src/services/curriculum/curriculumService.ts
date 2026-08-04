@@ -1,7 +1,7 @@
-import { idb, STORES } from '@/services/storage/IndexedDB'
 import { memoryStore } from '@/services/storage/MemoryStore'
 import { studyERPStorage } from '@/services/storage/studyERP.storage'
 import { generateId } from '@/utils/format'
+import { supabase, isSupabaseConfigured } from '@/services/supabase/supabase'
 import type {
   Board, AcademicStream, SubjectCombination, MasterSubject,
   MasterChapter, CombinationSubject, UserSubject, Subject, Chapter
@@ -316,22 +316,11 @@ class CurriculumService {
   // ─── Master Data Retrieval ─────────────────────────────────────────────────
 
   async getBoards(): Promise<Board[]> {
-    try {
-      const stored = await idb.getAll<Board>(STORES.BOARDS)
-      if (stored.length > 0) return stored
-    } catch {}
     return DEFAULT_BOARDS
   }
 
   async getStreams(boardId?: string, classLevel?: string): Promise<AcademicStream[]> {
-    let streams: AcademicStream[] = []
-    try {
-      streams = await idb.getAll<AcademicStream>(STORES.STREAMS)
-      if (streams.length === 0) streams = DEFAULT_STREAMS
-    } catch {
-      streams = DEFAULT_STREAMS
-    }
-
+    const streams = DEFAULT_STREAMS
     return streams.filter(s => {
       if (boardId && s.boardId !== boardId) return false
       if (classLevel && s.classLevel !== classLevel) return false
@@ -340,14 +329,7 @@ class CurriculumService {
   }
 
   async getCombinations(streamId?: string): Promise<SubjectCombination[]> {
-    let combinations: SubjectCombination[] = []
-    try {
-      combinations = await idb.getAll<SubjectCombination>(STORES.SUBJECT_COMBINATIONS)
-      if (combinations.length === 0) combinations = DEFAULT_COMBINATIONS
-    } catch {
-      combinations = DEFAULT_COMBINATIONS
-    }
-
+    const combinations = DEFAULT_COMBINATIONS
     if (streamId) {
       return combinations.filter(c => c.streamId === streamId)
     }
@@ -355,10 +337,6 @@ class CurriculumService {
   }
 
   async getMasterSubjects(): Promise<MasterSubject[]> {
-    try {
-      const stored = await idb.getAll<MasterSubject>(STORES.CURRICULUM_SUBJECTS)
-      if (stored.length > 0) return stored
-    } catch {}
     return DEFAULT_MASTER_SUBJECTS
   }
 
@@ -370,15 +348,9 @@ class CurriculumService {
   }
 
   async getMasterChapters(subjectId: string, boardId?: string, classLevel?: string): Promise<MasterChapter[]> {
-    let chapters: MasterChapter[] = []
-    try {
-      chapters = await idb.getAll<MasterChapter>(STORES.MASTER_CHAPTERS)
-      if (chapters.length === 0) chapters = DEFAULT_MASTER_CHAPTERS
-    } catch {
-      chapters = DEFAULT_MASTER_CHAPTERS
-    }
+    const chapters = DEFAULT_MASTER_CHAPTERS
 
-    // Resolve subject identifier (e.g. sub-user-sub-chem-plusone -> sub-chem)
+    // Resolve subject identifier
     const cleanSubId = subjectId.replace(/^sub-user-/, '').split('-')[0]
     const targetSubId = cleanSubId.startsWith('sub-') ? cleanSubId : `sub-${cleanSubId}`
 
@@ -398,7 +370,6 @@ class CurriculumService {
       return true
     })
 
-    // If filtered is empty, fallback to all chapters for targetSubId regardless of classLevel
     if (filtered.length === 0) {
       filtered = chapters.filter(c => c.subjectId === subjectId || c.subjectId === targetSubId)
     }
@@ -475,17 +446,26 @@ class CurriculumService {
         studyERPStorage.addSubject(newSubject)
         addedCount++
 
-        // Save binding in user_subjects store
-        await idb.put(STORES.USER_SUBJECTS, {
-          id: generateId(),
-          userId,
-          subjectId: masterSub.id,
-          classLevel,
-          enabled: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          pendingSync: true
-        })
+        // Save binding in user_subjects table directly to Supabase Cloud
+        if (isSupabaseConfigured()) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession()
+            const authUserId = session?.user?.id
+            if (authUserId) {
+              await (supabase as any).from('user_subjects').upsert({
+                id: generateId(),
+                user_id: authUserId,
+                subject_id: masterSub.id,
+                class_level: classLevel,
+                enabled: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'id' })
+            }
+          } catch (e) {
+            console.warn('[CurriculumService] user_subjects cloud save error:', e)
+          }
+        }
 
         // Fetch master chapters for this subject and target class level
         const masterChapters = await this.getMasterChapters(masterSub.id, boardId, classLevel)
@@ -564,7 +544,21 @@ class CurriculumService {
     }
 
     memoryStore.profile = updatedProfile as any
-    await idb.put(STORES.PROFILE, { ...updatedProfile, id: updatedProfile.id || 'user_profile' })
+    // Persist profile update to Supabase Cloud directly
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const authUserId = session?.user?.id
+        if (authUserId) {
+          await (supabase.from('profile') as any).upsert(
+            { ...updatedProfile, id: updatedProfile.id || 'user_profile', user_id: authUserId },
+            { onConflict: 'id' }
+          )
+        }
+      } catch (e) {
+        console.warn('[CurriculumService] profile cloud save error:', e)
+      }
+    }
 
     try {
       localStorage.setItem('onboarding_completed_global', 'true')
