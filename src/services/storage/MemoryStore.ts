@@ -136,97 +136,122 @@ class MemoryStoreService {
 
     this.loadPromise = new Promise<void>(async (resolve) => {
       try {
-        await idb.getDB() // Ensure database is initialized
+        if (isSupabaseConfigured()) {
+          const { data: { session } } = await supabase.auth.getSession()
+          const userId = session?.user?.id
 
-        // 1. Load basic entities
-        this.tasks = await idb.getAll<Task>(STORES.TASKS)
-        this.habits = await idb.getAll<Habit>(STORES.HABITS)
-        this.goals = await idb.getAll<Goal>(STORES.GOALS)
-        this.workouts = await idb.getAll<Workout>(STORES.WORKOUTS)
-        this.meals = await idb.getAll<Meal>(STORES.MEALS)
-        this.sleepLogs = await idb.getAll<SleepLog>(STORES.SLEEP_LOGS)
-        this.knowledge = await idb.getAll<KnowledgeItem>(STORES.KNOWLEDGE)
-        this.transactions = await idb.getAll<Transaction>(STORES.TRANSACTIONS)
-        this.budgets = await idb.getAll<Budget>(STORES.BUDGETS)
-        this.studySessions = await idb.getAll<GeneralStudySession>(STORES.STUDY_SESSIONS)
+          if (userId) {
+            // Load all collections directly from Supabase Cloud
+            await Promise.allSettled([
+              this.loadFromCloud(STORES.TASKS, userId, (d) => { this.tasks = d }),
+              this.loadFromCloud(STORES.HABITS, userId, (d) => { this.habits = d }),
+              this.loadFromCloud(STORES.GOALS, userId, (d) => { this.goals = d }),
+              this.loadFromCloud(STORES.WORKOUTS, userId, (d) => { this.workouts = d }),
+              this.loadFromCloud(STORES.MEALS, userId, (d) => { this.meals = d }),
+              this.loadFromCloud(STORES.SLEEP_LOGS, userId, (d) => { this.sleepLogs = d }),
+              this.loadFromCloud(STORES.KNOWLEDGE, userId, (d) => { this.knowledge = d }),
+              this.loadFromCloud(STORES.TRANSACTIONS, userId, (d) => { this.transactions = d }),
+              this.loadFromCloud(STORES.BUDGETS, userId, (d) => { this.budgets = d }),
+              this.loadFromCloud(STORES.STUDY_SESSIONS, userId, (d) => { this.studySessions = d }),
+              this.loadFromCloud(STORES.SUBJECTS, userId, (d) => { this.subjects = d }),
+              this.loadFromCloud(STORES.CHAPTERS, userId, (d) => { this.chapters = d }),
+              this.loadFromCloud(STORES.TOPICS, userId, (d) => { this.topics = d }),
+              this.loadFromCloud(STORES.SESSIONS, userId, (d) => { this.sessions = d }),
+              this.loadFromCloud(STORES.REVISIONS, userId, (d) => { this.revisions = d }),
+              this.loadFromCloud(STORES.QUESTIONS, userId, (d) => { this.questions = d }),
+              this.loadFromCloud(STORES.TESTS, userId, (d) => { this.tests = d }),
+              this.loadFromCloud(STORES.TEST_SUBJECT_RESULTS, userId, (d) => { this.testSubjectResults = d }),
+              this.loadFromCloud(STORES.TEST_CHAPTER_RESULTS, userId, (d) => { this.testChapterResults = d }),
+              this.loadFromCloud(STORES.MISTAKES, userId, (d) => { this.mistakes = d }),
+              this.loadFromCloud(STORES.FORMULAS, userId, (d) => { this.formulas = d }),
+              this.loadFromCloud(STORES.NOTES, userId, (d) => { this.notes = d }),
+              this.loadFromCloud(STORES.REFLECTION_ENTRIES, userId, (d) => { this.reflectionEntries = d }),
+              this.loadFromCloud(STORES.MOTIVATION_QUOTES, userId, (d) => { this.motivationQuotes = d }),
+              this.loadFromCloud(STORES.MOTIVATION_NOTES, userId, (d) => { this.motivationNotes = d }),
+              this.loadFromCloud(STORES.MOTIVATION_COLLECTIONS, userId, (d) => { this.motivationCollections = d }),
+              this.loadFromCloud(STORES.CUSTOM_MOTIVATION_CATEGORIES, userId, (d) => { this.customMotivationCategories = d }),
+              this.loadFromCloud(STORES.INTEGRATION_SETTINGS, userId, (d) => { this.integrationSettings = d }),
+              this.loadFromCloud(STORES.NOTEBOOKS, userId, (d) => { this.notebooks = d }),
+              this.loadFromCloud(STORES.HEALTH_RECORDS, userId, (d) => { this.healthRecords = d }),
+              this.loadFromCloud(STORES.ATTACHMENTS, userId, (d) => { this.attachments = d }),
+            ])
 
-        // 2. Load settings, profile, nutrition goals (singular items)
-        const settingsArr = await idb.getAll<AppSettings & { id: string }>(STORES.SETTINGS)
-        if (settingsArr.length > 0) {
-          this.settings = settingsArr[0]
-        } else {
-          await idb.put(STORES.SETTINGS, { id: 'app_settings', ...this.settings })
-        }
-
-        const profileArr = await idb.getAll<UserProfile & { id: string }>(STORES.PROFILE)
-        if (profileArr.length > 0) {
-          this.profile = profileArr[0]
-        } else {
-          await idb.put(STORES.PROFILE, { ...this.profile, id: this.profile?.id || 'user_profile' })
-        }
-
-        const nutrGoalsArr = await idb.getAll<NutritionGoal & { id: string }>(STORES.NUTRITION_GOALS)
-        if (nutrGoalsArr.length > 0) {
-          this.nutritionGoals = nutrGoalsArr[0]
-        } else {
-          await idb.put(STORES.NUTRITION_GOALS, { id: 'default', ...this.nutritionGoals })
-        }
-
-        // 3. Load Water Logs
-        const waterArr = await idb.getAll<{ id: string; amount_ml: number }>(STORES.WATER_LOGS)
-        waterArr.forEach(log => {
-          this.waterLogs[log.id] = log.amount_ml
-        })
-
-        // 4. Load Study ERP collections
-        this.subjects = await idb.getAll<Subject>(STORES.SUBJECTS)
-        this.chapters = await idb.getAll<Chapter>(STORES.CHAPTERS)
-        this.topics = await idb.getAll<Topic>(STORES.TOPICS)
-        this.sessions = await idb.getAll<StudySession>(STORES.SESSIONS)
-        this.revisions = await idb.getAll<RevisionEntry>(STORES.REVISIONS)
-        this.questions = await idb.getAll<QuestionLog>(STORES.QUESTIONS)
-        this.tests = await idb.getAll<MockTest>(STORES.TESTS)
-        this.testSubjectResults = await idb.getAll<TestSubjectResult>(STORES.TEST_SUBJECT_RESULTS)
-        this.testChapterResults = await idb.getAll<TestChapterResult>(STORES.TEST_CHAPTER_RESULTS)
-        this.mistakes = await idb.getAll<Mistake>(STORES.MISTAKES)
-        this.formulas = await idb.getAll<Formula>(STORES.FORMULAS)
-        this.notes = await idb.getAll<StudyNote>(STORES.NOTES)
-
-        // 5. Load Reflection & Motivation
-        this.reflectionEntries = await idb.getAll<ReflectionEntry>(STORES.REFLECTION_ENTRIES)
-        this.motivationQuotes = await idb.getAll<MotivationQuote>(STORES.MOTIVATION_QUOTES)
-        this.motivationNotes = await idb.getAll<MotivationNote>(STORES.MOTIVATION_NOTES)
-        this.motivationCollections = await idb.getAll<MotivationCollection>(STORES.MOTIVATION_COLLECTIONS)
-        this.customMotivationCategories = await idb.getAll<CustomMotivationCategory>(STORES.CUSTOM_MOTIVATION_CATEGORIES)
-        
-        // 6. Load Integrations & Health Connect
-        this.integrationSettings = await idb.getAll<any>(STORES.INTEGRATION_SETTINGS)
-        this.integrationLogs = await idb.getAll<any>(STORES.INTEGRATION_LOGS)
-        this.notebooks = await idb.getAll<any>(STORES.NOTEBOOKS)
-        this.healthRecords = await idb.getAll<any>(STORES.HEALTH_RECORDS)
-
-        // 7. Load Attachments & Notifications
-        this.attachments = await idb.getAll<any>(STORES.ATTACHMENTS)
-        this.conflicts = await idb.getAll<any>(STORES.CONFLICT_QUEUE)
-        this.notificationSchedules = await idb.getAll<any>(STORES.NOTIFICATION_SCHEDULES)
-        this.notificationHistory = await idb.getAll<any>(STORES.NOTIFICATION_HISTORY)
-
-
-
-        // Populate initial data if completely clean install
-        if (this.subjects.length === 0) {
-          await this.populateInitialData()
+            // Set up Realtime subscription for cross-device live updates
+            this.setupRealtimeSubscription(userId)
+          }
         }
 
         this.isLoaded = true
         resolve()
       } catch (err) {
-        console.error('[MemoryStore] Failed to initialize database cache:', err)
-        resolve() // Fallback to memory defaults
+        console.error('[MemoryStore] Failed to initialize from cloud:', err)
+        this.isLoaded = true
+        resolve()
       }
     })
 
     return this.loadPromise
+  }
+
+  private realtimeChannel: any = null
+
+  private setupRealtimeSubscription(userId: string) {
+    if (this.realtimeChannel) {
+      supabase.removeChannel(this.realtimeChannel)
+    }
+
+    this.realtimeChannel = supabase
+      .channel(`memstore_realtime_${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public' }, (payload: any) => {
+        const table = payload.table
+        const eventType = payload.eventType
+
+        if (!table) return
+
+        if (eventType === 'INSERT' || eventType === 'UPDATE') {
+          const raw = payload.new
+          if (!raw || (raw.user_id && raw.user_id !== userId)) return
+          const camel = this.toCamelCase(raw)
+          this.applyRemoteRealtimeChange(table, camel, false)
+        } else if (eventType === 'DELETE') {
+          const raw = payload.old
+          if (!raw?.id) return
+          this.applyRemoteRealtimeChange(table, { id: raw.id }, true)
+        }
+      })
+      .subscribe((status: string) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[MemoryStore] Realtime cross-device sync active')
+        }
+      })
+  }
+
+  private async loadFromCloud(storeName: string, userId: string, setter: (data: any[]) => void) {
+    try {
+      const { data, error } = await (supabase.from(storeName as any) as any)
+        .select('*')
+        .eq('user_id', userId)
+        .is('deleted', null)
+        .order('created_at', { ascending: true })
+
+      if (!error && data) {
+        setter(data.map((r: any) => this.toCamelCase(r)))
+      }
+    } catch {
+      // silently ignore per-table fetch errors
+    }
+  }
+
+  private toCamelCase(obj: any): any {
+    if (Array.isArray(obj)) return obj.map(v => this.toCamelCase(v))
+    if (obj !== null && obj !== undefined && obj.constructor === Object) {
+      return Object.keys(obj).reduce((acc, key) => {
+        const camelKey = key.replace(/_([a-z])/g, (_, char) => char.toUpperCase())
+        acc[camelKey] = this.toCamelCase(obj[key])
+        return acc
+      }, {} as any)
+    }
+    return obj
   }
 
   private async populateInitialData() {
