@@ -231,14 +231,18 @@ class MemoryStoreService {
       const { data, error } = await (supabase.from(storeName as any) as any)
         .select('*')
         .eq('user_id', userId)
-        .is('deleted', null)
+        .neq('deleted', true)
         .order('created_at', { ascending: true })
 
-      if (!error && data) {
+      if (error) {
+        console.warn(`[MemoryStore] loadFromCloud error on "${storeName}":`, error.message)
+        return
+      }
+      if (data) {
         setter(data.map((r: any) => this.toCamelCase(r)))
       }
-    } catch {
-      // silently ignore per-table fetch errors
+    } catch (e) {
+      console.warn(`[MemoryStore] loadFromCloud exception on "${storeName}":`, e)
     }
   }
 
@@ -259,11 +263,17 @@ class MemoryStoreService {
   }
 
   private async triggerCloudSave(storeName?: string, record?: any) {
-    if (!storeName || !record || !isSupabaseConfigured()) return
+    if (!storeName || !record || !isSupabaseConfigured()) {
+      console.warn('[MemoryStore] triggerCloudSave skipped — not configured or missing args')
+      return
+    }
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const userId = session?.user?.id
-      if (!userId) return
+      if (!userId) {
+        console.warn('[MemoryStore] triggerCloudSave skipped — no authenticated user')
+        return
+      }
 
       const snakeRecord = this.toSnakeCase({
         ...record,
@@ -271,17 +281,22 @@ class MemoryStoreService {
         updatedAt: new Date().toISOString()
       })
 
+      console.log(`[MemoryStore] Saving to Supabase table "${storeName}", id=${record.id}`)
+
       if (record.deleted) {
-        await (supabase.from(storeName as any) as any)
+        const { error } = await (supabase.from(storeName as any) as any)
           .delete()
           .eq('id', record.id)
           .eq('user_id', userId)
+        if (error) console.error(`[MemoryStore] DELETE error on "${storeName}": `, error.message)
       } else {
-        await (supabase.from(storeName as any) as any)
-          .upsert(snakeRecord)
+        const { error } = await (supabase.from(storeName as any) as any)
+          .upsert(snakeRecord, { onConflict: 'id' })
+        if (error) console.error(`[MemoryStore] UPSERT error on "${storeName}": `, error.message, '| record:', snakeRecord)
+        else console.log(`[MemoryStore] ✅ Saved to "${storeName}" successfully`)
       }
     } catch (err) {
-      console.error('[MemoryStore] Direct Supabase Cloud write error:', err)
+      console.error('[MemoryStore] triggerCloudSave exception:', err)
     }
   }
 
@@ -364,8 +379,8 @@ class MemoryStoreService {
       localArray.push(record)
     }
 
-    await idb.put(storeName, record)
-    this.triggerCloudSave(storeName, record)
+    // Write directly to Supabase Cloud — no local IndexedDB
+    await this.triggerCloudSave(storeName, record)
   }
 
   // Soft delete helper
@@ -381,10 +396,8 @@ class MemoryStoreService {
       record.updatedAt = new Date().toISOString()
       record.pendingSync = false
       record.syncVersion = (record.syncVersion || 0) + 1
-      
       localArray[index] = record
-      await idb.put(storeName, record)
-      this.triggerCloudSave(storeName, record)
+      await this.triggerCloudSave(storeName, record)
     }
   }
 
@@ -398,8 +411,7 @@ class MemoryStoreService {
     if (index >= 0) {
       const record = { ...localArray[index], deleted: true }
       localArray.splice(index, 1)
-      await idb.delete(storeName, id)
-      this.triggerCloudSave(storeName, record)
+      await this.triggerCloudSave(storeName, record)
     }
   }
 
