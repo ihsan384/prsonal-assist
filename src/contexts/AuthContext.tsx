@@ -158,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const isLoading = authStatus === 'INITIALIZING'
   const role: UserRole = profile?.role || 'client'
   const isAuthenticated = authStatus === 'AUTHENTICATED' && !!user
   const isDisabled = profile?.is_disabled ?? false
@@ -189,7 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         profile,
         role,
-        loading: false,
+        loading: isLoading,
         authStatus,
         isAuthenticated,
         isDisabled,

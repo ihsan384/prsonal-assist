@@ -100,7 +100,7 @@ export default function SubjectsPage() {
 
   useEffect(() => {
     loadData()
-  })
+  }, [])
 
   // Populate Change Stream modal selectors
   useEffect(() => {

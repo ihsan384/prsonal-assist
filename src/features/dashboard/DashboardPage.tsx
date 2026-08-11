@@ -50,9 +50,6 @@ export default function DashboardPage() {
     setHabits(habitStorage.getAll())
   }
 
-  useEffect(() => {
-    refreshDashboardData()
-  })
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000 * 30)

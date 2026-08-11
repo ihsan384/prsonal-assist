@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Zap } from 'lucide-react'
 
@@ -8,13 +8,18 @@ interface SplashScreenProps {
 
 export default function SplashScreen({ onComplete }: SplashScreenProps) {
   const [phase, setPhase] = useState<'in' | 'stay' | 'out'>('in')
+  const onCompleteRef = useRef(onComplete)
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  }, [onComplete])
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase('stay'), 600)
     const t2 = setTimeout(() => setPhase('out'), 1800)
-    const t3 = setTimeout(() => onComplete(), 2200)
+    const t3 = setTimeout(() => onCompleteRef.current(), 2200)
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
-  }, [onComplete])
+  }, [])
 
   return (
     <AnimatePresence>

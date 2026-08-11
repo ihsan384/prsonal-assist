@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Providers } from './providers'
 import { AppRouter } from './router'
 import SplashScreen from '@/features/common/SplashScreen'
@@ -7,8 +7,17 @@ import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 
 export default function App() {
-  const [splashDone, setSplashDone] = useState(false)
+  const [splashDone, setSplashDone] = useState(() => {
+    return typeof window !== 'undefined' && sessionStorage.getItem('study_erp_splash_done') === 'true'
+  })
   const [dbReady, setDbReady] = useState(false)
+
+  const handleSplashComplete = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('study_erp_splash_done', 'true')
+    }
+    setSplashDone(true)
+  }, [])
 
   useEffect(() => {
     // Initialize Database
@@ -31,7 +40,7 @@ export default function App() {
 
   return (
     <Providers>
-      {!ready && <SplashScreen onComplete={() => setSplashDone(true)} />}
+      {!ready && <SplashScreen onComplete={handleSplashComplete} />}
       {ready && <AppRouter />}
     </Providers>
   )

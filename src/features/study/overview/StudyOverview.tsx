@@ -63,7 +63,7 @@ export default function StudyOverview() {
 
   useEffect(() => {
     loadData()
-  })
+  }, [])
 
   // Multi-dimensional metrics calculation
   const allSessions = studyERPStorage.getSessions()

@@ -1,5 +1,5 @@
-import { useState, useEffect, type ReactNode } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { MobileDrawer } from './MobileDrawer'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
@@ -16,10 +16,20 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const mainRef = useRef<HTMLElement>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   
   // Initialize native back button handling
   useNativeBackButton()
+
+  // Reset scroll position on route change
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0
+    }
+    window.scrollTo(0, 0)
+  }, [location.pathname])
 
   // Initialize shortcut & deep-link service
   useEffect(() => {
@@ -43,7 +53,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <TopBar onMenuClick={() => setIsDrawerOpen(true)} />
 
           {/* Page Content */}
-          <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden">
             {children ?? <Outlet />}
           </main>
         </div>
